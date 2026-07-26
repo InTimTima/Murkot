@@ -13,7 +13,7 @@ void main() {
     final authService = AuthService(prefs);
     final settingsService = SettingsService(prefs);
 
-    await tester.pumpWidget(TujhMessengerApp(
+    await tester.pumpWidget(TujhMessengerApp(      prefs: prefs,
       authService: authService,
       settingsService: settingsService,
     ));
