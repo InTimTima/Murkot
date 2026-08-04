@@ -33,14 +33,88 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <script>
+    // Voice note recorder (MediaRecorder → base64).
+    let _tujhVoiceRecorder = null;
+    let _tujhVoiceChunks = [];
+    let _tujhVoiceStartedAt = 0;
+    let _tujhVoiceStream = null;
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+    window.tujhVoiceStart = async function () {
+      if (!navigator.mediaDevices?.getUserMedia) return false;
+      _tujhVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _tujhVoiceChunks = [];
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      _tujhVoiceRecorder = new MediaRecorder(_tujhVoiceStream, { mimeType: mime });
+      _tujhVoiceRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) _tujhVoiceChunks.push(e.data);
+      };
+      _tujhVoiceStartedAt = Date.now();
+      _tujhVoiceRecorder.start();
+      return true;
+    };
+
+    window.tujhVoiceStop = async function () {
+      if (!_tujhVoiceRecorder) return null;
+      const recorder = _tujhVoiceRecorder;
+      const mimeType = recorder.mimeType || 'audio/webm';
+      const blob = await new Promise((resolve) => {
+        recorder.onstop = () => resolve(new Blob(_tujhVoiceChunks, { type: mimeType }));
+        recorder.stop();
+      });
+      (_tujhVoiceStream?.getTracks() || []).forEach((t) => t.stop());
+      _tujhVoiceRecorder = null;
+      _tujhVoiceStream = null;
+      const durationMs = Date.now() - _tujhVoiceStartedAt;
+      const buffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return {
+        base64: btoa(binary),
+        mimeType,
+        durationMs,
+      };
+    };
+
+    window.tujhVoiceCancel = async function () {
+      try {
+        if (_tujhVoiceRecorder && _tujhVoiceRecorder.state !== 'inactive') {
+          _tujhVoiceRecorder.stop();
+        }
+      } catch (_) {}
+      (_tujhVoiceStream?.getTracks() || []).forEach((t) => t.stop());
+      _tujhVoiceRecorder = null;
+      _tujhVoiceStream = null;
+      _tujhVoiceChunks = [];
+    };
+
+    // Web Push helper for Flutter (stores subscription via NotificationService).
+    window.tujhRegisterWebPush = async function (vapidPublicKey) {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return null;
+      }
+      const reg = await navigator.serviceWorker.register('push-sw.js');
+      await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const padding = '='.repeat((4 - (vapidPublicKey.length % 4)) % 4);
+        const base64 = (vapidPublicKey + padding)
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+        const raw = atob(base64);
+        const key = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        });
+      }
+      return JSON.stringify(sub.toJSON());
+    };
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

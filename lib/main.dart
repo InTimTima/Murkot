@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/supabase_config.dart';
 import 'l10n/app_strings.dart';
 import 'screens/auth_screen.dart';
 import 'screens/email_verification_screen.dart';
@@ -11,8 +13,15 @@ import 'services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.anonKey,
+  );
+
   final prefs = await SharedPreferences.getInstance();
-  final authService = AuthService(prefs);
+  final authService = AuthService();
+  await authService.initialize();
   final settingsService = SettingsService(prefs);
 
   runApp(TujhMessengerApp(

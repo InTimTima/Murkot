@@ -18,6 +18,7 @@ class Conversation {
     this.description = '',
     this.contactStatus = '',
     this.contactBirthday,
+    this.contactLastSeen,
     this.pinnedForAllIds = const [],
     this.typingUsers = const [],
   });
@@ -38,6 +39,7 @@ class Conversation {
   final String description;
   final String contactStatus;
   final DateTime? contactBirthday;
+  final DateTime? contactLastSeen;
   final List<String> pinnedForAllIds;
   final List<String> typingUsers;
 
@@ -58,9 +60,11 @@ class Conversation {
     String? description,
     String? contactStatus,
     DateTime? contactBirthday,
+    DateTime? contactLastSeen,
     List<String>? pinnedForAllIds,
     List<String>? typingUsers,
     bool clearAvatar = false,
+    bool clearContactLastSeen = false,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -79,6 +83,9 @@ class Conversation {
       description: description ?? this.description,
       contactStatus: contactStatus ?? this.contactStatus,
       contactBirthday: contactBirthday ?? this.contactBirthday,
+      contactLastSeen: clearContactLastSeen
+          ? null
+          : (contactLastSeen ?? this.contactLastSeen),
       pinnedForAllIds: pinnedForAllIds ?? this.pinnedForAllIds,
       typingUsers: typingUsers ?? this.typingUsers,
     );
@@ -101,6 +108,7 @@ class Conversation {
         'description': description,
         'contactStatus': contactStatus,
         'contactBirthday': contactBirthday?.toIso8601String(),
+        'contactLastSeen': contactLastSeen?.toIso8601String(),
         'pinnedForAllIds': pinnedForAllIds,
         'typingUsers': typingUsers,
       };
@@ -127,6 +135,9 @@ class Conversation {
       contactStatus: json['contactStatus'] as String? ?? '',
       contactBirthday: json['contactBirthday'] != null
           ? DateTime.parse(json['contactBirthday'] as String)
+          : null,
+      contactLastSeen: json['contactLastSeen'] != null
+          ? DateTime.parse(json['contactLastSeen'] as String)
           : null,
       pinnedForAllIds: (json['pinnedForAllIds'] as List<dynamic>?)
               ?.map((e) => e as String)

@@ -68,3 +68,35 @@ List<String> splitMessageText(String text, {int limit = kMessageCharLimit}) {
 bool matchesSearch(String haystack, String query) {
   return haystack.toLowerCase().contains(query.toLowerCase());
 }
+
+String formatLastSeen(DateTime? lastSeen, {bool isRu = true}) {
+  if (lastSeen == null) {
+    return isRu ? 'давно не в сети' : 'last seen a long time ago';
+  }
+
+  final local = lastSeen.toLocal();
+  final now = DateTime.now();
+  final diff = now.difference(local);
+
+  if (diff.inMinutes < 1) {
+    return isRu ? 'был(а) только что' : 'last seen just now';
+  }
+  if (diff.inMinutes < 60) {
+    return isRu
+        ? 'был(а) ${diff.inMinutes} мин. назад'
+        : 'last seen ${diff.inMinutes} min ago';
+  }
+  if (diff.inHours < 24 && now.day == local.day) {
+    return isRu
+        ? 'был(а) в ${formatMessageTime(local)}'
+        : 'last seen at ${formatMessageTime(local)}';
+  }
+  if (diff.inDays < 2) {
+    return isRu
+        ? 'был(а) вчера в ${formatMessageTime(local)}'
+        : 'last seen yesterday at ${formatMessageTime(local)}';
+  }
+  return isRu
+      ? 'был(а) ${local.day}.${local.month.toString().padLeft(2, '0')} в ${formatMessageTime(local)}'
+      : 'last seen ${local.day}.${local.month.toString().padLeft(2, '0')} at ${formatMessageTime(local)}';
+}

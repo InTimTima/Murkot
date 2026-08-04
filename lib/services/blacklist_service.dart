@@ -1,17 +1,16 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlacklistService extends ChangeNotifier {
-  BlacklistService(this._prefs, this._userLogin) {
-    _load();
-  }
+  BlacklistService({
+    required String userId,
+    required String userLogin,
+  })  : _userId = userId,
+        _userLogin = userLogin;
 
-  static const _keyPrefix = 'blacklist';
-
-  final SharedPreferences _prefs;
+  final String _userId;
   final String _userLogin;
+  final _client = Supabase.instance.client;
 
   List<String> _blockedUsers = [];
 
@@ -19,29 +18,38 @@ class BlacklistService extends ChangeNotifier {
 
   bool isBlocked(String login) => _blockedUsers.contains(login);
 
+  Future<void> initialize() async {
+    final rows = await _client
+        .from('blocked_users')
+        .select('blocked_login')
+        .eq('blocker_id', _userId);
+
+    _blockedUsers = (rows as List)
+        .map((e) => e['blocked_login'] as String)
+        .toList();
+    notifyListeners();
+  }
+
   Future<void> blockUser(String login) async {
     if (login == _userLogin || _blockedUsers.contains(login)) return;
-    _blockedUsers.add(login);
-    await _save();
+
+    await _client.from('blocked_users').upsert({
+      'blocker_id': _userId,
+      'blocked_login': login,
+    });
+
+    _blockedUsers = [..._blockedUsers, login];
     notifyListeners();
   }
 
   Future<void> unblockUser(String login) async {
-    _blockedUsers.remove(login);
-    await _save();
+    await _client
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', _userId)
+        .eq('blocked_login', login);
+
+    _blockedUsers = _blockedUsers.where((u) => u != login).toList();
     notifyListeners();
-  }
-
-  void _load() {
-    final raw = _prefs.getString('${_keyPrefix}_$_userLogin');
-    if (raw == null) return;
-    _blockedUsers = (jsonDecode(raw) as List<dynamic>).cast<String>();
-  }
-
-  Future<void> _save() async {
-    await _prefs.setString(
-      '${_keyPrefix}_$_userLogin',
-      jsonEncode(_blockedUsers),
-    );
   }
 }

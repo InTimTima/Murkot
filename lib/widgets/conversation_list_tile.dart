@@ -9,11 +9,13 @@ class ConversationListTile extends StatelessWidget {
     required this.conversation,
     required this.onTapBody,
     required this.onTapAvatar,
+    this.isOnline = false,
   });
 
   final Conversation conversation;
   final VoidCallback onTapBody;
   final VoidCallback onTapAvatar;
+  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +29,32 @@ class ConversationListTile extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: onTapAvatar,
-              child: AvatarDisplay(
-                name: conversation.name,
-                avatarPath: conversation.avatarPath,
-                avatarEmoji: conversationAvatarEmoji(conversation),
-                radius: 26,
+              child: Stack(
+                children: [
+                  AvatarDisplay(
+                    name: conversation.name,
+                    avatarPath: conversation.avatarPath,
+                    avatarEmoji: conversationAvatarEmoji(conversation),
+                    radius: 26,
+                  ),
+                  if (isOnline)
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.surface,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 12),

@@ -3,9 +3,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
+import '../models/media_payload.dart';
+import '../models/message.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
+import '../services/notification_service.dart';
+import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import 'conversations_list_screen.dart';
 import 'profile_screen.dart';
@@ -28,15 +32,75 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  late ChatService _chatService;
-  late BlacklistService _blacklistService;
+  ChatService? _chatService;
+  BlacklistService? _blacklistService;
+  PresenceService? _presenceService;
+  final _notificationService = NotificationService();
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    final login = widget.authService.currentUser!.login;
-    _chatService = ChatService(widget.prefs, login);
-    _blacklistService = BlacklistService(widget.prefs, login);
+    _initServices();
+  }
+
+  Future<void> _initServices() async {
+    final user = widget.authService.currentUser;
+    if (user == null) return;
+
+    final blacklistService =
+        BlacklistService(userId: user.id, userLogin: user.login);
+    final presenceService = PresenceService(
+      userId: user.id,
+      userLogin: user.login,
+    );
+    final chatService = ChatService(
+      userId: user.id,
+      userLogin: user.login,
+      prefs: widget.prefs,
+      blacklistService: blacklistService,
+    );
+    chatService.onIncomingMessage = (message, conversation) {
+      final body = message.type == MessageType.text
+          ? message.content
+          : (MediaPayload.tryParse(message.content)?.name ??
+              messageTypeLabel(message.type));
+      _notificationService.showIncomingMessage(
+        title: conversation.name,
+        body: '${message.senderName}: $body',
+        conversationId: conversation.id,
+      );
+    };
+
+    try {
+      await blacklistService.initialize();
+      await chatService.initialize();
+      await presenceService.initialize();
+      await _notificationService.initialize();
+      if (!mounted) {
+        chatService.dispose();
+        presenceService.dispose();
+        return;
+      }
+      setState(() {
+        _chatService = chatService;
+        _blacklistService = blacklistService;
+        _presenceService = presenceService;
+        _loadError = null;
+      });
+    } catch (e) {
+      chatService.dispose();
+      presenceService.dispose();
+      if (!mounted) return;
+      setState(() => _loadError = e.toString());
+    }
+  }
+
+  @override
+  void dispose() {
+    _chatService?.dispose();
+    _presenceService?.dispose();
+    super.dispose();
   }
 
   String get _sectionTitle {
@@ -53,6 +117,47 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final login = widget.authService.currentUser!.login;
+    final chatService = _chatService;
+    final blacklistService = _blacklistService;
+    final presenceService = _presenceService;
+
+    if (_loadError != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Не удалось загрузить данные',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    setState(() => _loadError = null);
+                    _initServices();
+                  },
+                  child: const Text('Повторить'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (chatService == null ||
+        blacklistService == null ||
+        presenceService == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: _currentIndex < 3
@@ -63,29 +168,32 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           ConversationsListScreen(
             type: ConversationType.direct,
-            chatService: _chatService,
-            blacklistService: _blacklistService,
+            chatService: chatService,
+            blacklistService: blacklistService,
+            presenceService: presenceService,
             currentUserLogin: login,
             settingsService: widget.settingsService,
           ),
           ConversationsListScreen(
             type: ConversationType.group,
-            chatService: _chatService,
-            blacklistService: _blacklistService,
+            chatService: chatService,
+            blacklistService: blacklistService,
+            presenceService: presenceService,
             currentUserLogin: login,
             settingsService: widget.settingsService,
           ),
           ConversationsListScreen(
             type: ConversationType.channel,
-            chatService: _chatService,
-            blacklistService: _blacklistService,
+            chatService: chatService,
+            blacklistService: blacklistService,
+            presenceService: presenceService,
             currentUserLogin: login,
             settingsService: widget.settingsService,
           ),
           ProfileScreen(
             authService: widget.authService,
             settingsService: widget.settingsService,
-            blacklistService: _blacklistService,
+            blacklistService: blacklistService,
           ),
         ],
       ),

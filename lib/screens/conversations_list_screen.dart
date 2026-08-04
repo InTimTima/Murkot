@@ -4,13 +4,14 @@ import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
+import '../services/presence_service.dart';
 import '../services/settings_service.dart';
-import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/conversation_list_tile.dart';
 import '../widgets/section_search_bar.dart';
 import 'chat_screen.dart';
 import 'stranger_profile_screen.dart';
+import 'user_search_sheet.dart';
 
 class ConversationsListScreen extends StatefulWidget {
   const ConversationsListScreen({
@@ -18,6 +19,7 @@ class ConversationsListScreen extends StatefulWidget {
     required this.type,
     required this.chatService,
     required this.blacklistService,
+    required this.presenceService,
     required this.currentUserLogin,
     required this.settingsService,
   });
@@ -25,6 +27,7 @@ class ConversationsListScreen extends StatefulWidget {
   final ConversationType type;
   final ChatService chatService;
   final BlacklistService blacklistService;
+  final PresenceService presenceService;
   final String currentUserLogin;
   final SettingsService settingsService;
 
@@ -50,6 +53,27 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
 
   Future<void> _createNew() async {
     final strings = context.strings;
+
+    if (widget.type == ConversationType.direct) {
+      final user = await showUserSearchSheet(
+        context: context,
+        chatService: widget.chatService,
+      );
+      if (user == null || !mounted) return;
+
+      try {
+        final conversation = await widget.chatService.openDirectChat(user);
+        if (!mounted) return;
+        _openChat(conversation);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${strings.openChatFailed}: $e')),
+        );
+      }
+      return;
+    }
+
     final name = await showTextInputDialog(
       context: context,
       title: createDialogTitleForSection(strings, _sectionIndex),
@@ -64,13 +88,19 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
 
     if (name == null || !mounted) return;
 
-    final conversation = await widget.chatService.createConversation(
-      type: widget.type,
-      name: name.trim(),
-    );
-
-    if (!mounted) return;
-    _openChat(conversation);
+    try {
+      final conversation = await widget.chatService.createConversation(
+        type: widget.type,
+        name: name.trim(),
+      );
+      if (!mounted) return;
+      _openChat(conversation);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.openChatFailed}: $e')),
+      );
+    }
   }
 
   void _openChat(Conversation conversation) {
@@ -80,6 +110,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           conversation: conversation,
           chatService: widget.chatService,
           blacklistService: widget.blacklistService,
+          presenceService: widget.presenceService,
           currentUserLogin: widget.currentUserLogin,
           settingsService: widget.settingsService,
         ),
@@ -105,7 +136,10 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     final strings = context.strings;
 
     return ListenableBuilder(
-      listenable: widget.chatService,
+      listenable: Listenable.merge([
+        widget.chatService,
+        widget.presenceService,
+      ]),
       builder: (context, _) {
         final conversations = widget.chatService.searchConversations(
           widget.type,
@@ -136,8 +170,12 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                       ),
                       itemBuilder: (context, index) {
                         final conversation = conversations[index];
+                        final online = conversation.type == ConversationType.direct
+                            ? widget.presenceService.isOnline(conversation.name)
+                            : false;
                         return ConversationListTile(
                           conversation: conversation,
+                          isOnline: online,
                           onTapBody: () => _openChat(conversation),
                           onTapAvatar: () => _openProfile(conversation),
                         );

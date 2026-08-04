@@ -54,17 +54,68 @@ class AppStrings {
   String get searchChats => isRu ? 'Поиск по чатам' : 'Search chats';
   String get searchGroups => isRu ? 'Поиск по группам' : 'Search groups';
   String get searchChannels => isRu ? 'Поиск по каналам' : 'Search channels';
+  String get findUsers => isRu ? 'Найти пользователя' : 'Find user';
+  String get searchUsersHint =>
+      isRu ? 'Введите логин' : 'Enter login';
+  String get searchUsersEmptyHint => isRu
+      ? 'Начните вводить логин, чтобы найти людей'
+      : 'Start typing a login to find people';
+  String get usersNotFound =>
+      isRu ? 'Пользователи не найдены' : 'No users found';
+  String get chatWithBot =>
+      isRu ? 'Написать TujhBot' : 'Message TujhBot';
+  String get botSubtitle => isRu
+      ? 'Бот отвечает в реальном времени'
+      : 'Bot replies in real time';
+  String get noStatus => isRu ? 'Без статуса' : 'No status';
   String get createChat => _l(PersonalizationKeys.createChat, 'Создать новый чат', 'Create new chat');
   String get createGroup => _l(PersonalizationKeys.createGroup, 'Создать новую группу', 'Create new group');
   String get createChannel => _l(PersonalizationKeys.createChannel, 'Создать новый канал', 'Create new channel');
   String get newChatTitle => isRu ? 'Новый чат' : 'New chat';
   String get newGroupTitle => isRu ? 'Новая группа' : 'New group';
   String get newChannelTitle => isRu ? 'Новый канал' : 'New channel';
-  String get newChatHint => isRu ? 'Имя собеседника' : 'Contact name';
+  String get newChatHint => isRu ? 'Логин пользователя' : 'User login';
   String get newGroupHint => isRu ? 'Название группы' : 'Group name';
   String get newChannelHint => isRu ? 'Название канала' : 'Channel name';
   String get nameRequired => isRu ? 'Введите название' : 'Enter a name';
   String get emptyList => isRu ? 'Список пуст' : 'List is empty';
+  String get openChatFailed =>
+      isRu ? 'Не удалось открыть чат' : 'Could not open chat';
+  String get mediaUploadFailed =>
+      isRu ? 'Не удалось отправить файл' : 'Could not send file';
+  String get mediaUploading =>
+      isRu ? 'Отправка файла...' : 'Uploading file...';
+  String get memberAdded =>
+      isRu ? 'Участник добавлен' : 'Member added';
+  String get memberRemoved =>
+      isRu ? 'Участник удалён' : 'Member removed';
+  String get memberActionFailed =>
+      isRu ? 'Не удалось изменить участников' : 'Could not update members';
+  String get openFile => isRu ? 'Открыть файл' : 'Open file';
+  String get pickCancelled => isRu ? 'Отменено' : 'Cancelled';
+  String get reply => isRu ? 'Ответить' : 'Reply';
+  String get replyTo => isRu ? 'Ответ для' : 'Reply to';
+  String get userBlockedBanner => isRu
+      ? 'Пользователь в чёрном списке. Сообщения недоступны.'
+      : 'User is blocked. Messaging is disabled.';
+  String get blockedUserHidden => isRu
+      ? 'Заблокированные чаты скрыты'
+      : 'Blocked chats are hidden';
+  String get forward => isRu ? 'Переслать' : 'Forward';
+  String get forwardTo => isRu ? 'Переслать в...' : 'Forward to...';
+  String get messageForwarded =>
+      isRu ? 'Сообщение переслано' : 'Message forwarded';
+  String get searchInChat =>
+      isRu ? 'Поиск в чате' : 'Search in chat';
+  String get searchInChatHint =>
+      isRu ? 'Текст сообщения' : 'Message text';
+  String get noSearchResults =>
+      isRu ? 'Ничего не найдено' : 'No results';
+  String get loadOlderMessages =>
+      isRu ? 'Загрузить раньше' : 'Load earlier';
+  String get enableNotificationsHint => isRu
+      ? 'Разрешите уведомления в браузере, чтобы не пропускать сообщения'
+      : 'Allow browser notifications to catch new messages';
   String get online => _l(PersonalizationKeys.online, 'в сети', 'online');
   String get offline => _l(PersonalizationKeys.offline, 'не в сети', 'offline');
   String get typing => _l(PersonalizationKeys.typing, 'печатает', 'typing');

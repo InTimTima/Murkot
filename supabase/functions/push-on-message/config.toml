@@ -1,0 +1,2 @@
+[functions.push-on-message]
+verify_jwt = false

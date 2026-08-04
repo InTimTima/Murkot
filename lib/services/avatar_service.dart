@@ -1,35 +1,42 @@
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AvatarService {
-  static Future<String> saveAvatar(String login, String sourcePath) async {
-    final dir = await _avatarsDir();
-    final file = File(sourcePath);
-    final destination = File('${dir.path}/${login}_avatar.jpg');
+  static final _client = Supabase.instance.client;
 
-    if (await destination.exists()) {
-      await destination.delete();
+  static Future<String> saveAvatar(String login, String sourcePath) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Not authenticated');
     }
 
-    await file.copy(destination.path);
-    return destination.path;
+    final file = File(sourcePath);
+    final bytes = await file.readAsBytes();
+    final path = '$userId/${login}_avatar.jpg';
+
+    await _client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            upsert: true,
+            contentType: 'image/jpeg',
+          ),
+        );
+
+    final publicUrl = _client.storage.from('avatars').getPublicUrl(path);
+    return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   static Future<void> deleteAvatar(String login) async {
-    final dir = await _avatarsDir();
-    final file = File('${dir.path}/${login}_avatar.jpg');
-    if (await file.exists()) {
-      await file.delete();
-    }
-  }
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
 
-  static Future<Directory> _avatarsDir() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final avatarsDir = Directory('${appDir.path}/avatars');
-    if (!await avatarsDir.exists()) {
-      await avatarsDir.create(recursive: true);
+    final path = '$userId/${login}_avatar.jpg';
+    try {
+      await _client.storage.from('avatars').remove([path]);
+    } catch (_) {
+      // Ignore missing objects.
     }
-    return avatarsDir;
   }
 }

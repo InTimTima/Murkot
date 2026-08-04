@@ -1,69 +1,107 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../models/user.dart';
 import '../utils/helpers.dart';
 import 'avatar_service.dart';
-import 'chat_service.dart';
 
 class AuthService extends ChangeNotifier {
-  AuthService(this._prefs) {
-    _loadSession();
-  }
+  AuthService();
 
-  static const _sessionKey = 'current_user';
-  static const _usersKey = 'registered_users';
-  static const _pendingCodeKey = 'pending_verification_code';
-  static const _pendingUserKey = 'pending_verification_user';
-
-  final SharedPreferences _prefs;
+  final _client = Supabase.instance.client;
 
   User? _currentUser;
-  User? _pendingUser;
-  String? _pendingVerificationCode;
+  String? _pendingEmail;
+  bool _awaitingEmailConfirmation = false;
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
-  bool get needsEmailVerification => _pendingUser != null;
-  String? get pendingVerificationCode => _pendingVerificationCode;
+  bool get needsEmailVerification => _awaitingEmailConfirmation;
+  String? get pendingVerificationCode => null;
+  String? get pendingEmail => _pendingEmail;
 
-  bool verifyPassword(String password) {
-    final user = _currentUser;
-    if (user == null) return false;
-    return _prefs.getString('pwd_${user.login}') == password;
-  }
-
-  void _loadSession() {
-    final raw = _prefs.getString(_sessionKey);
-    if (raw == null) return;
-    _currentUser = User.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-  }
-
-  Map<String, User> _loadUsers() {
-    final raw = _prefs.getString(_usersKey);
-    if (raw == null) return {};
-    final map = jsonDecode(raw) as Map<String, dynamic>;
-    return map.map(
-      (key, value) => MapEntry(key, User.fromJson(value as Map<String, dynamic>)),
-    );
-  }
-
-  Future<void> _saveUsers(Map<String, User> users) async {
-    await _prefs.setString(_usersKey, jsonEncode(
-      users.map((key, user) => MapEntry(key, user.toJson())),
-    ));
-  }
-
-  Future<void> _saveSession(User? user) async {
-    if (user == null) {
-      await _prefs.remove(_sessionKey);
-    } else {
-      await _prefs.setString(_sessionKey, jsonEncode(user.toJson()));
+  Future<void> initialize() async {
+    final session = _client.auth.currentSession;
+    if (session != null) {
+      await _loadProfile(session.user.id);
     }
-    _currentUser = user;
-    notifyListeners();
+
+    _client.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+      final session = data.session;
+
+      if (event == AuthChangeEvent.signedOut || session == null) {
+        _currentUser = null;
+        notifyListeners();
+        return;
+      }
+
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.userUpdated) {
+        await _loadProfile(session.user.id);
+      }
+    });
+  }
+
+  Future<void> _loadProfile(String userId) async {
+    try {
+      final row = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (row == null) {
+        final authUser = _client.auth.currentUser;
+        if (authUser == null) return;
+
+        final login = (authUser.userMetadata?['login'] as String?) ??
+            authUser.email?.split('@').first ??
+            'user';
+        final emoji =
+            (authUser.userMetadata?['avatar_emoji'] as String?) ??
+            pickRandomEmoji();
+
+        await _client.from('profiles').upsert({
+          'id': authUser.id,
+          'login': login,
+          'email': authUser.email ?? '',
+          'avatar_emoji': emoji,
+          'status': 'В сети',
+        });
+
+        final created = await _client
+            .from('profiles')
+            .select()
+            .eq('id', userId)
+            .single();
+        _currentUser = User.fromProfileRow(created);
+      } else {
+        _currentUser = User.fromProfileRow(row);
+      }
+
+      _awaitingEmailConfirmation = false;
+      _pendingEmail = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to load profile: $e');
+    }
+  }
+
+  Future<bool> verifyPassword(String password) async {
+    final email = _currentUser?.email;
+    if (email == null || email.isEmpty) return false;
+
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return response.session != null;
+    } on AuthException {
+      return false;
+    }
   }
 
   Future<String?> register({
@@ -72,36 +110,55 @@ class AuthService extends ChangeNotifier {
     required String email,
   }) async {
     final trimmedLogin = login.trim();
-    final trimmedEmail = email.trim();
+    final trimmedEmail = email.trim().toLowerCase();
 
     if (trimmedLogin.isEmpty || password.isEmpty) {
       return 'Введите логин и пароль';
+    }
+    if (password.length < 6) {
+      return 'Пароль должен быть не короче 6 символов';
     }
     if (trimmedEmail.isEmpty || !trimmedEmail.contains('@')) {
       return 'Введите корректную почту';
     }
 
-    final users = _loadUsers();
-    if (users.containsKey(trimmedLogin)) {
-      return 'Пользователь с таким логином уже существует';
-    }
-
-    for (final user in users.values) {
-      if (user.email.toLowerCase() == trimmedEmail.toLowerCase()) {
-        return 'Почта уже используется';
+    try {
+      final available = await _client.rpc(
+        'is_login_available',
+        params: {'desired_login': trimmedLogin},
+      );
+      if (available == false) {
+        return 'Пользователь с таким логином уже существует';
       }
-    }
 
-    users[trimmedLogin] = User(
-      login: trimmedLogin,
-      email: trimmedEmail,
-      status: 'В сети',
-      avatarEmoji: pickRandomEmoji(),
-    );
-    await _saveUsers(users);
-    await _saveCredentials(trimmedLogin, password);
-    await _saveSession(users[trimmedLogin]);
-    return null;
+      final emoji = pickRandomEmoji();
+      final response = await _client.auth.signUp(
+        email: trimmedEmail,
+        password: password,
+        data: {
+          'login': trimmedLogin,
+          'avatar_emoji': emoji,
+        },
+      );
+
+      if (response.user == null) {
+        return 'Не удалось создать аккаунт';
+      }
+
+      if (response.session != null) {
+        await _loadProfile(response.user!.id);
+        return null;
+      }
+
+      _pendingEmail = trimmedEmail;
+      _awaitingEmailConfirmation = true;
+      notifyListeners();
+      return null;
+    } on AuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (e) {
+      return 'Ошибка регистрации: $e';
+    }
   }
 
   Future<String?> login({
@@ -110,7 +167,7 @@ class AuthService extends ChangeNotifier {
     required String email,
   }) async {
     final trimmedLogin = login.trim();
-    final trimmedEmail = email.trim();
+    final trimmedEmail = email.trim().toLowerCase();
 
     if (trimmedLogin.isEmpty || password.isEmpty) {
       return 'Введите логин и пароль';
@@ -119,80 +176,113 @@ class AuthService extends ChangeNotifier {
       return 'Введите корректную почту';
     }
 
-    final users = _loadUsers();
-    final user = users[trimmedLogin];
-    if (user == null) return 'Пользователь не найден';
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: trimmedEmail,
+        password: password,
+      );
 
-    if (user.email.toLowerCase() != trimmedEmail.toLowerCase()) {
-      return 'Почта не совпадает с аккаунтом';
+      final user = response.user;
+      if (user == null || response.session == null) {
+        return 'Не удалось войти';
+      }
+
+      await _loadProfile(user.id);
+
+      final current = _currentUser;
+      if (current != null &&
+          current.login.toLowerCase() != trimmedLogin.toLowerCase()) {
+        await _client.auth.signOut();
+        _currentUser = null;
+        notifyListeners();
+        return 'Логин не совпадает с аккаунтом';
+      }
+
+      return null;
+    } on AuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (e) {
+      return 'Ошибка входа: $e';
     }
-
-    if (_prefs.getString('pwd_$trimmedLogin') != password) {
-      return 'Неверный пароль';
-    }
-
-    final code = generateVerificationCode();
-    _pendingUser = user;
-    _pendingVerificationCode = code;
-    await _prefs.setString(_pendingCodeKey, code);
-    await _prefs.setString(_pendingUserKey, jsonEncode(user.toJson()));
-    notifyListeners();
-    return null;
   }
 
   Future<String?> verifyEmailCode(String code) async {
-    if (_pendingUser == null || _pendingVerificationCode == null) {
-      return 'Нет ожидающей верификации';
-    }
-    if (code.trim() != _pendingVerificationCode) {
-      return 'Неверный код подтверждения';
-    }
+    final email = _pendingEmail;
+    if (email == null) return 'Нет ожидающей верификации';
 
-    await _saveSession(_pendingUser);
-    _pendingUser = null;
-    _pendingVerificationCode = null;
-    await _prefs.remove(_pendingCodeKey);
-    await _prefs.remove(_pendingUserKey);
-    notifyListeners();
-    return null;
+    try {
+      final response = await _client.auth.verifyOTP(
+        email: email,
+        token: code.trim(),
+        type: OtpType.signup,
+      );
+
+      if (response.session == null || response.user == null) {
+        return 'Неверный код подтверждения';
+      }
+
+      await _loadProfile(response.user!.id);
+      return null;
+    } on AuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (e) {
+      return 'Не удалось подтвердить почту';
+    }
+  }
+
+  Future<String?> resendVerificationEmail() async {
+    final email = _pendingEmail;
+    if (email == null) return 'Нет ожидающей верификации';
+
+    try {
+      await _client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
+      return null;
+    } on AuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (e) {
+      return 'Не удалось отправить письмо';
+    }
   }
 
   void cancelVerification() {
-    _pendingUser = null;
-    _pendingVerificationCode = null;
-    _prefs.remove(_pendingCodeKey);
-    _prefs.remove(_pendingUserKey);
+    _pendingEmail = null;
+    _awaitingEmailConfirmation = false;
     notifyListeners();
   }
 
-  Future<void> logout() => _saveSession(null);
+  Future<void> logout() async {
+    await _client.auth.signOut();
+    _currentUser = null;
+    notifyListeners();
+  }
 
   Future<void> deleteAccount() async {
     final user = _currentUser;
     if (user == null) return;
 
-    final users = _loadUsers();
-    users.remove(user.login);
-    await _saveUsers(users);
-    await _prefs.remove('pwd_${user.login}');
-    await AvatarService.deleteAvatar(user.login);
-    await _saveSession(null);
+    try {
+      await AvatarService.deleteAvatar(user.login);
+      await _client.rpc('delete_own_account');
+    } catch (e) {
+      debugPrint('deleteAccount error: $e');
+      await _client.from('profiles').delete().eq('id', user.id);
+      await _client.auth.signOut();
+    }
+
+    _currentUser = null;
+    notifyListeners();
   }
 
   Future<void> updateProfile(User updated) async {
-    final users = _loadUsers();
-    final oldLogin = _currentUser?.login;
-    if (oldLogin != null && oldLogin != updated.login) {
-      users.remove(oldLogin);
-      final password = _prefs.getString('pwd_$oldLogin');
-      if (password != null) {
-        await _prefs.setString('pwd_${updated.login}', password);
-        await _prefs.remove('pwd_$oldLogin');
-      }
-    }
-    users[updated.login] = updated;
-    await _saveUsers(users);
-    await _saveSession(updated);
+    await _client.from('profiles').update(updated.toProfileUpdate()).eq(
+          'id',
+          updated.id,
+        );
+    _currentUser = updated;
+    notifyListeners();
   }
 
   Future<String?> changeLogin(String newLogin) async {
@@ -203,38 +293,51 @@ class AuthService extends ChangeNotifier {
     if (trimmed.isEmpty) return 'Введите имя';
     if (trimmed == user.login) return null;
 
-    if (_loadUsers().containsKey(trimmed)) {
-      return 'Это имя уже занято';
-    }
+    try {
+      final available = await _client.rpc(
+        'is_login_available',
+        params: {'desired_login': trimmed},
+      );
+      if (available == false) return 'Это имя уже занято';
 
-    await updateProfile(user.copyWith(login: trimmed));
-    return null;
+      await updateProfile(user.copyWith(login: trimmed));
+      await _client.auth.updateUser(
+        UserAttributes(data: {'login': trimmed}),
+      );
+      return null;
+    } catch (e) {
+      return 'Не удалось сменить имя';
+    }
   }
 
   Future<String?> changeEmail(String newEmail, String password) async {
     final user = _currentUser;
     if (user == null) return 'Пользователь не авторизован';
 
-    if (!verifyPassword(password)) return 'Неверный пароль';
+    if (!await verifyPassword(password)) return 'Неверный пароль';
 
-    final trimmed = newEmail.trim();
+    final trimmed = newEmail.trim().toLowerCase();
     if (!trimmed.contains('@')) return 'Введите корректную почту';
 
-    for (final u in _loadUsers().values) {
-      if (u.login != user.login &&
-          u.email.toLowerCase() == trimmed.toLowerCase()) {
-        return 'Почта уже используется';
-      }
+    try {
+      await _client.auth.updateUser(UserAttributes(email: trimmed));
+      await updateProfile(user.copyWith(email: trimmed));
+      return null;
+    } on AuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (e) {
+      return 'Не удалось сменить почту';
     }
-
-    await updateProfile(user.copyWith(email: trimmed));
-    return null;
   }
 
   Future<void> updateBirthday(DateTime? birthday) async {
     final user = _currentUser;
     if (user == null) return;
-    await updateProfile(user.copyWith(birthday: birthday));
+    await updateProfile(
+      birthday == null
+          ? user.copyWith(clearBirthday: true)
+          : user.copyWith(birthday: birthday),
+    );
   }
 
   Future<String?> updateAvatar(String sourcePath) async {
@@ -295,7 +398,23 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  Future<void> _saveCredentials(String login, String password) async {
-    await _prefs.setString('pwd_$login', password);
+  String _mapAuthError(AuthException e) {
+    final message = e.message.toLowerCase();
+    if (message.contains('invalid login credentials')) {
+      return 'Неверный email или пароль';
+    }
+    if (message.contains('user already registered')) {
+      return 'Почта уже используется';
+    }
+    if (message.contains('email not confirmed')) {
+      return 'Подтвердите почту перед входом';
+    }
+    if (message.contains('password')) {
+      return 'Пароль слишком слабый (минимум 6 символов)';
+    }
+    if (message.contains('otp') || message.contains('token')) {
+      return 'Неверный или просроченный код';
+    }
+    return e.message;
   }
 }

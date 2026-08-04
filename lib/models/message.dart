@@ -10,6 +10,12 @@ enum MessageType {
   file,
 }
 
+enum MessageSendStatus {
+  sent,
+  sending,
+  failed,
+}
+
 class Message {
   const Message({
     required this.id,
@@ -26,6 +32,10 @@ class Message {
     this.isRead = false,
     this.viewCount = 0,
     this.senderEmoji,
+    this.replyToId,
+    this.replyToSender,
+    this.replyToContent,
+    this.sendStatus = MessageSendStatus.sent,
   });
 
   final String id;
@@ -42,6 +52,12 @@ class Message {
   final bool isRead;
   final int viewCount;
   final String? senderEmoji;
+  final String? replyToId;
+  final String? replyToSender;
+  final String? replyToContent;
+  final MessageSendStatus sendStatus;
+
+  bool get isLocalPending => id.startsWith('local_');
 
   Message copyWith({
     String? id,
@@ -58,6 +74,11 @@ class Message {
     bool? isRead,
     int? viewCount,
     String? senderEmoji,
+    String? replyToId,
+    String? replyToSender,
+    String? replyToContent,
+    MessageSendStatus? sendStatus,
+    bool clearReply = false,
   }) {
     return Message(
       id: id ?? this.id,
@@ -74,6 +95,11 @@ class Message {
       isRead: isRead ?? this.isRead,
       viewCount: viewCount ?? this.viewCount,
       senderEmoji: senderEmoji ?? this.senderEmoji,
+      replyToId: clearReply ? null : (replyToId ?? this.replyToId),
+      replyToSender: clearReply ? null : (replyToSender ?? this.replyToSender),
+      replyToContent:
+          clearReply ? null : (replyToContent ?? this.replyToContent),
+      sendStatus: sendStatus ?? this.sendStatus,
     );
   }
 
@@ -92,9 +118,14 @@ class Message {
         'isRead': isRead,
         'viewCount': viewCount,
         'senderEmoji': senderEmoji,
+        'replyToId': replyToId,
+        'replyToSender': replyToSender,
+        'replyToContent': replyToContent,
+        'sendStatus': sendStatus.index,
       };
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final statusIndex = json['sendStatus'] as int?;
     return Message(
       id: json['id'] as String,
       conversationId: json['conversationId'] as String,
@@ -112,6 +143,14 @@ class Message {
       isRead: json['isRead'] as bool? ?? false,
       viewCount: json['viewCount'] as int? ?? 0,
       senderEmoji: json['senderEmoji'] as String?,
+      replyToId: json['replyToId'] as String?,
+      replyToSender: json['replyToSender'] as String?,
+      replyToContent: json['replyToContent'] as String?,
+      sendStatus: statusIndex != null &&
+              statusIndex >= 0 &&
+              statusIndex < MessageSendStatus.values.length
+          ? MessageSendStatus.values[statusIndex]
+          : MessageSendStatus.sent,
     );
   }
 }
@@ -128,4 +167,11 @@ String messageTypeLabel(MessageType type) {
     MessageType.gif => 'GIF',
     MessageType.file => '📎 Файл',
   };
+}
+
+String messagePreviewText(Message message) {
+  if (message.isDeletedForAll) return 'Сообщение удалено';
+  if (message.type == MessageType.text) return message.content;
+  final label = messageTypeLabel(message.type);
+  return label.isEmpty ? message.content : label;
 }

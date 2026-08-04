@@ -15,7 +15,9 @@ class EmailVerificationScreen extends StatefulWidget {
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
+  bool _isResending = false;
   String? _error;
+  String? _info;
 
   @override
   void dispose() {
@@ -25,14 +27,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   Future<void> _verify() async {
     final code = _codeController.text.trim();
-    if (code.length != 5) {
-      setState(() => _error = 'Введите 5-значный код');
+    if (code.length < 6) {
+      setState(() => _error = 'Введите код из письма');
       return;
     }
 
     setState(() {
       _isLoading = true;
       _error = null;
+      _info = null;
     });
 
     final error = await widget.authService.verifyEmailCode(code);
@@ -44,10 +47,30 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     });
   }
 
+  Future<void> _resend() async {
+    setState(() {
+      _isResending = true;
+      _error = null;
+      _info = null;
+    });
+
+    final error = await widget.authService.resendVerificationEmail();
+
+    if (!mounted) return;
+    setState(() {
+      _isResending = false;
+      if (error != null) {
+        _error = error;
+      } else {
+        _info = 'Письмо отправлено повторно';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final devCode = widget.authService.pendingVerificationCode;
+    final email = widget.authService.pendingEmail;
 
     return Scaffold(
       body: SafeArea(
@@ -74,37 +97,28 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Мы отправили 5-значный код на вашу почту. Введите его ниже.',
+                    email == null
+                        ? 'Мы отправили код подтверждения на вашу почту.'
+                        : 'Мы отправили код на $email. Введите его ниже или перейдите по ссылке из письма.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade600,
                     ),
                   ),
-                  if (devCode != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Код для разработки: $devCode',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 32),
                   TextField(
                     controller: _codeController,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
-                    maxLength: 5,
+                    maxLength: 8,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     style: theme.textTheme.headlineMedium?.copyWith(
-                      letterSpacing: 12,
+                      letterSpacing: 8,
                       fontWeight: FontWeight.bold,
                     ),
                     decoration: const InputDecoration(
                       counterText: '',
-                      hintText: '00000',
+                      hintText: '000000',
                     ),
                     onSubmitted: (_) => _verify(),
                   ),
@@ -113,6 +127,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     Text(
                       _error!,
                       style: TextStyle(color: theme.colorScheme.error),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (_info != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _info!,
+                      style: TextStyle(color: theme.colorScheme.primary),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -134,6 +156,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         : const Text('Подтвердить'),
                   ),
                   const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: (_isLoading || _isResending) ? null : _resend,
+                    child: _isResending
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Отправить код ещё раз'),
+                  ),
                   TextButton(
                     onPressed: _isLoading
                         ? null

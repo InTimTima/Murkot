@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
+import '../models/media_payload.dart';
 import '../models/message.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
-import '../services/settings_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart' hide pickRandomEmoji;
 import '../widgets/confirm_dialogs.dart';
+import 'user_search_sheet.dart';
 
 class StrangerProfileScreen extends StatefulWidget {
   const StrangerProfileScreen({
@@ -139,75 +141,123 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (sheetContext) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.55,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        builder: (context, scrollController) {
-          return ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(strings.members, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              ..._conversation.memberIds.map(
-                (member) => ListTile(
-                  leading: AvatarDisplay(name: member, avatarEmoji: pickRandomEmoji(member.hashCode), radius: 20),
-                  title: Text(member),
-                  trailing: _conversation.isAdmin
-                      ? IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () async {
-                            final updated =
-                                _conversation.memberIds.where((m) => m != member).toList();
-                            await widget.chatService.updateConversation(
-                              _conversation.copyWith(memberIds: updated),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final conversation = widget.chatService
+                    .getConversation(_conversation.id) ??
+                _conversation;
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.55,
+              minChildSize: 0.3,
+              maxChildSize: 0.85,
+              builder: (context, scrollController) {
+                return ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      strings.members,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    ...conversation.memberIds.map(
+                      (member) => ListTile(
+                        leading: AvatarDisplay(
+                          name: member,
+                          avatarEmoji: pickRandomEmoji(member.hashCode),
+                          radius: 20,
+                        ),
+                        title: Text(member),
+                        trailing: conversation.isAdmin &&
+                                member != widget.currentUserLogin
+                            ? IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                onPressed: () async {
+                                  try {
+                                    await widget.chatService
+                                        .removeMemberByLogin(
+                                      conversation.id,
+                                      member,
+                                    );
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _conversation = widget.chatService
+                                          .getConversation(conversation.id)!;
+                                    });
+                                    setSheetState(() {});
+                                    ScaffoldMessenger.of(this.context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(strings.memberRemoved),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(this.context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '${strings.memberActionFailed}: $e',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              )
+                            : null,
+                      ),
+                    ),
+                    if (conversation.isAdmin) ...[
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(Icons.person_add_outlined),
+                        title: Text(strings.addMember),
+                        onTap: () async {
+                          final user = await showUserSearchSheet(
+                            context: sheetContext,
+                            chatService: widget.chatService,
+                          );
+                          if (user == null) return;
+                          if (conversation.memberIds.contains(user.login)) {
+                            return;
+                          }
+                          try {
+                            await widget.chatService.addMember(
+                              conversation.id,
+                              user,
                             );
-                            if (mounted) {
-                              setState(() {
-                                _conversation = widget.chatService
-                                    .getConversation(_conversation.id)!;
-                              });
-                            }
-                          },
-                        )
-                      : null,
-                ),
-              ),
-              if (_conversation.isAdmin) ...[
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.person_add_outlined),
-                  title: Text(strings.addMember),
-                  onTap: () async {
-                    final login = await showTextInputDialog(
-                      context: sheetContext,
-                      title: strings.addMember,
-                      hint: strings.newChatHint,
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? strings.nameRequired : null,
-                    );
-                    if (login != null &&
-                        !_conversation.memberIds.contains(login.trim())) {
-                      final updated = [..._conversation.memberIds, login.trim()];
-                      await widget.chatService.updateConversation(
-                        _conversation.copyWith(memberIds: updated),
-                      );
-                      if (mounted) {
-                        setState(() {
-                          _conversation = widget.chatService
-                              .getConversation(_conversation.id)!;
-                        });
-                      }
-                    }
-                  },
-                ),
-              ],
-            ],
-          );
-        },
-      ),
+                            if (!mounted) return;
+                            setState(() {
+                              _conversation = widget.chatService
+                                  .getConversation(conversation.id)!;
+                            });
+                            setSheetState(() {});
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(content: Text(strings.memberAdded)),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${strings.memberActionFailed}: $e',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -366,16 +416,37 @@ class _MediaGrid extends StatelessWidget {
       ),
       itemCount: messages.length,
       itemBuilder: (context, index) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        final message = messages[index];
+        final media = MediaPayload.tryParse(message.content);
+        final isImage = message.type == MessageType.image ||
+            message.type == MessageType.sticker ||
+            message.type == MessageType.gif;
+
+        return InkWell(
+          onTap: media == null
+              ? null
+              : () => launchUrl(
+                    Uri.parse(media.url),
+                    mode: LaunchMode.externalApplication,
+                  ),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
-          ),
-          child: Center(
-            child: Text(
-              messageTypeLabel(messages[index].type),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 9),
+            child: Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: media != null && isImage
+                  ? Image.network(media.url, fit: BoxFit.cover)
+                  : Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Text(
+                          media?.name ?? messageTypeLabel(message.type),
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 9),
+                        ),
+                      ),
+                    ),
             ),
           ),
         );

@@ -1,0 +1,5 @@
+# Minimal Supabase config for Edge Functions deploy.
+project_id = "zjozceddfueowkaokpok"
+
+[functions.push-on-message]
+verify_jwt = false

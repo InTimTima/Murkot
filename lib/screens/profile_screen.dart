@@ -314,8 +314,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, _) {
         final current = widget.authService.currentUser!;
         final wallpaper = ProfileWallpaper.byId(current.profileWallpaperId);
-        final hasCustomWallpaper = current.customWallpaperPath != null &&
-            File(current.customWallpaperPath!).existsSync();
+        final customPath = current.customWallpaperPath;
+        final isNetworkWallpaper = customPath != null &&
+            (customPath.startsWith('http://') ||
+                customPath.startsWith('https://'));
+        final hasFileWallpaper =
+            customPath != null && !isNetworkWallpaper && File(customPath).existsSync();
+        final hasCustomWallpaper = isNetworkWallpaper || hasFileWallpaper;
 
         return Stack(
           children: [
@@ -326,10 +331,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 0,
               height: MediaQuery.of(context).size.height * 0.34,
               child: hasCustomWallpaper
-                  ? Image.file(
-                      File(current.customWallpaperPath!),
-                      fit: BoxFit.cover,
-                    )
+                  ? (isNetworkWallpaper
+                      ? Image.network(customPath, fit: BoxFit.cover)
+                      : Image.file(File(customPath), fit: BoxFit.cover))
                   : DecoratedBox(
                       decoration: BoxDecoration(gradient: wallpaper.gradient),
                     ),

@@ -23,13 +23,24 @@ class AvatarDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasFile = avatarPath != null && File(avatarPath!).existsSync();
+    final path = avatarPath;
+    final isNetwork = path != null &&
+        (path.startsWith('http://') || path.startsWith('https://'));
+    final hasFile =
+        path != null && !isNetwork && File(path).existsSync();
+
+    ImageProvider? image;
+    if (isNetwork) {
+      image = NetworkImage(path);
+    } else if (hasFile) {
+      image = FileImage(File(path));
+    }
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: theme.colorScheme.primaryContainer,
-      backgroundImage: hasFile ? FileImage(File(avatarPath!)) : null,
-      child: !hasFile
+      backgroundImage: image,
+      child: image == null
           ? Text(
               avatarEmoji ?? (name.isNotEmpty ? name[0].toUpperCase() : '?'),
               style: TextStyle(
