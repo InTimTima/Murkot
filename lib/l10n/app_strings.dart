@@ -13,7 +13,7 @@ class AppStrings {
   String _l(String key, String ru, String en) =>
       settingsService.label(key, isRu ? ru : en);
 
-  String get appTitle => 'Tujh Messenger';
+  String get appTitle => 'Murkot';
   String get profile => _l(PersonalizationKeys.profile, 'Профиль', 'Profile');
   String get chats => _l(PersonalizationKeys.chats, 'Чаты', 'Chats');
   String get groups => _l(PersonalizationKeys.groups, 'Группы', 'Groups');
@@ -62,8 +62,18 @@ class AppStrings {
       : 'Start typing a login to find people';
   String get usersNotFound =>
       isRu ? 'Пользователи не найдены' : 'No users found';
+  String get findGroup => isRu ? 'Найти группу' : 'Find group';
+  String get findChannel => isRu ? 'Найти канал' : 'Find channel';
+  String get joinAction => isRu ? 'Вступить' : 'Join';
+  String get alreadyMember => isRu ? 'Вы участник' : 'Member';
+  String get nothingFound => isRu ? 'Ничего не найдено' : 'Nothing found';
+  String get foundMessages => isRu ? 'Сообщения' : 'Messages';
+  String get changeAvatar => isRu ? 'Сменить аватар' : 'Change avatar';
+  String get attachmentsPanel => isRu ? 'Вложения' : 'Attachments';
+  String membersCount(int count) =>
+      isRu ? 'Участников: $count' : 'Members: $count';
   String get chatWithBot =>
-      isRu ? 'Написать TujhBot' : 'Message TujhBot';
+      isRu ? 'Написать MurkotBot' : 'Message MurkotBot';
   String get botSubtitle => isRu
       ? 'Бот отвечает в реальном времени'
       : 'Bot replies in real time';

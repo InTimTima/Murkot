@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
+import '../models/public_conversation.dart';
 import '../models/user_preview.dart';
 import '../utils/helpers.dart';
 import 'blacklist_service.dart';
@@ -340,6 +341,98 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Uploads a new group/channel avatar and persists it on the conversation.
+  Future<void> updateConversationAvatarBytes(
+    String conversationId,
+    Uint8List bytes,
+  ) async {
+    if (bytes.isEmpty) throw StateError('Empty image');
+
+    final path = '$_userId/conv_$conversationId.jpg';
+    await _client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            upsert: true,
+            contentType: 'image/jpeg',
+          ),
+        );
+    final url = _client.storage.from('avatars').getPublicUrl(path);
+    final busted = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+
+    final conversation = getConversation(conversationId);
+    if (conversation == null) return;
+    await updateConversation(conversation.copyWith(avatarPath: busted));
+  }
+
+  /// Search public groups/channels by name (RPC, see features_v8.sql).
+  Future<List<PublicConversationPreview>> searchPublicConversations(
+    String query,
+    ConversationType type,
+  ) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+
+    final rows = await _client.rpc(
+      'search_public_conversations',
+      params: {'search_query': q, 'p_type': type.name},
+    );
+
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(PublicConversationPreview.fromRow)
+        .toList();
+  }
+
+  /// Join a public group/channel, then refresh the conversation list.
+  Future<Conversation?> joinConversation(String conversationId) async {
+    await _client.rpc(
+      'join_conversation',
+      params: {'p_conversation_id': conversationId},
+    );
+    await _loadAll(preserveMessages: true);
+    notifyListeners();
+    return getConversation(conversationId);
+  }
+
+  /// Search text messages across all my conversations of [type].
+  Future<List<MessageSearchHit>> searchMessagesGlobal(
+    String query,
+    ConversationType type,
+  ) async {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+
+    final convIds = _conversations
+        .where((c) => c.type == type)
+        .map((c) => c.id)
+        .toList();
+    if (convIds.isEmpty) return const [];
+
+    final rows = await _client
+        .from('messages')
+        .select(
+          '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji, avatar_url)',
+        )
+        .inFilter('conversation_id', convIds)
+        .eq('type', 'text')
+        .ilike('content', '%$q%')
+        .order('created_at', ascending: false)
+        .limit(30);
+
+    final hits = <MessageSearchHit>[];
+    for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+      final conversation = getConversation(row['conversation_id'] as String);
+      if (conversation == null) continue;
+      _rememberSender(row);
+      hits.add(MessageSearchHit(
+        conversation: conversation,
+        message: _messageFromRow(row, replyLookup: _findMessage),
+      ));
+    }
+    return hits;
+  }
+
   Future<void> updateConversation(Conversation updated) async {
     await _client.from('conversations').update({
       'name': updated.name,
@@ -452,7 +545,7 @@ class ChatService extends ChangeNotifier {
           .from('messages')
           .insert(payload)
           .select(
-            '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji)',
+            '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji, avatar_url)',
           )
           .single();
 
@@ -590,7 +683,7 @@ class ChatService extends ChangeNotifier {
     final rows = await _client
         .from('messages')
         .select(
-          '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji)',
+          '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji, avatar_url)',
         )
         .eq('conversation_id', conversationId)
         .ilike('content', '%$q%')
@@ -706,7 +799,7 @@ class ChatService extends ChangeNotifier {
           'content': content,
         })
         .select(
-          '*, sender:profiles!message_comments_sender_id_fkey(login, avatar_emoji)',
+          '*, sender:profiles!message_comments_sender_id_fkey(login, avatar_emoji, avatar_url)',
         )
         .single();
 
@@ -951,7 +1044,7 @@ class ChatService extends ChangeNotifier {
       _client
           .from('conversation_members')
           .select(
-            'conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, last_seen_at)',
+            'conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, avatar_url, last_seen_at)',
           )
           .inFilter('conversation_id', convIds),
       _client.from('message_hides').select('message_id').eq('user_id', _userId),
@@ -974,11 +1067,16 @@ class ChatService extends ChangeNotifier {
         _profilesById[userId] = _ProfileRef(
           login: profile['login'] as String? ?? 'user',
           emoji: profile['avatar_emoji'] as String?,
+          avatarUrl: profile['avatar_url'] as String?,
         );
       }
     }
 
-    _profilesById[_userId] = _ProfileRef(login: _userLogin);
+    _profilesById[_userId] = _ProfileRef(
+      login: _userLogin,
+      emoji: _profilesById[_userId]?.emoji,
+      avatarUrl: _profilesById[_userId]?.avatarUrl,
+    );
     _profilesById[botUserId] = const _ProfileRef(
       login: botLogin,
       emoji: '🤖',
@@ -1020,12 +1118,28 @@ class ChatService extends ChangeNotifier {
       String contactStatus = '';
       DateTime? contactBirthday;
       DateTime? contactLastSeen;
+      var displayName = row['name'] as String;
+      var avatarPath = row['avatar_url'] as String?;
+      var avatarEmoji = row['avatar_emoji'] as String?;
+
       if (type == ConversationType.direct) {
         final other = members.cast<Map<String, dynamic>?>().firstWhere(
               (m) => m?['user_id'] != _userId,
               orElse: () => null,
             );
         final profile = other?['profiles'] as Map<String, dynamic>?;
+        // Always show the peer — conversations.name is asymmetric by creator.
+        final peerLogin = profile?['login'] as String?;
+        if (peerLogin != null && peerLogin.isNotEmpty) {
+          displayName = peerLogin;
+        } else {
+          displayName = memberLogins.firstWhere(
+            (l) => l.toLowerCase() != _userLogin.toLowerCase(),
+            orElse: () => displayName,
+          );
+        }
+        avatarPath = profile?['avatar_url'] as String? ?? avatarPath;
+        avatarEmoji = profile?['avatar_emoji'] as String? ?? avatarEmoji;
         contactStatus = profile?['status'] as String? ?? '';
         final b = profile?['birthday'] as String?;
         if (b != null && b.isNotEmpty) {
@@ -1040,9 +1154,9 @@ class ChatService extends ChangeNotifier {
       return Conversation(
         id: id,
         type: type,
-        name: row['name'] as String,
-        avatarPath: row['avatar_url'] as String?,
-        avatarEmoji: row['avatar_emoji'] as String?,
+        name: displayName,
+        avatarPath: avatarPath,
+        avatarEmoji: avatarEmoji,
         lastMessage: row['last_message'] as String? ?? '',
         lastMessageSender: row['last_message_sender'] as String?,
         lastActivity: DateTime.parse(row['last_activity'] as String),
@@ -1095,7 +1209,7 @@ class ChatService extends ChangeNotifier {
         rawRows = await _client
             .from('messages')
             .select(
-              '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji)',
+              '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji, avatar_url)',
             )
             .eq('conversation_id', conversationId)
             .lt('created_at', oldest)
@@ -1105,7 +1219,7 @@ class ChatService extends ChangeNotifier {
         rawRows = await _client
             .from('messages')
             .select(
-              '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji)',
+              '*, sender:profiles!messages_sender_id_fkey(login, avatar_emoji, avatar_url)',
             )
             .eq('conversation_id', conversationId)
             .order('created_at', ascending: false)
@@ -1226,7 +1340,7 @@ class ChatService extends ChangeNotifier {
     final commentRows = await _client
         .from('message_comments')
         .select(
-          '*, sender:profiles!message_comments_sender_id_fkey(login, avatar_emoji)',
+          '*, sender:profiles!message_comments_sender_id_fkey(login, avatar_emoji, avatar_url)',
         )
         .eq('conversation_id', conversationId)
         .order('created_at');
@@ -1363,13 +1477,14 @@ class ChatService extends ChangeNotifier {
       try {
         final p = await _client
             .from('profiles')
-            .select('id, login, avatar_emoji')
+            .select('id, login, avatar_emoji, avatar_url')
             .eq('id', senderId)
             .maybeSingle();
         if (p != null) {
           profile = _ProfileRef(
             login: p['login'] as String,
             emoji: p['avatar_emoji'] as String?,
+            avatarUrl: p['avatar_url'] as String?,
           );
           _profilesById[senderId] = profile;
         }
@@ -1469,7 +1584,27 @@ class ChatService extends ChangeNotifier {
     _profilesById[senderId] = _ProfileRef(
       login: login,
       emoji: sender['avatar_emoji'] as String?,
+      avatarUrl: sender['avatar_url'] as String? ??
+          _profilesById[senderId]?.avatarUrl,
     );
+  }
+
+  /// Profile avatar URL for a member login (from cached profiles).
+  String? avatarUrlForLogin(String login) {
+    final key = login.trim().toLowerCase();
+    for (final profile in _profilesById.values) {
+      if (profile.login.toLowerCase() == key) return profile.avatarUrl;
+    }
+    return null;
+  }
+
+  /// Profile emoji for a member login (from cached profiles).
+  String? emojiForLogin(String login) {
+    final key = login.trim().toLowerCase();
+    for (final profile in _profilesById.values) {
+      if (profile.login.toLowerCase() == key) return profile.emoji;
+    }
+    return null;
   }
 
   Timer? _reloadDebounce;
@@ -1617,8 +1752,17 @@ class ChatService extends ChangeNotifier {
 }
 
 class _ProfileRef {
-  const _ProfileRef({required this.login, this.emoji});
+  const _ProfileRef({required this.login, this.emoji, this.avatarUrl});
 
   final String login;
   final String? emoji;
+  final String? avatarUrl;
+}
+
+/// Result of a global message search: the message plus its conversation.
+class MessageSearchHit {
+  const MessageSearchHit({required this.conversation, required this.message});
+
+  final Conversation conversation;
+  final Message message;
 }

@@ -13,13 +13,14 @@ void main() {
     final authService = AuthService();
     final settingsService = SettingsService(prefs);
 
-    await tester.pumpWidget(TujhMessengerApp(      prefs: prefs,
+    await tester.pumpWidget(MurkotApp(
+      prefs: prefs,
       authService: authService,
       settingsService: settingsService,
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tujh Messenger'), findsOneWidget);
+    expect(find.text('Murkot'), findsOneWidget);
     expect(find.text('Войти'), findsOneWidget);
   });
 }

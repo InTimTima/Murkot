@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
+import '../models/message.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/conversation_list_tile.dart';
+import '../widgets/murkot_decor.dart';
 import '../widgets/section_search_bar.dart';
 import 'chat_screen.dart';
+import 'conversation_search_sheet.dart';
 import 'stranger_profile_screen.dart';
 import 'user_search_sheet.dart';
 
@@ -38,11 +44,74 @@ class ConversationsListScreen extends StatefulWidget {
 class _ConversationsListScreenState extends State<ConversationsListScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+  Timer? _messageSearchDebounce;
+  List<MessageSearchHit> _messageHits = const [];
+  bool _searchingMessages = false;
 
   @override
   void dispose() {
+    _messageSearchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    setState(() => _query = value);
+    _messageSearchDebounce?.cancel();
+    _messageSearchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      _runMessageSearch,
+    );
+  }
+
+  Future<void> _runMessageSearch() async {
+    final q = _query.trim();
+    if (q.length < 2) {
+      if (mounted) {
+        setState(() {
+          _messageHits = const [];
+          _searchingMessages = false;
+        });
+      }
+      return;
+    }
+
+    setState(() => _searchingMessages = true);
+    try {
+      final hits =
+          await widget.chatService.searchMessagesGlobal(q, widget.type);
+      if (!mounted || _query.trim() != q) return;
+      setState(() {
+        _messageHits = hits;
+        _searchingMessages = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _searchingMessages = false);
+    }
+  }
+
+  Future<void> _findPublic() async {
+    final strings = context.strings;
+    final preview = await showConversationSearchSheet(
+      context: context,
+      chatService: widget.chatService,
+      type: widget.type,
+    );
+    if (preview == null || !mounted) return;
+
+    try {
+      final conversation =
+          await widget.chatService.joinConversation(preview.id);
+      if (!mounted) return;
+      if (conversation != null) {
+        _openChat(conversation);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.openChatFailed}: $e')),
+      );
+    }
   }
 
   int get _sectionIndex => switch (widget.type) {
@@ -103,7 +172,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     }
   }
 
-  void _openChat(Conversation conversation) {
+  void _openChat(Conversation conversation, {String? initialMessageId}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => ChatScreen(
@@ -113,6 +182,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           presenceService: widget.presenceService,
           currentUserLogin: widget.currentUserLogin,
           settingsService: widget.settingsService,
+          initialMessageId: initialMessageId,
         ),
       ),
     );
@@ -138,6 +208,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     return ListenableBuilder(
       listenable: Listenable.merge([
         widget.chatService,
+        widget.blacklistService,
         widget.presenceService,
       ]),
       builder: (context, _) {
@@ -151,37 +222,110 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
             SectionSearchBar(
               controller: _searchController,
               hint: searchHintForSection(strings, _sectionIndex),
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onQueryChanged,
             ),
+            if (_searchingMessages) const LinearProgressIndicator(minHeight: 2),
             Expanded(
-              child: conversations.isEmpty
+              child: conversations.isEmpty && _messageHits.isEmpty
                   ? Center(
-                      child: Text(
-                        strings.emptyList,
-                        style: TextStyle(color: Colors.grey.shade600),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CitrusSlice(size: 72, opacity: 0.55),
+                              StretchCatSilhouette(width: 96, opacity: 0.35),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            strings.emptyList,
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ],
                       ),
                     )
-                  : ListView.separated(
-                      itemCount: conversations.length,
-                      separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        indent: 72,
-                        color: Colors.grey.shade200,
-                      ),
-                      itemBuilder: (context, index) {
-                        final conversation = conversations[index];
-                        final online = conversation.type == ConversationType.direct
-                            ? widget.presenceService.isOnline(conversation.name)
-                            : false;
-                        return ConversationListTile(
-                          conversation: conversation,
-                          isOnline: online,
-                          onTapBody: () => _openChat(conversation),
-                          onTapAvatar: () => _openProfile(conversation),
-                        );
-                      },
+                  : ListView(
+                      children: [
+                        for (var i = 0; i < conversations.length; i++) ...[
+                          Builder(builder: (context) {
+                            final conversation = conversations[i];
+                            final online = conversation.type ==
+                                    ConversationType.direct
+                                ? widget.presenceService
+                                    .isOnline(conversation.name)
+                                : false;
+                            return ConversationListTile(
+                              conversation: conversation,
+                              isOnline: online,
+                              onTapBody: () => _openChat(conversation),
+                              onTapAvatar: () => _openProfile(conversation),
+                            );
+                          }),
+                          if (i < conversations.length - 1)
+                            Divider(
+                              height: 1,
+                              indent: 72,
+                              color: Colors.grey.shade200,
+                            ),
+                        ],
+                        if (_query.trim().length >= 2 &&
+                            _messageHits.isNotEmpty) ...[
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                            child: Text(
+                              strings.foundMessages,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                          ..._messageHits.map(
+                            (hit) => ListTile(
+                              leading: AvatarDisplay(
+                                name: hit.conversation.name,
+                                avatarPath: hit.conversation.avatarPath,
+                                avatarEmoji: conversationAvatarEmoji(
+                                  hit.conversation,
+                                ),
+                                radius: 22,
+                              ),
+                              title: Text(
+                                hit.conversation.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                '${hit.message.senderName}: '
+                                '${messagePreviewText(hit.message, maxChars: 64)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () => _openChat(
+                                hit.conversation,
+                                initialMessageId: hit.message.id,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
             ),
+            if (widget.type != ConversationType.direct)
+              _StickyActionButton(
+                icon: Icons.search,
+                label: widget.type == ConversationType.channel
+                    ? strings.findChannel
+                    : strings.findGroup,
+                onPressed: _findPublic,
+              ),
             _StickyCreateButton(
               label: createLabelForSection(strings, _sectionIndex),
               onPressed: _createNew,
@@ -189,6 +333,51 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+class _StickyActionButton extends StatelessWidget {
+  const _StickyActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.surface,
+      child: InkWell(
+        onTap: onPressed,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: theme.colorScheme.secondary),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

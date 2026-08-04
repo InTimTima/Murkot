@@ -1,21 +1,20 @@
 import 'dart:convert';
 import 'dart:js_interop';
-import 'dart:typed_data';
 
 import '../models/voice_recording.dart';
 
-@JS('tujhVoiceStart')
-external JSPromise<JSBoolean> _tujhVoiceStart();
+@JS('murkotVoiceStart')
+external JSPromise<JSBoolean> _murkotVoiceStart();
 
-@JS('tujhVoiceStop')
-external JSPromise<JSAny?> _tujhVoiceStop();
+@JS('murkotVoiceStop')
+external JSPromise<JSAny?> _murkotVoiceStop();
 
-@JS('tujhVoiceCancel')
-external JSPromise<JSAny?> _tujhVoiceCancel();
+@JS('murkotVoiceCancel')
+external JSPromise<JSAny?> _murkotVoiceCancel();
 
 Future<bool> startVoiceRecordingImpl() async {
   try {
-    final ok = await _tujhVoiceStart().toDart;
+    final ok = await _murkotVoiceStart().toDart;
     return ok.toDart;
   } catch (_) {
     return false;
@@ -24,7 +23,7 @@ Future<bool> startVoiceRecordingImpl() async {
 
 Future<VoiceRecording?> stopVoiceRecordingImpl() async {
   try {
-    final result = await _tujhVoiceStop().toDart;
+    final result = await _murkotVoiceStop().toDart;
     if (result == null) return null;
     final map = result.dartify();
     if (map is! Map) return null;
@@ -53,6 +52,6 @@ Future<VoiceRecording?> stopVoiceRecordingImpl() async {
 
 Future<void> cancelVoiceRecordingImpl() async {
   try {
-    await _tujhVoiceCancel().toDart;
+    await _murkotVoiceCancel().toDart;
   } catch (_) {}
 }

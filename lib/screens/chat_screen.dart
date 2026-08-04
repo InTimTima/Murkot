@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -15,9 +16,11 @@ import '../services/chat_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../utils/helpers.dart';
+import '../utils/main_tab_bus.dart';
 import '../services/voice_recorder.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/circle_video_player.dart';
+import '../widgets/murkot_decor.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/voice_message_player.dart';
 import 'forward_message_sheet.dart';
@@ -32,6 +35,7 @@ class ChatScreen extends StatefulWidget {
     required this.presenceService,
     required this.currentUserLogin,
     required this.settingsService,
+    this.initialMessageId,
   });
 
   final Conversation conversation;
@@ -40,6 +44,9 @@ class ChatScreen extends StatefulWidget {
   final PresenceService presenceService;
   final String currentUserLogin;
   final SettingsService settingsService;
+
+  /// If set, the chat opens scrolled to this message (search result).
+  final String? initialMessageId;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -79,10 +86,43 @@ class _ChatScreenState extends State<ChatScreen> {
     await widget.chatService.ensureMessagesLoaded(_conversation.id);
     if (!mounted) return;
     await widget.chatService.markMessagesRead(_conversation.id);
+
+    final targetId = widget.initialMessageId;
+    if (targetId != null) {
+      await _revealMessage(targetId);
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _messageFocusNode.requestFocus();
       _scrollToBottom(jump: true);
+    });
+  }
+
+  /// Loads older pages until [messageId] is present, then scrolls to it.
+  Future<void> _revealMessage(String messageId) async {
+    bool isLoaded() => widget.chatService
+        .getMessages(_conversation.id)
+        .any((m) => m.id == messageId);
+
+    var guard = 0;
+    while (!isLoaded() &&
+        widget.chatService.hasMoreMessages(_conversation.id) &&
+        guard < 12) {
+      await widget.chatService.loadOlderMessages(_conversation.id);
+      guard++;
+    }
+    if (!mounted) return;
+
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (isLoaded()) {
+        _scrollToMessage(messageId);
+      } else {
+        _scrollToBottom(jump: true);
+      }
     });
   }
 
@@ -671,6 +711,10 @@ class _ChatScreenState extends State<ChatScreen> {
         final updated = widget.chatService.getConversation(_conversation.id);
         if (updated != null) _conversation = updated;
 
+        // Wide (desktop) layout: nav rail 25% | chat 50% | attachments 25%;
+        // all bubbles are left-aligned in the same format as peer messages.
+        final isWide = MediaQuery.of(context).size.width >= 720;
+
         final messages = _searchMode && _chatSearchQuery.isNotEmpty
             ? (_remoteSearchResults ??
                 widget.chatService.searchMessages(
@@ -774,7 +818,16 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
           ),
-          body: Stack(
+          body: _DesktopChatLayout(
+            isWide: isWide,
+            navRail: isWide ? _buildDesktopNavRail(context) : null,
+            sidePanel: isWide
+                ? _buildDesktopSidePanel(
+                    context,
+                    canSend: canSend && !isBlocked,
+                  )
+                : null,
+            child: Stack(
             children: [
               Column(
                 children: [
@@ -856,7 +909,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                     message: message,
                                     isOwn: message.senderId ==
                                         widget.currentUserLogin,
-                                    showSender: _conversation.type !=
+                                    forceLeft: isWide,
+                                    senderAvatarUrl: widget.chatService
+                                        .avatarUrlForLogin(message.senderId),
+                                    showSender: isWide ||
+                                        _conversation.type !=
                                             ConversationType.direct ||
                                         message.senderId !=
                                             widget.currentUserLogin,
@@ -913,7 +970,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            messagePreviewText(_replyTo!),
+                            messagePreviewText(_replyTo!, maxChars: 48),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -964,7 +1021,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         focusNode: _messageFocusNode,
                         onChanged: _onTextChanged,
                         onSend: _sendText,
-                        onAttach: _showAttachMenu,
+                        // Desktop: attachments live in the right-side panel.
+                        onAttach: isWide ? null : _showAttachMenu,
                         onVoiceStart: _startVoiceNote,
                       ),
                   ] else
@@ -990,9 +1048,151 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
             ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  /// Desktop-only vertical navigation (chats / groups / channels / profile).
+  Widget _buildDesktopNavRail(BuildContext context) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    final selected = switch (_conversation.type) {
+      ConversationType.direct => 0,
+      ConversationType.group => 1,
+      ConversationType.channel => 2,
+    };
+
+    void go(int index) {
+      mainTabIndex.value = index;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _RailItem(
+            icon: Icons.chat_bubble_outline,
+            selectedIcon: Icons.chat_bubble,
+            label: strings.chats,
+            isSelected: selected == 0,
+            onTap: () => go(0),
+          ),
+          _RailItem(
+            icon: Icons.group_outlined,
+            selectedIcon: Icons.group,
+            label: strings.groups,
+            isSelected: selected == 1,
+            onTap: () => go(1),
+          ),
+          _RailItem(
+            icon: Icons.campaign_outlined,
+            selectedIcon: Icons.campaign,
+            label: strings.channels,
+            isSelected: selected == 2,
+            onTap: () => go(2),
+          ),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: Colors.grey.shade300),
+          const SizedBox(height: 10),
+          _RailItem(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
+            label: strings.profile,
+            isSelected: false,
+            onTap: () => go(3),
+          ),
+          const Spacer(),
+          const Center(child: CitrusSlice(size: 44, opacity: 0.25)),
+        ],
+      ),
+    );
+  }
+
+  /// Desktop-only attachments panel (replaces the popup attach menu).
+  Widget _buildDesktopSidePanel(BuildContext context, {required bool canSend}) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+
+    if (!canSend) {
+      return ColoredBox(
+        color: theme.colorScheme.surface,
+        child: const Center(
+          child: StretchCatSilhouette(width: 150, opacity: 0.12),
+        ),
+      );
+    }
+
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            strings.attachmentsPanel,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.7,
+              children: [
+                _SidePanelTile(
+                  icon: Icons.image,
+                  label: strings.image,
+                  onTap: () => _sendMedia(MessageType.image),
+                ),
+                _SidePanelTile(
+                  icon: Icons.videocam,
+                  label: strings.video,
+                  onTap: () => _sendMedia(MessageType.video),
+                ),
+                _SidePanelTile(
+                  icon: Icons.motion_photos_on_outlined,
+                  label: 'Кружок',
+                  onTap: _sendCircleVideo,
+                ),
+                _SidePanelTile(
+                  icon: Icons.music_note,
+                  label: strings.music,
+                  onTap: () => _sendMedia(MessageType.music),
+                ),
+                _SidePanelTile(
+                  icon: Icons.gif_box,
+                  label: strings.gif,
+                  onTap: () => _sendMedia(MessageType.gif),
+                ),
+                _SidePanelTile(
+                  icon: Icons.attach_file,
+                  label: strings.file,
+                  onTap: () => _sendMedia(MessageType.file),
+                ),
+                _SidePanelTile(
+                  icon: Icons.emoji_emotions,
+                  label: strings.sticker,
+                  onTap: () => _sendMedia(MessageType.sticker),
+                ),
+                _SidePanelTile(
+                  icon: Icons.mic,
+                  label: strings.voice,
+                  onTap: _startVoiceNote,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1038,6 +1238,142 @@ class _ChatScreenState extends State<ChatScreen> {
     } else if (type is MessageType) {
       await _sendMedia(type);
     }
+  }
+}
+
+/// Wide screens: nav rail (25%) | chat (50%) | attachments panel (25%).
+/// Narrow screens: the chat fills everything.
+class _DesktopChatLayout extends StatelessWidget {
+  const _DesktopChatLayout({
+    required this.isWide,
+    required this.child,
+    this.navRail,
+    this.sidePanel,
+  });
+
+  final bool isWide;
+  final Widget child;
+  final Widget? navRail;
+  final Widget? sidePanel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isWide) return child;
+
+    final theme = Theme.of(context);
+    final dividerColor = theme.dividerColor.withValues(alpha: 0.4);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(flex: 1, child: navRail ?? const SizedBox.shrink()),
+        Container(width: 1, color: dividerColor),
+        Expanded(flex: 2, child: child),
+        Container(width: 1, color: dividerColor),
+        Expanded(flex: 1, child: sidePanel ?? const SizedBox.shrink()),
+      ],
+    );
+  }
+}
+
+/// Vertical navigation item for the desktop rail.
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color =
+        isSelected ? theme.colorScheme.primary : Colors.grey.shade700;
+
+    return Material(
+      color: isSelected
+          ? theme.colorScheme.primary.withValues(alpha: 0.10)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Attachment shortcut tile in the desktop side panel.
+class _SidePanelTile extends StatelessWidget {
+  const _SidePanelTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              Icon(icon, color: theme.colorScheme.primary, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1128,6 +1464,8 @@ class _MessageBubble extends StatelessWidget {
     required this.onReactionTap,
     this.onCommentsTap,
     this.onRetry,
+    this.forceLeft = false,
+    this.senderAvatarUrl,
   });
 
   final Message message;
@@ -1140,15 +1478,23 @@ class _MessageBubble extends StatelessWidget {
   final VoidCallback? onCommentsTap;
   final VoidCallback? onRetry;
 
+  /// Desktop mode: align every bubble to the left regardless of sender.
+  final bool forceLeft;
+  final String? senderAvatarUrl;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final alignRight = isOwn && !forceLeft;
+    // Desktop: own messages use the same format as the peer's, with avatar
+    // and sender name on the left.
+    final showAvatar = showSender && (!isOwn || forceLeft);
 
     if (message.isDeletedForAll) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Align(
-          alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+          alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
           child: Text('Сообщение удалено',
               style: theme.textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic, color: Colors.grey.shade600)),
@@ -1164,16 +1510,17 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Align(
-        alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
+        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
         child: GestureDetector(
           onLongPress: onLongPress,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (showSender && !isOwn) ...[
+              if (showAvatar) ...[
                 AvatarDisplay(
                   name: message.senderName,
+                  avatarPath: senderAvatarUrl,
                   avatarEmoji: message.senderEmoji,
                   radius: 14,
                   fontSize: 12,
@@ -1183,13 +1530,17 @@ class _MessageBubble extends StatelessWidget {
               Flexible(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.72,
+                    maxWidth: math.min(
+                      MediaQuery.of(context).size.width * 0.72,
+                      440,
+                    ),
                   ),
                   child: Column(
-                    crossAxisAlignment:
-                        isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: alignRight
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
-                      if (showSender && !isOwn)
+                      if (showAvatar)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 2, left: 4),
                           child: Text(message.senderName,
@@ -1210,8 +1561,8 @@ class _MessageBubble extends StatelessWidget {
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(16),
                             topRight: const Radius.circular(16),
-                            bottomLeft: Radius.circular(isOwn ? 16 : 4),
-                            bottomRight: Radius.circular(isOwn ? 4 : 16),
+                            bottomLeft: Radius.circular(alignRight ? 16 : 4),
+                            bottomRight: Radius.circular(alignRight ? 4 : 16),
                           ),
                         ),
                         child: Column(
@@ -1219,7 +1570,8 @@ class _MessageBubble extends StatelessWidget {
                           children: [
                             if (message.replyToId != null) ...[
                               Container(
-                                width: double.infinity,
+                                constraints:
+                                    const BoxConstraints(maxWidth: 280),
                                 margin: const EdgeInsets.only(bottom: 6),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -1254,8 +1606,11 @@ class _MessageBubble extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      message.replyToContent ?? '',
-                                      maxLines: 2,
+                                      truncateChatPreview(
+                                        message.replyToContent,
+                                        maxChars: 48,
+                                      ),
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
@@ -1483,15 +1838,15 @@ class _MessageInputBar extends StatelessWidget {
     required this.focusNode,
     required this.onChanged,
     required this.onSend,
-    required this.onAttach,
     required this.onVoiceStart,
+    this.onAttach,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
   final VoidCallback onSend;
-  final VoidCallback onAttach;
+  final VoidCallback? onAttach;
   final VoidCallback onVoiceStart;
 
   @override
@@ -1509,10 +1864,11 @@ class _MessageInputBar extends StatelessWidget {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    onPressed: onAttach,
-                  ),
+                  if (onAttach != null)
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: onAttach,
+                    ),
                   Expanded(
                     child: Focus(
                       onKeyEvent: (node, event) {

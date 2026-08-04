@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -380,15 +381,19 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  Future<String?> updateAvatar(String sourcePath) async {
+  Future<String?> updateAvatarBytes(Uint8List bytes) async {
     final user = _currentUser;
     if (user == null) return 'Пользователь не авторизован';
 
     try {
-      final savedPath = await AvatarService.saveAvatar(user.login, sourcePath);
+      final savedPath = await AvatarService.saveAvatarBytes(
+        login: user.login,
+        bytes: bytes,
+      );
       await updateProfile(user.copyWith(avatarPath: savedPath));
       return null;
     } catch (e) {
+      debugPrint('updateAvatarBytes failed: $e');
       return 'Не удалось сохранить аватар';
     }
   }
@@ -400,18 +405,20 @@ class AuthService extends ChangeNotifier {
     await updateProfile(user.copyWith(clearAvatar: true));
   }
 
-  Future<String?> updateCustomWallpaper(String sourcePath) async {
+  Future<String?> updateCustomWallpaperBytes(Uint8List bytes) async {
     final user = _currentUser;
     if (user == null) return 'Пользователь не авторизован';
 
     try {
-      final savedPath = await AvatarService.saveAvatar(
-        '${user.login}_wallpaper',
-        sourcePath,
+      final savedPath = await AvatarService.saveAvatarBytes(
+        login: user.login,
+        bytes: bytes,
+        suffix: 'wallpaper',
       );
       await updateProfile(user.copyWith(customWallpaperPath: savedPath));
       return null;
     } catch (e) {
+      debugPrint('updateCustomWallpaperBytes failed: $e');
       return 'Не удалось сохранить обои';
     }
   }

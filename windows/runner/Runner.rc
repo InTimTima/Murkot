@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.tujh" "\0"
-            VALUE "FileDescription", "tujh_messenger" "\0"
+            VALUE "CompanyName", "com.murkot" "\0"
+            VALUE "FileDescription", "Murkot" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "tujh_messenger" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.tujh. All rights reserved." "\0"
+            VALUE "InternalName", "Murkot" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.murkot. All rights reserved." "\0"
             VALUE "OriginalFilename", "tujh_messenger.exe" "\0"
-            VALUE "ProductName", "tujh_messenger" "\0"
+            VALUE "ProductName", "Murkot" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

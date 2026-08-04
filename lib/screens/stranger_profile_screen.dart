@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
@@ -56,21 +57,40 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
 
   Future<void> _blockUser() async {
     final strings = context.strings;
+    final peer = _conversation.name;
     final confirmed = await showConfirmDialog(
       context: context,
       title: strings.blockUser,
-      message: strings.blockUserConfirm(_conversation.name),
+      message: strings.blockUserConfirm(peer),
       isDestructive: true,
     );
-    if (confirmed == true) {
-      await widget.blacklistService.blockUser(_conversation.name);
-      if (mounted) setState(() {});
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.blacklistService.blockUser(peer);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(strings.blockUser)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось заблокировать: $e')),
+      );
     }
   }
 
   Future<void> _unblockUser() async {
-    await widget.blacklistService.unblockUser(_conversation.name);
-    if (mounted) setState(() {});
+    try {
+      await widget.blacklistService.unblockUser(_conversation.name);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось разблокировать: $e')),
+      );
+    }
   }
 
   Future<void> _deleteOrLeave() async {
@@ -113,6 +133,36 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     if (confirmed == true) {
       await widget.chatService.leaveConversation(_conversation.id);
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    final strings = context.strings;
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (file == null || !mounted) return;
+
+    try {
+      final bytes = await file.readAsBytes();
+      await widget.chatService.updateConversationAvatarBytes(
+        _conversation.id,
+        bytes,
+      );
+      if (!mounted) return;
+      setState(() {
+        _conversation = widget.chatService.getConversation(_conversation.id) ??
+            _conversation;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.changeAvatar}: $e')),
+      );
     }
   }
 
@@ -167,7 +217,11 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
                       (member) => ListTile(
                         leading: AvatarDisplay(
                           name: member,
-                          avatarEmoji: pickRandomEmoji(member.hashCode),
+                          avatarPath:
+                              widget.chatService.avatarUrlForLogin(member),
+                          avatarEmoji:
+                              widget.chatService.emojiForLogin(member) ??
+                                  pickRandomEmoji(member.hashCode),
                           radius: 20,
                         ),
                         title: Text(member),
@@ -360,6 +414,11 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
                         isDestructive: !_isBlocked,
                       ),
                     if (_conversation.isAdmin && !_isDirect) ...[
+                      _ActionButton(
+                        icon: Icons.photo_camera_outlined,
+                        label: strings.changeAvatar,
+                        onPressed: _changeAvatar,
+                      ),
                       _ActionButton(
                         icon: Icons.edit,
                         label: strings.rename,

@@ -5,8 +5,8 @@ import 'dart:js_interop';
 
 import '../config/push_config.dart';
 
-@JS('tujhRegisterWebPush')
-external JSPromise<JSAny?> _tujhRegisterWebPush(JSString vapidPublicKey);
+@JS('murkotRegisterWebPush')
+external JSPromise<JSAny?> _murkotRegisterWebPush(JSString vapidPublicKey);
 
 Future<bool> hasNotificationPermissionImpl() async {
   if (!html.Notification.supported) return false;
@@ -42,7 +42,7 @@ Future<String?> registerWebPushSubscriptionImpl() async {
   if (html.Notification.permission != 'granted') return null;
 
   try {
-    final result = await _tujhRegisterWebPush(PushConfig.vapidPublicKey.toJS).toDart;
+    final result = await _murkotRegisterWebPush(PushConfig.vapidPublicKey.toJS).toDart;
     if (result == null) return null;
     final value = result.dartify();
     if (value is String && value.isNotEmpty) return value;

@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/brand_theme.dart';
 import 'config/supabase_config.dart';
 import 'l10n/app_strings.dart';
 import 'screens/auth_screen.dart';
@@ -31,7 +32,7 @@ Future<void> main() async {
   final settingsService = SettingsService(prefs);
 
   // Paint the first frame immediately; auth finishes in the background.
-  runApp(TujhMessengerApp(
+  runApp(MurkotApp(
     prefs: prefs,
     authService: authService,
     settingsService: settingsService,
@@ -40,8 +41,8 @@ Future<void> main() async {
   unawaited(authService.initialize());
 }
 
-class TujhMessengerApp extends StatelessWidget {
-  const TujhMessengerApp({
+class MurkotApp extends StatelessWidget {
+  const MurkotApp({
     super.key,
     required this.prefs,
     required this.authService,
@@ -51,26 +52,6 @@ class TujhMessengerApp extends StatelessWidget {
   final SharedPreferences prefs;
   final AuthService authService;
   final SettingsService settingsService;
-
-  ThemeData _buildTheme(Brightness brightness) {
-    return ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF5B6CFF),
-        brightness: brightness,
-      ),
-      useMaterial3: true,
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: brightness == Brightness.light
-            ? Colors.grey.shade100
-            : Colors.grey.shade900,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
 
   Widget _homeScreen() {
     if (!authService.isReady) {
@@ -111,8 +92,8 @@ class TujhMessengerApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             themeMode: settingsService.themeMode,
-            theme: _buildTheme(Brightness.light),
-            darkTheme: _buildTheme(Brightness.dark),
+            theme: buildMurkotTheme(Brightness.light),
+            darkTheme: buildMurkotTheme(Brightness.dark),
             builder: (context, child) {
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
@@ -128,3 +109,6 @@ class TujhMessengerApp extends StatelessWidget {
     );
   }
 }
+
+/// Back-compat alias for older imports/tests.
+typedef TujhMessengerApp = MurkotApp;

@@ -1,11 +1,11 @@
-/* Tujh Web Push service worker — works when the tab is closed/backgrounded. */
+/* Murkot Web Push service worker — works when the tab is closed/backgrounded. */
 
 self.addEventListener('push', (event) => {
   event.waitUntil(handlePush(event));
 });
 
 async function handlePush(event) {
-  let payload = { title: 'Tujh', body: 'Новое сообщение', conversationId: '' };
+  let payload = { title: 'Murkot', body: 'Новое сообщение', conversationId: '' };
   try {
     if (event.data) {
       payload = { ...payload, ...event.data.json() };
@@ -23,9 +23,9 @@ async function handlePush(event) {
   });
   if (clientsList.length > 0) return;
 
-  await self.registration.showNotification(payload.title || 'Tujh', {
+  await self.registration.showNotification(payload.title || 'Murkot', {
     body: payload.body || '',
-    tag: payload.conversationId || 'tujh',
+    tag: payload.conversationId || 'murkot',
     data: { conversationId: payload.conversationId || '' },
     renotify: true,
   });

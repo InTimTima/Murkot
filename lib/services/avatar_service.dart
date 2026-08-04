@@ -1,19 +1,24 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AvatarService {
   static final _client = Supabase.instance.client;
 
-  static Future<String> saveAvatar(String login, String sourcePath) async {
+  static Future<String> saveAvatarBytes({
+    required String login,
+    required Uint8List bytes,
+    String suffix = 'avatar',
+  }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw StateError('Not authenticated');
     }
+    if (bytes.isEmpty) {
+      throw StateError('Empty image');
+    }
 
-    final file = File(sourcePath);
-    final bytes = await file.readAsBytes();
-    final path = '$userId/${login}_avatar.jpg';
+    final path = '$userId/${login}_$suffix.jpg';
 
     await _client.storage.from('avatars').uploadBinary(
           path,
@@ -28,11 +33,11 @@ class AvatarService {
     return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  static Future<void> deleteAvatar(String login) async {
+  static Future<void> deleteAvatar(String login, {String suffix = 'avatar'}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    final path = '$userId/${login}_avatar.jpg';
+    final path = '$userId/${login}_$suffix.jpg';
     try {
       await _client.storage.from('avatars').remove([path]);
     } catch (_) {

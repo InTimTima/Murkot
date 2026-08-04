@@ -119,7 +119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (file == null || !mounted) return;
 
     setState(() => _isUpdatingAvatar = true);
-    final error = await widget.authService.updateAvatar(file.path);
+    final bytes = await file.readAsBytes();
+    final error = await widget.authService.updateAvatarBytes(bytes);
     if (!mounted) return;
     setState(() => _isUpdatingAvatar = false);
     _showMessage(error ?? context.strings.avatarUpdated);
@@ -260,9 +261,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: Text(strings.uploadWallpaper),
                 onTap: () async {
                   Navigator.pop(context);
-                  final file = await _picker.pickImage(source: ImageSource.gallery);
+                  final file = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                    maxWidth: 1600,
+                    imageQuality: 85,
+                  );
                   if (file == null || !mounted) return;
-                  final error = await widget.authService.updateCustomWallpaper(file.path);
+                  final bytes = await file.readAsBytes();
+                  final error =
+                      await widget.authService.updateCustomWallpaperBytes(bytes);
                   _showMessage(error ?? strings.avatarUpdated);
                 },
               ),
@@ -322,14 +329,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             customPath != null && !isNetworkWallpaper && File(customPath).existsSync();
         final hasCustomWallpaper = isNetworkWallpaper || hasFileWallpaper;
 
+        final screenHeight = MediaQuery.of(context).size.height;
+        // Wallpaper covers top 75%; bottom 25% stays the solid scaffold color.
+        final wallpaperHeight = screenHeight * 0.75;
+
         return Stack(
           children: [
-            // Фон только сверху и по бокам
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              height: MediaQuery.of(context).size.height * 0.34,
+              height: wallpaperHeight,
               child: hasCustomWallpaper
                   ? (isNetworkWallpaper
                       ? Image.network(customPath, fit: BoxFit.cover)
@@ -351,23 +361,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     elevation: 6,
                     child: Column(
                       children: [
-                        AppBar(
-                          title: Text(strings.profile),
-                          centerTitle: true,
-                          automaticallyImplyLeading: false,
-                          actions: [
-                            IconButton(
-                              icon: const Icon(Icons.settings_outlined),
-                              tooltip: strings.settingsTitle,
-                              onPressed: _openSettings,
-                            ),
-                          ],
-                        ),
                         Expanded(
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.settings_outlined),
+                                    tooltip: strings.settingsTitle,
+                                    onPressed: _openSettings,
+                                  ),
+                                ),
                                 _AvatarSection(
                                   avatarPath: current.avatarPath,
                                   avatarEmoji: current.avatarEmoji,

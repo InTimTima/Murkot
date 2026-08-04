@@ -18,71 +18,71 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Murkot — мессенджер со вкусом свежего сока.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="tujh_messenger">
+  <meta name="apple-mobile-web-app-title" content="Murkot">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>tujh_messenger</title>
+  <title>Murkot</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <div id="tujh-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:#0f1220;color:#e8eaf6;">
+  <div id="murkot-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:linear-gradient(160deg,#FFF6E8,#FFD27A 55%,#F1891E);color:#5A3010;">
     <div style="text-align:center">
-      <div style="width:36px;height:36px;margin:0 auto 12px;border:3px solid #3a3f5c;border-top-color:#7b87ff;border-radius:50%;animation:tujhspin .7s linear infinite"></div>
-      <div style="font-size:14px;opacity:.85">Загрузка Tujh…</div>
+      <div style="width:36px;height:36px;margin:0 auto 12px;border:3px solid rgba(90,48,16,.25);border-top-color:#F1891E;border-radius:50%;animation:murkotspin .7s linear infinite"></div>
+      <div style="font-size:14px;opacity:.9;font-weight:600;letter-spacing:.08em">Загрузка Murkot…</div>
     </div>
   </div>
   <style>
-    @keyframes tujhspin { to { transform: rotate(360deg); } }
+    @keyframes murkotspin { to { transform: rotate(360deg); } }
   </style>
   <script>
     window.addEventListener('flutter-first-frame', function () {
-      var el = document.getElementById('tujh-boot');
+      var el = document.getElementById('murkot-boot');
       if (el) el.remove();
     });
   </script>
   <script>
     // Voice note recorder (MediaRecorder → base64).
-    let _tujhVoiceRecorder = null;
-    let _tujhVoiceChunks = [];
-    let _tujhVoiceStartedAt = 0;
-    let _tujhVoiceStream = null;
+    let _murkotVoiceRecorder = null;
+    let _murkotVoiceChunks = [];
+    let _murkotVoiceStartedAt = 0;
+    let _murkotVoiceStream = null;
 
-    window.tujhVoiceStart = async function () {
+    window.murkotVoiceStart = async function () {
       if (!navigator.mediaDevices?.getUserMedia) return false;
-      _tujhVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      _tujhVoiceChunks = [];
+      _murkotVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _murkotVoiceChunks = [];
       const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
-      _tujhVoiceRecorder = new MediaRecorder(_tujhVoiceStream, { mimeType: mime });
-      _tujhVoiceRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) _tujhVoiceChunks.push(e.data);
+      _murkotVoiceRecorder = new MediaRecorder(_murkotVoiceStream, { mimeType: mime });
+      _murkotVoiceRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) _murkotVoiceChunks.push(e.data);
       };
-      _tujhVoiceStartedAt = Date.now();
-      _tujhVoiceRecorder.start();
+      _murkotVoiceStartedAt = Date.now();
+      _murkotVoiceRecorder.start();
       return true;
     };
 
-    window.tujhVoiceStop = async function () {
-      if (!_tujhVoiceRecorder) return null;
-      const recorder = _tujhVoiceRecorder;
+    window.murkotVoiceStop = async function () {
+      if (!_murkotVoiceRecorder) return null;
+      const recorder = _murkotVoiceRecorder;
       const mimeType = recorder.mimeType || 'audio/webm';
       const blob = await new Promise((resolve) => {
-        recorder.onstop = () => resolve(new Blob(_tujhVoiceChunks, { type: mimeType }));
+        recorder.onstop = () => resolve(new Blob(_murkotVoiceChunks, { type: mimeType }));
         recorder.stop();
       });
-      (_tujhVoiceStream?.getTracks() || []).forEach((t) => t.stop());
-      _tujhVoiceRecorder = null;
-      _tujhVoiceStream = null;
-      const durationMs = Date.now() - _tujhVoiceStartedAt;
+      (_murkotVoiceStream?.getTracks() || []).forEach((t) => t.stop());
+      _murkotVoiceRecorder = null;
+      _murkotVoiceStream = null;
+      const durationMs = Date.now() - _murkotVoiceStartedAt;
       const buffer = await blob.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       let binary = '';
@@ -94,20 +94,20 @@
       };
     };
 
-    window.tujhVoiceCancel = async function () {
+    window.murkotVoiceCancel = async function () {
       try {
-        if (_tujhVoiceRecorder && _tujhVoiceRecorder.state !== 'inactive') {
-          _tujhVoiceRecorder.stop();
+        if (_murkotVoiceRecorder && _murkotVoiceRecorder.state !== 'inactive') {
+          _murkotVoiceRecorder.stop();
         }
       } catch (_) {}
-      (_tujhVoiceStream?.getTracks() || []).forEach((t) => t.stop());
-      _tujhVoiceRecorder = null;
-      _tujhVoiceStream = null;
-      _tujhVoiceChunks = [];
+      (_murkotVoiceStream?.getTracks() || []).forEach((t) => t.stop());
+      _murkotVoiceRecorder = null;
+      _murkotVoiceStream = null;
+      _murkotVoiceChunks = [];
     };
 
     // Web Push helper for Flutter (stores subscription via NotificationService).
-    window.tujhRegisterWebPush = async function (vapidPublicKey) {
+    window.murkotRegisterWebPush = async function (vapidPublicKey) {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         return null;
       }

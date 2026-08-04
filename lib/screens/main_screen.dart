@@ -13,6 +13,8 @@ import '../services/chat_service.dart';
 import '../services/notification_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
+import '../utils/main_tab_bus.dart';
+import '../widgets/avatar_display.dart';
 import 'conversations_list_screen.dart';
 import 'profile_screen.dart';
 
@@ -43,7 +45,13 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    mainTabIndex.addListener(_onExternalTabChange);
     _initServices();
+  }
+
+  void _onExternalTabChange() {
+    if (!mounted || _currentIndex == mainTabIndex.value) return;
+    setState(() => _currentIndex = mainTabIndex.value);
   }
 
   Future<void> _initServices() async {
@@ -105,6 +113,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    mainTabIndex.removeListener(_onExternalTabChange);
     _chatService?.dispose();
     _presenceService?.dispose();
     super.dispose();
@@ -122,6 +131,13 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.authService,
+      builder: (context, _) => _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     final strings = context.strings;
     final login = widget.authService.currentUser!.login;
     final chatService = _chatService;
@@ -166,10 +182,10 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
+    final user = widget.authService.currentUser!;
+
     return Scaffold(
-      appBar: _currentIndex < 3
-          ? AppBar(title: Text(_sectionTitle))
-          : null,
+      appBar: _currentIndex == 3 ? null : AppBar(title: Text(_sectionTitle)),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -206,11 +222,17 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: _CustomBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          mainTabIndex.value = index;
+          setState(() => _currentIndex = index);
+        },
         chatsLabel: strings.chats,
         groupsLabel: strings.groups,
         channelsLabel: strings.channels,
         profileLabel: strings.profile,
+        profileLogin: user.login,
+        profileAvatarPath: user.avatarPath,
+        profileAvatarEmoji: user.avatarEmoji,
       ),
     );
   }
@@ -224,6 +246,9 @@ class _CustomBottomNav extends StatelessWidget {
     required this.groupsLabel,
     required this.channelsLabel,
     required this.profileLabel,
+    required this.profileLogin,
+    this.profileAvatarPath,
+    this.profileAvatarEmoji,
   });
 
   final int currentIndex;
@@ -232,6 +257,9 @@ class _CustomBottomNav extends StatelessWidget {
   final String groupsLabel;
   final String channelsLabel;
   final String profileLabel;
+  final String profileLogin;
+  final String? profileAvatarPath;
+  final String? profileAvatarEmoji;
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +271,7 @@ class _CustomBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 72,
           child: Row(
             children: [
               Expanded(
@@ -280,18 +308,97 @@ class _CustomBottomNav extends StatelessWidget {
                 color: Colors.grey.shade400,
               ),
               SizedBox(
-                width: 80,
-                child: _NavItem(
-                  icon: Icons.person_outline,
-                  selectedIcon: Icons.person,
+                width: 88,
+                child: _ProfileNavItem(
                   label: profileLabel,
+                  login: profileLogin,
+                  avatarPath: profileAvatarPath,
+                  avatarEmoji: profileAvatarEmoji,
                   isSelected: currentIndex == 3,
                   onTap: () => onTap(3),
-                  expanded: false,
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Profile nav item: label on top, current account avatar below, nick at
+/// the bottom — shows which account is active without opening the profile.
+class _ProfileNavItem extends StatelessWidget {
+  const _ProfileNavItem({
+    required this.label,
+    required this.login,
+    required this.isSelected,
+    required this.onTap,
+    this.avatarPath,
+    this.avatarEmoji,
+  });
+
+  final String label;
+  final String login;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final String? avatarPath;
+  final String? avatarEmoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color =
+        isSelected ? theme.colorScheme.primary : Colors.grey.shade600;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 3),
+            Container(
+              decoration: isSelected
+                  ? BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.primary,
+                        width: 1.5,
+                      ),
+                    )
+                  : null,
+              child: AvatarDisplay(
+                name: login,
+                avatarPath: avatarPath,
+                avatarEmoji: avatarEmoji,
+                radius: 13,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              login,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -305,7 +412,6 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.expanded = true,
   });
 
   final IconData icon;
@@ -313,7 +419,6 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
-  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -322,27 +427,27 @@ class _NavItem extends StatelessWidget {
         ? theme.colorScheme.primary
         : Colors.grey.shade600;
 
-    final child = InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
-
-    return expanded ? Expanded(child: child) : child;
   }
 }

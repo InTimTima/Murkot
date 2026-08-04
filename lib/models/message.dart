@@ -169,9 +169,20 @@ String messageTypeLabel(MessageType type) {
   };
 }
 
-String messagePreviewText(Message message) {
+String truncateChatPreview(String? value, {int maxChars = 48}) {
+  final text = (value ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (text.length <= maxChars) return text;
+  return '${text.substring(0, maxChars).trimRight()}…';
+}
+
+String messagePreviewText(Message message, {int maxChars = 48}) {
   if (message.isDeletedForAll) return 'Сообщение удалено';
-  if (message.type == MessageType.text) return message.content;
-  final label = messageTypeLabel(message.type);
-  return label.isEmpty ? message.content : label;
+  final String raw;
+  if (message.type == MessageType.text) {
+    raw = message.content;
+  } else {
+    final label = messageTypeLabel(message.type);
+    raw = label.isEmpty ? message.content : label;
+  }
+  return truncateChatPreview(raw, maxChars: maxChars);
 }

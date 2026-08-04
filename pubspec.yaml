@@ -28,3 +28,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/murkot_icon.png
+    - assets/branding/murkot_stretch_cat.png
