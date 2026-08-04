@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
@@ -8,22 +10,38 @@ import 'avatar_service.dart';
 class AuthService extends ChangeNotifier {
   AuthService();
 
+  static const _profileTimeout = Duration(seconds: 6);
+
   final _client = Supabase.instance.client;
 
   User? _currentUser;
   String? _pendingEmail;
   bool _awaitingEmailConfirmation = false;
+  bool _ready = false;
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get needsEmailVerification => _awaitingEmailConfirmation;
+  bool get isReady => _ready;
   String? get pendingVerificationCode => null;
   String? get pendingEmail => _pendingEmail;
 
   Future<void> initialize() async {
-    final session = _client.auth.currentSession;
-    if (session != null) {
-      await _loadProfile(session.user.id);
+    try {
+      final session = _client.auth.currentSession;
+      if (session != null) {
+        try {
+          await _loadProfile(session.user.id).timeout(_profileTimeout);
+        } on TimeoutException {
+          debugPrint('Profile load timed out — using session fallback');
+          _currentUser ??= _userFromSession(session);
+        }
+        // If the network failed entirely, still let the user into the shell.
+        _currentUser ??= _userFromSession(session);
+      }
+    } finally {
+      _ready = true;
+      notifyListeners();
     }
 
     _client.auth.onAuthStateChange.listen((data) async {
@@ -39,9 +57,31 @@ class AuthService extends ChangeNotifier {
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed ||
           event == AuthChangeEvent.userUpdated) {
-        await _loadProfile(session.user.id);
+        try {
+          await _loadProfile(session.user.id).timeout(_profileTimeout);
+        } on TimeoutException {
+          debugPrint('Profile refresh timed out');
+          _currentUser ??= _userFromSession(session);
+          notifyListeners();
+        }
       }
     });
+  }
+
+  User _userFromSession(Session session) {
+    final authUser = session.user;
+    final login = (authUser.userMetadata?['login'] as String?) ??
+        authUser.email?.split('@').first ??
+        'user';
+    final emoji = (authUser.userMetadata?['avatar_emoji'] as String?) ??
+        pickRandomEmoji();
+    return User(
+      id: authUser.id,
+      login: login,
+      email: authUser.email ?? '',
+      avatarEmoji: emoji,
+      status: 'В сети',
+    );
   }
 
   Future<void> _loadProfile(String userId) async {

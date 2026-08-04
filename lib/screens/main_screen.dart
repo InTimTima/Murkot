@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -73,10 +75,12 @@ class _MainScreenState extends State<MainScreen> {
     };
 
     try {
-      await blacklistService.initialize();
-      await chatService.initialize();
-      await presenceService.initialize();
-      await _notificationService.initialize();
+      // Load chats + blacklist in parallel; never block UI on push permission.
+      await Future.wait([
+        blacklistService.initialize(),
+        chatService.initialize(),
+      ]).timeout(const Duration(seconds: 12));
+
       if (!mounted) {
         chatService.dispose();
         presenceService.dispose();
@@ -88,6 +92,9 @@ class _MainScreenState extends State<MainScreen> {
         _presenceService = presenceService;
         _loadError = null;
       });
+
+      unawaited(presenceService.initialize());
+      unawaited(_notificationService.initialize());
     } catch (e) {
       chatService.dispose();
       presenceService.dispose();

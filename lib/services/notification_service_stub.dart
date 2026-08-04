@@ -1,3 +1,5 @@
+Future<bool> hasNotificationPermissionImpl() async => false;
+
 Future<bool> requestNotificationPermissionImpl() async => false;
 
 Future<void> showNotificationImpl({

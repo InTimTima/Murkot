@@ -927,7 +927,9 @@ class ChatService extends ChangeNotifier {
   Future<void> _loadAll({bool preserveMessages = true}) async {
     final memberRows = await _client
         .from('conversation_members')
-        .select('conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, avatar_url, last_seen_at)')
+        .select(
+          'conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, avatar_url, last_seen_at)',
+        )
         .eq('user_id', _userId);
 
     final myMemberships = (memberRows as List).cast<Map<String, dynamic>>();
@@ -939,19 +941,30 @@ class ChatService extends ChangeNotifier {
     final convIds =
         myMemberships.map((m) => m['conversation_id'] as String).toList();
 
-    final convRows = await _client
-        .from('conversations')
-        .select()
-        .inFilter('id', convIds)
-        .order('last_activity', ascending: false);
+    // Conversations + members + hides + pins in parallel (was 4 serial round-trips).
+    final batched = await Future.wait([
+      _client
+          .from('conversations')
+          .select()
+          .inFilter('id', convIds)
+          .order('last_activity', ascending: false),
+      _client
+          .from('conversation_members')
+          .select(
+            'conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, last_seen_at)',
+          )
+          .inFilter('conversation_id', convIds),
+      _client.from('message_hides').select('message_id').eq('user_id', _userId),
+      _client.from('message_pins').select().inFilter('conversation_id', convIds),
+    ]);
 
-    final allMembers = await _client
-        .from('conversation_members')
-        .select('conversation_id, role, user_id, profiles(login, status, birthday, avatar_emoji, last_seen_at)')
-        .inFilter('conversation_id', convIds);
+    final convRows = batched[0] as List;
+    final allMembers = batched[1] as List;
+    final hideRows = batched[2] as List;
+    final pinRows = batched[3] as List;
 
     final membersByConv = <String, List<Map<String, dynamic>>>{};
-    for (final row in (allMembers as List).cast<Map<String, dynamic>>()) {
+    for (final row in allMembers.cast<Map<String, dynamic>>()) {
       membersByConv
           .putIfAbsent(row['conversation_id'] as String, () => [])
           .add(row);
@@ -976,7 +989,23 @@ class ChatService extends ChangeNotifier {
         m['conversation_id'] as String: m['role'] as String,
     };
 
-    _conversations = (convRows as List).cast<Map<String, dynamic>>().map((row) {
+    _hiddenMessageIds
+      ..clear()
+      ..addAll(hideRows.map((e) => e['message_id'] as String));
+
+    _pinnedForEveryone.clear();
+    _pinnedForMe.clear();
+    for (final row in pinRows.cast<Map<String, dynamic>>()) {
+      final convId = row['conversation_id'] as String;
+      final messageId = row['message_id'] as String;
+      if (row['for_everyone'] as bool) {
+        _pinnedForEveryone.putIfAbsent(convId, () => []).add(messageId);
+      } else if (row['pinned_by'] == _userId) {
+        _pinnedForMe.putIfAbsent(convId, () => []).add(messageId);
+      }
+    }
+
+    _conversations = convRows.cast<Map<String, dynamic>>().map((row) {
       final id = row['id'] as String;
       final type = _parseType(row['type'] as String);
       final members = membersByConv[id] ?? [];
@@ -1027,41 +1056,7 @@ class ChatService extends ChangeNotifier {
         subscriberCount:
             type == ConversationType.channel ? memberLogins.length : 0,
         typingUsers: _typingUsers[id] ?? const [],
-      );
-    }).toList();
-
-    if (convIds.isEmpty) return;
-
-    final hideRows = await _client
-        .from('message_hides')
-        .select('message_id')
-        .eq('user_id', _userId);
-    _hiddenMessageIds
-      ..clear()
-      ..addAll(
-        (hideRows as List).map((e) => e['message_id'] as String),
-      );
-
-    final pinRows = await _client
-        .from('message_pins')
-        .select()
-        .inFilter('conversation_id', convIds);
-
-    _pinnedForEveryone.clear();
-    _pinnedForMe.clear();
-    for (final row in (pinRows as List).cast<Map<String, dynamic>>()) {
-      final convId = row['conversation_id'] as String;
-      final messageId = row['message_id'] as String;
-      if (row['for_everyone'] as bool) {
-        _pinnedForEveryone.putIfAbsent(convId, () => []).add(messageId);
-      } else if (row['pinned_by'] == _userId) {
-        _pinnedForMe.putIfAbsent(convId, () => []).add(messageId);
-      }
-    }
-
-    _conversations = _conversations.map((c) {
-      return c.copyWith(
-        pinnedForAllIds: _pinnedForEveryone[c.id] ?? const [],
+        pinnedForAllIds: _pinnedForEveryone[id] ?? const [],
       );
     }).toList();
 

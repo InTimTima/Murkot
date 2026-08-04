@@ -8,6 +8,11 @@ import '../config/push_config.dart';
 @JS('tujhRegisterWebPush')
 external JSPromise<JSAny?> _tujhRegisterWebPush(JSString vapidPublicKey);
 
+Future<bool> hasNotificationPermissionImpl() async {
+  if (!html.Notification.supported) return false;
+  return html.Notification.permission == 'granted';
+}
+
 Future<bool> requestNotificationPermissionImpl() async {
   if (!html.Notification.supported) return false;
   final permission = html.Notification.permission;

@@ -10,7 +10,7 @@ void main() {
   testWidgets('Shows auth screen when not logged in', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final authService = AuthService(prefs);
+    final authService = AuthService();
     final settingsService = SettingsService(prefs);
 
     await tester.pumpWidget(TujhMessengerApp(      prefs: prefs,

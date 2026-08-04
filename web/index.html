@@ -33,6 +33,21 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div id="tujh-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:#0f1220;color:#e8eaf6;">
+    <div style="text-align:center">
+      <div style="width:36px;height:36px;margin:0 auto 12px;border:3px solid #3a3f5c;border-top-color:#7b87ff;border-radius:50%;animation:tujhspin .7s linear infinite"></div>
+      <div style="font-size:14px;opacity:.85">Загрузка Tujh…</div>
+    </div>
+  </div>
+  <style>
+    @keyframes tujhspin { to { transform: rotate(360deg); } }
+  </style>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('tujh-boot');
+      if (el) el.remove();
+    });
+  </script>
   <script>
     // Voice note recorder (MediaRecorder → base64).
     let _tujhVoiceRecorder = null;

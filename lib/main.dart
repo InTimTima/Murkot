@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,24 +13,31 @@ import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 import 'services/settings_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
+  ).timeout(
+    const Duration(seconds: 10),
+    onTimeout: () => throw TimeoutException(
+      'Supabase init > 10s — проверь сеть / VPN до supabase.co',
+    ),
   );
 
   final prefs = await SharedPreferences.getInstance();
   final authService = AuthService();
-  await authService.initialize();
   final settingsService = SettingsService(prefs);
 
+  // Paint the first frame immediately; auth finishes in the background.
   runApp(TujhMessengerApp(
     prefs: prefs,
     authService: authService,
     settingsService: settingsService,
   ));
+
+  unawaited(authService.initialize());
 }
 
 class TujhMessengerApp extends StatelessWidget {
@@ -64,6 +73,11 @@ class TujhMessengerApp extends StatelessWidget {
   }
 
   Widget _homeScreen() {
+    if (!authService.isReady) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     if (authService.isAuthenticated) {
       return MainScreen(
         authService: authService,

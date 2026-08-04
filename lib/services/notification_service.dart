@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,9 +11,11 @@ class NotificationService {
   bool get isEnabled => _enabled;
 
   Future<bool> initialize() async {
-    _enabled = await impl.requestNotificationPermissionImpl();
+    // Do not prompt on startup — a permission dialog can hang the whole app
+    // for minutes if the user ignores it. Only wire up an already-granted grant.
+    _enabled = await impl.hasNotificationPermissionImpl();
     if (_enabled) {
-      await _registerPushToken();
+      unawaited(_registerPushToken());
     }
     return _enabled;
   }
