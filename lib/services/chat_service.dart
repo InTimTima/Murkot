@@ -28,7 +28,7 @@ class ChatService extends ChangeNotifier {
   }
 
   static const botUserId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeee01';
-  static const botLogin = 'TujhBot';
+  static const botLogin = 'Murkot';
   static const messagePageSize = 40;
 
   final String _userId;
@@ -363,6 +363,7 @@ class ChatService extends ChangeNotifier {
     final conversation = getConversation(conversationId);
     if (conversation == null) return;
     await updateConversation(conversation.copyWith(avatarPath: busted));
+    await sendSystemMessage(conversationId, '$_userLogin обновил(а) аватар');
   }
 
   /// Search public groups/channels by name (RPC, see features_v8.sql).
@@ -392,7 +393,12 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll(preserveMessages: true);
     notifyListeners();
-    return getConversation(conversationId);
+    final conversation = getConversation(conversationId);
+    // Channels are read-only for regular members — no system notice there.
+    if (conversation != null && conversation.type == ConversationType.group) {
+      await sendSystemMessage(conversationId, '$_userLogin вступил(а) в группу');
+    }
+    return conversation;
   }
 
   /// Search text messages across all my conversations of [type].
@@ -729,6 +735,7 @@ class ChatService extends ChangeNotifier {
     String contentType = 'application/octet-stream',
     int? durationMs,
     bool isCircle = false,
+    String? caption,
   }) async {
     final url = await MediaService.uploadChatMedia(
       conversationId: conversationId,
@@ -745,8 +752,52 @@ class ChatService extends ChangeNotifier {
         name: fileName,
         durationMs: durationMs,
         isCircle: isCircle,
+        caption: caption,
       ).encode(),
     );
+  }
+
+  /// Uploads several photos and sends them as one grouped message (album).
+  Future<void> sendImageAlbum({
+    required String conversationId,
+    required List<({Uint8List bytes, String name, String contentType})> images,
+    String? caption,
+  }) async {
+    if (images.isEmpty) return;
+
+    final urls = <String>[];
+    for (final image in images) {
+      urls.add(await MediaService.uploadChatMedia(
+        conversationId: conversationId,
+        bytes: image.bytes,
+        fileName: image.name,
+        contentType: image.contentType,
+      ));
+    }
+
+    await sendMessage(
+      conversationId: conversationId,
+      type: MessageType.image,
+      content: MediaPayload(
+        url: urls.first,
+        name: urls.length == 1 ? images.first.name : '${urls.length} фото',
+        caption: caption,
+        album: urls.length > 1 ? urls : const [],
+      ).encode(),
+    );
+  }
+
+  /// Sends a centered service notice ("X добавил Y" etc). Never throws.
+  Future<void> sendSystemMessage(String conversationId, String text) async {
+    try {
+      await sendMessage(
+        conversationId: conversationId,
+        type: MessageType.system,
+        content: text,
+      );
+    } catch (e) {
+      debugPrint('sendSystemMessage failed: $e');
+    }
   }
 
   Future<void> addMemberByLogin(String conversationId, String login) async {
@@ -759,6 +810,10 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll();
     notifyListeners();
+    await sendSystemMessage(
+      conversationId,
+      '$_userLogin добавил(а) ${login.trim()}',
+    );
   }
 
   Future<void> addMember(String conversationId, UserPreview user) async {
@@ -771,6 +826,10 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll();
     notifyListeners();
+    await sendSystemMessage(
+      conversationId,
+      '$_userLogin добавил(а) ${user.login}',
+    );
   }
 
   Future<void> removeMemberByLogin(String conversationId, String login) async {
@@ -783,6 +842,10 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll();
     notifyListeners();
+    await sendSystemMessage(
+      conversationId,
+      '$_userLogin удалил(а) ${login.trim()}',
+    );
   }
 
   Future<void> addComment({

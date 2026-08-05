@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
@@ -41,6 +42,7 @@ class _MainScreenState extends State<MainScreen> {
   PresenceService? _presenceService;
   final _notificationService = NotificationService();
   String? _loadError;
+  bool _retriedInit = false;
 
   @override
   void initState() {
@@ -54,9 +56,26 @@ class _MainScreenState extends State<MainScreen> {
     setState(() => _currentIndex = mainTabIndex.value);
   }
 
+  /// If the stored auth token expired (e.g. the app was closed overnight),
+  /// refresh it before the first data queries — otherwise they fail with
+  /// "JWT expired" and the shell shows a load error.
+  Future<void> _ensureFreshSession() async {
+    try {
+      final auth = Supabase.instance.client.auth;
+      final session = auth.currentSession;
+      if (session != null && session.isExpired) {
+        await auth.refreshSession().timeout(const Duration(seconds: 8));
+      }
+    } catch (e) {
+      debugPrint('Session refresh failed: $e');
+    }
+  }
+
   Future<void> _initServices() async {
     final user = widget.authService.currentUser;
     if (user == null) return;
+
+    await _ensureFreshSession();
 
     final blacklistService =
         BlacklistService(userId: user.id, userLogin: user.login);
@@ -107,6 +126,16 @@ class _MainScreenState extends State<MainScreen> {
       chatService.dispose();
       presenceService.dispose();
       if (!mounted) return;
+
+      // One silent retry: the first attempt may race the token refresh
+      // right after a cold start.
+      if (!_retriedInit) {
+        _retriedInit = true;
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (mounted) await _initServices();
+        return;
+      }
+
       setState(() => _loadError = e.toString());
     }
   }
@@ -162,6 +191,7 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
+                    _retriedInit = false;
                     setState(() => _loadError = null);
                     _initServices();
                   },

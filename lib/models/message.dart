@@ -1,3 +1,5 @@
+import 'media_payload.dart';
+
 enum MessageType {
   text,
   voice,
@@ -8,6 +10,9 @@ enum MessageType {
   emoji,
   gif,
   file,
+
+  /// Service notice, e.g. "X добавил Y" — rendered as a centered pill.
+  system,
 }
 
 enum MessageSendStatus {
@@ -166,6 +171,7 @@ String messageTypeLabel(MessageType type) {
     MessageType.emoji => '😀 Эмодзи',
     MessageType.gif => 'GIF',
     MessageType.file => '📎 Файл',
+    MessageType.system => '',
   };
 }
 
@@ -178,11 +184,16 @@ String truncateChatPreview(String? value, {int maxChars = 48}) {
 String messagePreviewText(Message message, {int maxChars = 48}) {
   if (message.isDeletedForAll) return 'Сообщение удалено';
   final String raw;
-  if (message.type == MessageType.text) {
+  if (message.type == MessageType.text || message.type == MessageType.system) {
     raw = message.content;
   } else {
     final label = messageTypeLabel(message.type);
-    raw = label.isEmpty ? message.content : label;
+    final caption = MediaPayload.tryParse(message.content)?.caption;
+    if (caption != null && caption.isNotEmpty) {
+      raw = '$label · $caption';
+    } else {
+      raw = label.isEmpty ? message.content : label;
+    }
   }
   return truncateChatPreview(raw, maxChars: maxChars);
 }

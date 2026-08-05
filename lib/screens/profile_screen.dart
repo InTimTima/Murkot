@@ -84,6 +84,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(strings.camera),
               onTap: () => Navigator.pop(context, _AvatarAction.camera),
             ),
+            ListTile(
+              leading: const Icon(Icons.emoji_emotions_outlined),
+              title: Text(strings.chooseEmoji),
+              onTap: () => Navigator.pop(context, _AvatarAction.emoji),
+            ),
             if (hasAvatar)
               ListTile(
                 leading: Icon(Icons.delete_outline,
@@ -104,9 +109,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _pickAndSaveAvatar(ImageSource.gallery);
       case _AvatarAction.camera:
         await _pickAndSaveAvatar(ImageSource.camera);
+      case _AvatarAction.emoji:
+        await _pickEmojiAvatar();
       case _AvatarAction.remove:
         await _removeAvatar();
     }
+  }
+
+  Future<void> _pickEmojiAvatar() async {
+    final strings = context.strings;
+    final emoji = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  strings.chooseEmoji,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ),
+            Flexible(
+              child: GridView.count(
+                crossAxisCount: 6,
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                children: [
+                  for (final e in _kAvatarEmojiChoices)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.pop(context, e),
+                      child: Center(
+                        child: Text(e, style: const TextStyle(fontSize: 28)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (emoji == null || !mounted) return;
+
+    setState(() => _isUpdatingAvatar = true);
+    final error = await widget.authService.updateAvatarEmoji(emoji);
+    if (!mounted) return;
+    setState(() => _isUpdatingAvatar = false);
+    _showMessage(error ?? context.strings.avatarUpdated);
   }
 
   Future<void> _pickAndSaveAvatar(ImageSource source) async {
@@ -505,7 +563,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-enum _AvatarAction { gallery, camera, remove }
+enum _AvatarAction { gallery, camera, emoji, remove }
+
+/// Emoji available as profile avatars.
+const _kAvatarEmojiChoices = [
+  '🐱', '😺', '😸', '😻', '🐈', '🐈‍⬛',
+  '🍊', '🍋', '🍑', '🥭', '🍍', '🥝',
+  '😀', '😎', '🤩', '😇', '🥳', '🤗',
+  '🦊', '🐶', '🐼', '🐨', '🦁', '🐯',
+  '🌟', '🔥', '⚡', '🌈', '💎', '🍀',
+  '🎮', '🎨', '🎵', '🚀', '🦄', '👑',
+];
 
 class _AvatarSection extends StatelessWidget {
   const _AvatarSection({

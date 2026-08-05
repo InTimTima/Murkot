@@ -405,6 +405,23 @@ class AuthService extends ChangeNotifier {
     await updateProfile(user.copyWith(clearAvatar: true));
   }
 
+  /// Sets an emoji as the avatar (removes the uploaded photo, if any).
+  Future<String?> updateAvatarEmoji(String emoji) async {
+    final user = _currentUser;
+    if (user == null) return 'Пользователь не авторизован';
+
+    try {
+      try {
+        await AvatarService.deleteAvatar(user.login);
+      } catch (_) {}
+      await updateProfile(user.copyWith(avatarEmoji: emoji, clearAvatar: true));
+      return null;
+    } catch (e) {
+      debugPrint('updateAvatarEmoji failed: $e');
+      return 'Не удалось сохранить аватар';
+    }
+  }
+
   Future<String?> updateCustomWallpaperBytes(Uint8List bytes) async {
     final user = _currentUser;
     if (user == null) return 'Пользователь не авторизован';

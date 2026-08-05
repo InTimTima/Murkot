@@ -11,6 +11,7 @@ import '../services/chat_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart' hide pickRandomEmoji;
 import '../widgets/confirm_dialogs.dart';
+import 'media_viewer_screen.dart';
 import 'user_search_sheet.dart';
 
 class StrangerProfileScreen extends StatefulWidget {
@@ -177,6 +178,10 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     );
     if (name != null) {
       await widget.chatService.updateConversation(_conversation.copyWith(name: name));
+      await widget.chatService.sendSystemMessage(
+        _conversation.id,
+        '${widget.currentUserLogin} изменил(а) название на «${name.trim()}»',
+      );
       if (mounted) {
         setState(() {
           _conversation = widget.chatService.getConversation(_conversation.id)!;
@@ -338,12 +343,21 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
           body: Column(
             children: [
               const SizedBox(height: 20),
-              AvatarDisplay(
-                name: _conversation.name,
-                avatarPath: _conversation.avatarPath,
-                avatarEmoji: conversationAvatarEmoji(_conversation),
-                radius: 48,
-                fontSize: 32,
+              GestureDetector(
+                onTap: _conversation.avatarPath == null
+                    ? null
+                    : () => MediaViewerScreen.open(
+                          context,
+                          urls: [_conversation.avatarPath!],
+                          title: _conversation.name,
+                        ),
+                child: AvatarDisplay(
+                  name: _conversation.name,
+                  avatarPath: _conversation.avatarPath,
+                  avatarEmoji: conversationAvatarEmoji(_conversation),
+                  radius: 48,
+                  fontSize: 32,
+                ),
               ),
               const SizedBox(height: 12),
               Text(_conversation.name,
@@ -459,12 +473,35 @@ class _MediaGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (messages.isEmpty) {
+    // Expand albums into individual tiles so grouped photos are all visible.
+    final items = <_MediaGridItem>[];
+    for (final message in messages) {
+      final media = MediaPayload.tryParse(message.content);
+      if (media == null) continue;
+      final isImage = message.type == MessageType.image ||
+          message.type == MessageType.sticker ||
+          message.type == MessageType.gif;
+      for (final url in media.allUrls) {
+        items.add(_MediaGridItem(
+          url: url,
+          isImage: isImage,
+          name: media.name,
+          type: message.type,
+        ));
+      }
+    }
+
+    if (items.isEmpty) {
       return Center(
         child: Text(context.strings.noMedia,
             style: TextStyle(color: Colors.grey.shade600)),
       );
     }
+
+    final imageUrls = [
+      for (final item in items)
+        if (item.isImage) item.url,
+    ];
 
     return GridView.builder(
       padding: const EdgeInsets.all(6),
@@ -473,32 +510,34 @@ class _MediaGrid extends StatelessWidget {
         crossAxisSpacing: 3,
         mainAxisSpacing: 3,
       ),
-      itemCount: messages.length,
+      itemCount: items.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
-        final media = MediaPayload.tryParse(message.content);
-        final isImage = message.type == MessageType.image ||
-            message.type == MessageType.sticker ||
-            message.type == MessageType.gif;
+        final item = items[index];
 
         return InkWell(
-          onTap: media == null
-              ? null
+          onTap: item.isImage
+              ? () => MediaViewerScreen.open(
+                    context,
+                    urls: imageUrls,
+                    initialIndex: imageUrls.indexOf(item.url),
+                  )
               : () => launchUrl(
-                    Uri.parse(media.url),
+                    Uri.parse(item.url),
                     mode: LaunchMode.externalApplication,
                   ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Container(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: media != null && isImage
-                  ? Image.network(media.url, fit: BoxFit.cover)
+              child: item.isImage
+                  ? Image.network(item.url, fit: BoxFit.cover)
                   : Center(
                       child: Padding(
                         padding: const EdgeInsets.all(4),
                         child: Text(
-                          media?.name ?? messageTypeLabel(message.type),
+                          item.name.isNotEmpty
+                              ? item.name
+                              : messageTypeLabel(item.type),
                           textAlign: TextAlign.center,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
@@ -512,6 +551,20 @@ class _MediaGrid extends StatelessWidget {
       },
     );
   }
+}
+
+class _MediaGridItem {
+  const _MediaGridItem({
+    required this.url,
+    required this.isImage,
+    required this.name,
+    required this.type,
+  });
+
+  final String url;
+  final bool isImage;
+  final String name;
+  final MessageType type;
 }
 
 class _ActionButton extends StatelessWidget {

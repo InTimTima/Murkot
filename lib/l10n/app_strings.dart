@@ -70,10 +70,13 @@ class AppStrings {
   String get foundMessages => isRu ? 'Сообщения' : 'Messages';
   String get changeAvatar => isRu ? 'Сменить аватар' : 'Change avatar';
   String get attachmentsPanel => isRu ? 'Вложения' : 'Attachments';
+  String get chooseEmoji => isRu ? 'Выбрать эмодзи' : 'Choose emoji';
+  String get captionHint =>
+      isRu ? 'Подпись к вложениям…' : 'Caption for attachments…';
   String membersCount(int count) =>
       isRu ? 'Участников: $count' : 'Members: $count';
   String get chatWithBot =>
-      isRu ? 'Написать MurkotBot' : 'Message MurkotBot';
+      isRu ? 'Написать Murkot' : 'Message Murkot';
   String get botSubtitle => isRu
       ? 'Бот отвечает в реальном времени'
       : 'Bot replies in real time';
