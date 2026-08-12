@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// Board sub-tab: 0 listings, 1 projects, 2 match, 3 communities.
+/// Board sub-tab: 0 listings, 1 projects, 2 match, 3 communities, 4 people.
 final ValueNotifier<int> boardTabIndex = ValueNotifier<int>(0);
 
 /// One-shot create intents consumed by board child screens.
@@ -10,7 +10,7 @@ final ValueNotifier<BoardCreateIntent> boardCreateIntent =
     ValueNotifier<BoardCreateIntent>(BoardCreateIntent.none);
 
 void requestBoardTab(int index) {
-  boardTabIndex.value = index.clamp(0, 3);
+  boardTabIndex.value = index.clamp(0, 4);
 }
 
 void requestBoardCreate(BoardCreateIntent intent) {

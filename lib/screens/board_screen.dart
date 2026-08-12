@@ -7,6 +7,7 @@ import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../services/listings_service.dart';
 import '../services/match_service.dart';
+import '../services/people_service.dart';
 import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
@@ -16,15 +17,17 @@ import 'communities_screen.dart';
 import 'listings_screen.dart';
 import 'match_screen.dart';
 import 'onboarding_screen.dart';
+import 'people_screen.dart';
 import 'projects_screen.dart';
 
-/// The "Board" tab: listings, projects, matching and community channels.
+/// The "Board" tab: listings, projects, matching, communities and people.
 class BoardScreen extends StatefulWidget {
   const BoardScreen({
     super.key,
     required this.listingsService,
     required this.projectsService,
     required this.matchService,
+    required this.peopleService,
     required this.chatService,
     required this.blacklistService,
     required this.presenceService,
@@ -36,6 +39,7 @@ class BoardScreen extends StatefulWidget {
   final ListingsService listingsService;
   final ProjectsService projectsService;
   final MatchService matchService;
+  final PeopleService peopleService;
   final ChatService chatService;
   final BlacklistService blacklistService;
   final PresenceService presenceService;
@@ -56,10 +60,10 @@ class _BoardScreenState extends State<BoardScreen>
   @override
   void initState() {
     super.initState();
-    final initial = boardTabIndex.value.clamp(0, 3);
+    final initial = boardTabIndex.value.clamp(0, 4);
     _builtTabs = {initial};
     _tabs = TabController(
-      length: 4,
+      length: 5,
       vsync: this,
       initialIndex: initial,
     );
@@ -176,7 +180,7 @@ class _BoardScreenState extends State<BoardScreen>
   }
 
   void _onExternalTab() {
-    final target = boardTabIndex.value.clamp(0, 3);
+    final target = boardTabIndex.value.clamp(0, 4);
     if (!_builtTabs.contains(target)) {
       setState(() => _builtTabs.add(target));
     }
@@ -218,6 +222,7 @@ class _BoardScreenState extends State<BoardScreen>
               Tab(text: strings.boardProjectsTab),
               Tab(text: strings.boardMatchTab),
               Tab(text: strings.boardCommunitiesTab),
+              Tab(text: strings.boardPeopleTab),
             ],
           ),
         ),
@@ -264,6 +269,17 @@ class _BoardScreenState extends State<BoardScreen>
               _lazy(
                 3,
                 CommunitiesScreen(
+                  chatService: widget.chatService,
+                  blacklistService: widget.blacklistService,
+                  presenceService: widget.presenceService,
+                  currentUserLogin: widget.currentUserLogin,
+                  settingsService: widget.settingsService,
+                ),
+              ),
+              _lazy(
+                4,
+                PeopleScreen(
+                  peopleService: widget.peopleService,
                   chatService: widget.chatService,
                   blacklistService: widget.blacklistService,
                   presenceService: widget.presenceService,

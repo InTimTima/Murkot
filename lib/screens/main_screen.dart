@@ -15,6 +15,7 @@ import '../services/chat_service.dart';
 import '../services/listings_service.dart';
 import '../services/match_service.dart';
 import '../services/notification_service.dart';
+import '../services/people_service.dart';
 import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
@@ -54,6 +55,7 @@ class _MainScreenState extends State<MainScreen> {
   ListingsService? _listingsService;
   ProjectsService? _projectsService;
   MatchService? _matchService;
+  PeopleService? _peopleService;
   BlacklistService? _blacklistService;
   PresenceService? _presenceService;
   final _notificationService = NotificationService();
@@ -100,12 +102,14 @@ class _MainScreenState extends State<MainScreen> {
     _listingsService?.dispose();
     _projectsService?.dispose();
     _matchService?.dispose();
+    _peopleService?.dispose();
     _blacklistService?.dispose();
     _chatService = null;
     _presenceService = null;
     _listingsService = null;
     _projectsService = null;
     _matchService = null;
+    _peopleService = null;
     _blacklistService = null;
   }
 
@@ -164,6 +168,7 @@ class _MainScreenState extends State<MainScreen> {
       _listingsService = ListingsService(userId: user.id);
       _projectsService = ProjectsService(userId: user.id);
       _matchService = MatchService();
+      _peopleService = PeopleService();
       _blacklistService = blacklistService;
       _presenceService = presenceService;
       _loadError = null;
@@ -383,6 +388,7 @@ class _MainScreenState extends State<MainScreen> {
     final listingsService = _listingsService;
     final projectsService = _projectsService;
     final matchService = _matchService;
+    final peopleService = _peopleService;
     final blacklistService = _blacklistService;
     final presenceService = _presenceService;
 
@@ -390,6 +396,7 @@ class _MainScreenState extends State<MainScreen> {
         listingsService == null ||
         projectsService == null ||
         matchService == null ||
+        peopleService == null ||
         blacklistService == null ||
         presenceService == null) {
       return Scaffold(
@@ -476,6 +483,7 @@ class _MainScreenState extends State<MainScreen> {
                         listingsService: listingsService,
                         projectsService: projectsService,
                         matchService: matchService,
+                        peopleService: peopleService,
                         chatService: chatService,
                         blacklistService: blacklistService,
                         presenceService: presenceService,

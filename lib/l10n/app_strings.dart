@@ -481,6 +481,25 @@ class AppStrings {
       : 'Could not load projects';
   String get boardMatchTab => isRu ? 'Матч' : 'Match';
   String get boardCommunitiesTab => isRu ? 'Сообщества' : 'Communities';
+  String get boardPeopleTab => isRu ? 'Люди' : 'People';
+  String get peopleSearchHint => isRu
+      ? 'Логин, стек или город'
+      : 'Login, stack or city';
+  String get peopleFilters => isRu ? 'Фильтры людей' : 'People filters';
+  String get peopleFilterStatusAll => isRu ? 'Любой статус' : 'Any status';
+  String get peopleEmpty => isRu
+      ? 'Пока никого не нашли.\nДополните свою карточку — так вас тоже найдут.'
+      : 'No people yet.\nComplete your card so others can find you too.';
+  String get peopleEmptyFiltered => isRu
+      ? 'Никого по фильтрам. Сбросьте или измените поиск.'
+      : 'No matches for these filters. Clear or change search.';
+  String get peopleLoadFailed =>
+      isRu ? 'Не удалось загрузить людей' : 'Could not load people';
+  String get peopleSortShared =>
+      isRu ? 'Общий стек' : 'Shared stack';
+  String get peopleSortLogin => isRu ? 'По логину' : 'By login';
+  String get peopleOpenProfile =>
+      isRu ? 'Открыть профиль' : 'Open profile';
   String get communitiesHint => isRu
       ? 'Тематические сообщества. Вступите и обсуждайте идеи с другими.'
       : 'Themed communities. Join and discuss ideas with others.';
