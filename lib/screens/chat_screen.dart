@@ -41,6 +41,7 @@ class ChatScreen extends StatefulWidget {
     required this.currentUserLogin,
     required this.settingsService,
     this.initialMessageId,
+    this.initialComposerText,
   });
 
   final Conversation conversation;
@@ -52,6 +53,9 @@ class ChatScreen extends StatefulWidget {
 
   /// If set, the chat opens scrolled to this message (search result).
   final String? initialMessageId;
+
+  /// Prefill the composer (e.g. listing/project respond template).
+  final String? initialComposerText;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -84,6 +88,12 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _conversation = widget.conversation;
+    final prefill = widget.initialComposerText?.trim();
+    if (prefill != null && prefill.isNotEmpty) {
+      _messageController.text = prefill;
+      _messageController.selection =
+          TextSelection.collapsed(offset: prefill.length);
+    }
     _scrollController.addListener(_onScroll);
     widget.chatService.setActiveConversation(_conversation.id);
     _bootstrapMessages();

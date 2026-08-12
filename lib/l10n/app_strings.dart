@@ -633,7 +633,6 @@ class AppStrings {
   String get voiceNote => isRu ? 'Голосовое' : 'Voice';
   String get send => isRu ? 'Отправить' : 'Send';
   String get recording => isRu ? 'Запись…' : 'Recording…';
-  String get retry => isRu ? 'Повторить' : 'Retry';
   String get loadFailed =>
       isRu ? 'Не удалось загрузить данные' : 'Failed to load data';
   String get loadingMurkot =>
