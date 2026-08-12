@@ -51,7 +51,7 @@ class _BoardScreenState extends State<BoardScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   late final Set<int> _builtTabs;
-  bool _showWelcome = false;
+  bool _welcomeHandled = false;
 
   @override
   void initState() {
@@ -65,24 +65,103 @@ class _BoardScreenState extends State<BoardScreen>
     );
     _tabs.addListener(_onTabChanged);
     boardTabIndex.addListener(_onExternalTab);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWelcome());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFirstValue());
   }
 
-  Future<void> _loadWelcome() async {
+  Future<void> _maybeShowFirstValue() async {
+    if (_welcomeHandled) return;
     final user = widget.authService.currentUser;
     if (user == null) return;
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(boardWelcomePrefsKey(user.id)) ?? false;
     if (!mounted || !pending) return;
-    setState(() => _showWelcome = true);
-  }
-
-  Future<void> _dismissWelcome() async {
-    final user = widget.authService.currentUser;
-    setState(() => _showWelcome = false);
-    if (user == null) return;
-    final prefs = await SharedPreferences.getInstance();
+    _welcomeHandled = true;
     await prefs.setBool(boardWelcomePrefsKey(user.id), false);
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final strings = sheetContext.strings;
+        final theme = Theme.of(sheetContext);
+        final canMatch = hasMinimumDevCard(user);
+
+        Future<void> choose(VoidCallback action) async {
+          Navigator.pop(sheetContext);
+          // Let the sheet close before switching tabs / opening create.
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          if (!mounted) return;
+          action();
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const StretchCatSilhouette(width: 56, opacity: 0.55),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        strings.boardWelcomeTitle,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  strings.boardWelcomeBody,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: () => choose(() => requestBoardTab(0)),
+                  icon: const Icon(Icons.handshake_outlined),
+                  label: Text(strings.boardWelcomeCtaRespond),
+                ),
+                const SizedBox(height: 10),
+                if (canMatch)
+                  FilledButton.tonalIcon(
+                    onPressed: () => choose(() => requestBoardTab(2)),
+                    icon: const Icon(Icons.favorite_outline),
+                    label: Text(strings.boardWelcomeCtaMatch),
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: () => choose(() => requestBoardTab(2)),
+                    icon: const Icon(Icons.favorite_outline),
+                    label: Text(strings.boardWelcomeCtaMatch),
+                  ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => choose(() {
+                    requestBoardTab(0);
+                    requestBoardCreate(BoardCreateIntent.listing);
+                  }),
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: Text(strings.boardWelcomeCtaPost),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  child: Text(strings.boardWelcomeAction),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _onTabChanged() {
@@ -128,40 +207,6 @@ class _BoardScreenState extends State<BoardScreen>
 
     return Column(
       children: [
-        if (_showWelcome)
-          Material(
-            color: theme.colorScheme.secondaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.boardWelcomeTitle,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          strings.boardWelcomeBody,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _dismissWelcome,
-                    child: Text(strings.boardWelcomeAction),
-                  ),
-                ],
-              ),
-            ),
-          ),
         Material(
           color: theme.colorScheme.surface,
           child: TabBar(

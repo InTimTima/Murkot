@@ -27,13 +27,46 @@ flutter run -d chrome --web-hostname 127.0.0.1 --web-port 8080
 4. **`features_v16.sql`** — security hardening (обязательно перед публичным доступом)
 5. **`features_v17.sql`** — push events (матч), жалобы, скрытие объявлений, аналитика, инвайты в группы
 
-### Push (после v17)
+5. **`features_v18.sql`** — очередь жалоб (модераторы, resolve/dismiss, снятие объявления)
 
-1. Deploy Edge Functions: `push-on-message`, `push-on-event`
-2. Database Webhooks:
-   - `messages` INSERT → `push-on-message`
-   - `push_events` INSERT → `push-on-event`
-3. Secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+### Модерация (после v18)
+
+- Первый профиль в базе автоматически попадает в `app_moderators` (если список пуст)
+- Добавить себя:  
+  `insert into app_moderators (user_id) select id from profiles where lower(login) = lower('ваш_логин');`
+- В приложении: Профиль → Настройки → **Жалобы**
+
+### Push (после v6 + v17)
+
+Код уже готов (`device_tokens`, `push_events`, Edge `push-on-message` / `push-on-event`, web SW). Осталось один раз настроить проект:
+
+1. **VAPID-ключи** (не коммитьте private key):
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+   - Public → `lib/config/push_config.dart` (`PushConfig.vapidPublicKey`)
+   - Public + Private → secrets Supabase (шаг 2)
+
+2. **Secrets + deploy** (из корня репо, после `npx supabase login` и `link`):
+   ```bash
+   npx supabase secrets set VAPID_PUBLIC_KEY="<public>"
+   npx supabase secrets set VAPID_PRIVATE_KEY="<private>"
+   npx supabase secrets set VAPID_SUBJECT="mailto:support@murkot.app"
+   npx supabase functions deploy push-on-message --no-verify-jwt
+   npx supabase functions deploy push-on-event --no-verify-jwt
+   ```
+
+3. **Database Webhooks** (Dashboard → Database → Webhooks):
+   - `public.messages` INSERT → Edge Function `push-on-message`
+   - `public.push_events` INSERT → Edge Function `push-on-event`
+
+4. **Проверка в приложении**:
+   - Включите уведомления (snackbar после входа или Настройки)
+   - В `device_tokens` должна появиться строка `platform=web` с JSON-подпиской
+   - Закройте/сверните вкладку, отправьте сообщение с другого аккаунта → OS-уведомление
+   - Взаимный матч → строки в `push_events` + push
+
+Если секреты уже выставлены под текущий public key в `push_config.dart`, достаточно deploy + webhooks.
 
 ## Проверка после v16
 

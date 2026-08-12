@@ -99,9 +99,13 @@ $$;
 grant execute on function public.swipe_match(uuid, boolean) to authenticated;
 
 -- Webhook setup (Dashboard → Database → Webhooks):
---   Table: push_events, Events: INSERT
---   URL: https://<project>.supabase.co/functions/v1/push-on-event
---   HTTP Headers: Authorization: Bearer <service_role or anon as configured>
+--   A) Table: public.messages, Events: INSERT
+--      Edge Function: push-on-message
+--   B) Table: public.push_events, Events: INSERT
+--      Edge Function: push-on-event
+--   See README «Push» for VAPID secrets + deploy.
+--   URL form: https://<project>.supabase.co/functions/v1/<function-name>
+--   HTTP Headers: Authorization: Bearer <service_role>
 
 -- ─── 2. Content reports ──────────────────────────────────────
 create table if not exists public.content_reports (

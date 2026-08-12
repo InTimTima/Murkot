@@ -1,22 +1,27 @@
 -- Real push: Database Webhook → Edge Function push-on-message
 -- Run after features_v6.sql (device_tokens).
 --
--- 1) Deploy function:
+-- 1) Generate VAPID keys (do not commit the private key):
+--    npx web-push generate-vapid-keys
+--    Put PUBLIC key in lib/config/push_config.dart
+--    Put BOTH keys as Supabase secrets (see README Push section)
+--
+-- 2) Deploy:
 --    npx supabase login
 --    npx supabase link --project-ref zjozceddfueowkaokpok
---    npx supabase secrets set VAPID_PUBLIC_KEY="BPdkLeUvnTRCM-Z8LHThResR42rBd237HgApAlU801VFBiNuRb16dlPMrNFPOJi_rJR0Lbs2yjo2wbc35SsMR0Y"
---    npx supabase secrets set VAPID_PRIVATE_KEY="h0zCKFf0q6SUZ5o14SrQ7m0wlJqtprEmtz87dnsesoY"
---    npx supabase secrets set VAPID_SUBJECT="mailto:support@tujh.app"
+--    npx supabase secrets set VAPID_PUBLIC_KEY="<public>"
+--    npx supabase secrets set VAPID_PRIVATE_KEY="<private>"
+--    npx supabase secrets set VAPID_SUBJECT="mailto:support@murkot.app"
 --    npx supabase functions deploy push-on-message --no-verify-jwt
+--    npx supabase functions deploy push-on-event --no-verify-jwt
 --
--- 2) Create Database Webhook (Dashboard → Database → Webhooks):
---    Name: push-on-message
---    Table: public.messages
---    Events: INSERT
---    Type: Supabase Edge Functions
---    Function: push-on-message
---    Method: POST
---    Add auth header with service role key
+-- 3) Database Webhooks (Dashboard → Database → Webhooks):
+--    A) Name: push-on-message
+--       Table: public.messages | Events: INSERT
+--       Type: Supabase Edge Functions | Function: push-on-message
+--    B) Name: push-on-event
+--       Table: public.push_events | Events: INSERT
+--       Type: Supabase Edge Functions | Function: push-on-event
 --
 -- Optional SQL fallback (replace SERVICE_ROLE_JWT). Prefer Dashboard webhook.
 

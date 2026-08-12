@@ -16,12 +16,13 @@ async function handlePush(event) {
     } catch (_) {}
   }
 
-  // App still open (even unfocused): realtime + local Notification handle it.
+  // App focused in a tab: realtime + local Notification handle it.
+  // Backgrounded / other windows only: still show OS notification.
   const clientsList = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   });
-  if (clientsList.length > 0) return;
+  if (clientsList.some((c) => c.focused)) return;
 
   await self.registration.showNotification(payload.title || 'Murkot', {
     body: payload.body || '',

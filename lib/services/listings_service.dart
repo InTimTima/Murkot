@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/listing.dart';
 import 'analytics_service.dart';
 
+enum ListingSort { newest, relevance }
+
 /// Loads and mutates the listings board ("looking for team" ads).
 class ListingsService extends ChangeNotifier {
   ListingsService({required String userId}) : _userId = userId;
@@ -13,7 +15,7 @@ class ListingsService extends ChangeNotifier {
 
   // Disambiguate after hidden_listings created a second listings↔profiles path.
   static const _authorSelect =
-      '*, author:profiles!listings_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot)';
+      '*, author:profiles!listings_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city)';
 
   List<Listing> _listings = const [];
   final Set<String> _hiddenIds = {};
@@ -21,21 +23,83 @@ class ListingsService extends ChangeNotifier {
   String? _error;
   ListingType? _typeFilter;
   String? _skillFilter;
+  String? _cityFilter;
+  ListingCompensation? _compensationFilter;
+  String _searchQuery = '';
+  ListingSort _sort = ListingSort.newest;
 
   bool get isLoading => _loading;
   String? get error => _error;
   ListingType? get typeFilter => _typeFilter;
   String? get skillFilter => _skillFilter;
+  String? get cityFilter => _cityFilter;
+  ListingCompensation? get compensationFilter => _compensationFilter;
+  String get searchQuery => _searchQuery;
+  ListingSort get sort => _sort;
 
-  /// Listings matching the current filters, newest first (minus hidden).
+  /// Listings matching the current filters (minus hidden).
   List<Listing> get listings {
     final skill = _skillFilter;
+    final city = _cityFilter;
+    final compensation = _compensationFilter;
+    final q = _searchQuery.trim().toLowerCase();
+
     Iterable<Listing> base = _listings.where((l) => !_hiddenIds.contains(l.id));
     if (skill != null) {
-      base = base.where((l) =>
-          l.skills.any((s) => s.toLowerCase() == skill.toLowerCase()));
+      base = base.where(
+        (l) => l.skills.any((s) => s.toLowerCase() == skill.toLowerCase()),
+      );
     }
-    return base.toList();
+    if (city != null) {
+      base = base.where(
+        (l) => (l.author.city ?? '').toLowerCase() == city.toLowerCase(),
+      );
+    }
+    if (compensation != null) {
+      base = base.where((l) => l.compensation == compensation);
+    }
+    if (q.isNotEmpty) {
+      base = base.where((l) {
+        if (l.title.toLowerCase().contains(q)) return true;
+        if (l.description.toLowerCase().contains(q)) return true;
+        if (l.skills.any((s) => s.toLowerCase().contains(q))) return true;
+        if ((l.author.city ?? '').toLowerCase().contains(q)) return true;
+        if (l.author.login.toLowerCase().contains(q)) return true;
+        return false;
+      });
+    }
+
+    final list = base.toList();
+    if (_sort == ListingSort.relevance && q.isNotEmpty) {
+      list.sort((a, b) {
+        final scoreCmp = _relevanceScore(b, q).compareTo(_relevanceScore(a, q));
+        if (scoreCmp != 0) return scoreCmp;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+    }
+    return list;
+  }
+
+  static int _relevanceScore(Listing listing, String q) {
+    var score = 0;
+    final title = listing.title.toLowerCase();
+    final desc = listing.description.toLowerCase();
+    if (title == q) {
+      score += 100;
+    } else if (title.startsWith(q)) {
+      score += 60;
+    } else if (title.contains(q)) {
+      score += 40;
+    }
+    if (listing.skills.any((s) => s.toLowerCase() == q)) {
+      score += 30;
+    } else if (listing.skills.any((s) => s.toLowerCase().contains(q))) {
+      score += 15;
+    }
+    if (desc.contains(q)) score += 10;
+    if ((listing.author.city ?? '').toLowerCase().contains(q)) score += 8;
+    if (listing.author.login.toLowerCase().contains(q)) score += 5;
+    return score;
   }
 
   /// All distinct skill tags across loaded listings (for filter chips).
@@ -49,6 +113,19 @@ class ListingsService extends ChangeNotifier {
     final tags = seen.values.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return tags;
+  }
+
+  /// Distinct author cities from loaded listings.
+  List<String> get availableCities {
+    final seen = <String, String>{};
+    for (final listing in _listings) {
+      final city = listing.author.city;
+      if (city == null || city.isEmpty) continue;
+      seen.putIfAbsent(city.toLowerCase(), () => city);
+    }
+    final cities = seen.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return cities;
   }
 
   bool isMine(Listing listing) => listing.authorId == _userId;
@@ -66,14 +143,66 @@ class ListingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get hasActiveFilters => _typeFilter != null || _skillFilter != null;
+  void setCityFilter(String? city) {
+    if (_cityFilter == city) return;
+    _cityFilter = city;
+    notifyListeners();
+  }
+
+  void setCompensationFilter(ListingCompensation? compensation) {
+    if (_compensationFilter == compensation) return;
+    _compensationFilter = compensation;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+    _searchQuery = query;
+    final hasQuery = _searchQuery.trim().isNotEmpty;
+    if (hasQuery && _sort == ListingSort.newest) {
+      _sort = ListingSort.relevance;
+    } else if (!hasQuery && _sort == ListingSort.relevance) {
+      _sort = ListingSort.newest;
+    }
+    notifyListeners();
+  }
+
+  void setSort(ListingSort sort) {
+    if (_sort == sort) return;
+    _sort = sort;
+    notifyListeners();
+  }
+
+  bool get hasActiveFilters =>
+      _typeFilter != null ||
+      _skillFilter != null ||
+      _cityFilter != null ||
+      _compensationFilter != null ||
+      _searchQuery.trim().isNotEmpty;
+
+  /// Chip filters only (type / city / skill / compensation) — for badge.
+  int get activeChipFilterCount {
+    var n = 0;
+    if (_typeFilter != null) n++;
+    if (_skillFilter != null) n++;
+    if (_cityFilter != null) n++;
+    if (_compensationFilter != null) n++;
+    return n;
+  }
 
   void clearFilters() {
-    if (_typeFilter == null && _skillFilter == null) return;
+    final hadType = _typeFilter != null;
+    if (!hasActiveFilters && _sort == ListingSort.newest) return;
     _typeFilter = null;
     _skillFilter = null;
+    _cityFilter = null;
+    _compensationFilter = null;
+    _searchQuery = '';
+    _sort = ListingSort.newest;
     notifyListeners();
-    refresh();
+    if (hadType) {
+      refresh();
+    }
   }
 
   Future<void> refresh() async {

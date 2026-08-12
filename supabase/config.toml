@@ -3,3 +3,6 @@ project_id = "zjozceddfueowkaokpok"
 
 [functions.push-on-message]
 verify_jwt = false
+
+[functions.push-on-event]
+verify_jwt = false

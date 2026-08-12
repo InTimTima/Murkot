@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/project.dart';
 
+enum ProjectSort { newest, relevance }
+
 /// Loads and mutates the project showcase.
 class ProjectsService extends ChangeNotifier {
   ProjectsService({required String userId}) : _userId = userId;
@@ -11,28 +13,96 @@ class ProjectsService extends ChangeNotifier {
   final _client = Supabase.instance.client;
 
   static const _authorSelect =
-      '*, author:profiles!projects_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot)';
+      '*, author:profiles!projects_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city)';
 
   List<Project> _projects = const [];
   bool _loading = false;
   String? _error;
   String? _skillFilter;
+  String? _roleFilter;
+  String? _cityFilter;
+  String _searchQuery = '';
+  ProjectSort _sort = ProjectSort.newest;
 
   bool get isLoading => _loading;
   String? get error => _error;
   String? get skillFilter => _skillFilter;
+  String? get roleFilter => _roleFilter;
+  String? get cityFilter => _cityFilter;
+  String get searchQuery => _searchQuery;
+  ProjectSort get sort => _sort;
 
-  /// Projects matching the current stack filter, newest first.
+  /// Projects matching the current filters.
   List<Project> get projects {
     final skill = _skillFilter;
-    if (skill == null) return _projects;
-    return _projects
-        .where(
-            (p) => p.stack.any((s) => s.toLowerCase() == skill.toLowerCase()))
-        .toList();
+    final role = _roleFilter;
+    final city = _cityFilter;
+    final q = _searchQuery.trim().toLowerCase();
+
+    Iterable<Project> base = _projects;
+    if (skill != null) {
+      base = base.where(
+        (p) => p.stack.any((s) => s.toLowerCase() == skill.toLowerCase()),
+      );
+    }
+    if (role != null) {
+      base = base.where(
+        (p) =>
+            p.lookingFor.any((r) => r.toLowerCase() == role.toLowerCase()),
+      );
+    }
+    if (city != null) {
+      base = base.where(
+        (p) => (p.author.city ?? '').toLowerCase() == city.toLowerCase(),
+      );
+    }
+    if (q.isNotEmpty) {
+      base = base.where((p) {
+        if (p.name.toLowerCase().contains(q)) return true;
+        if (p.description.toLowerCase().contains(q)) return true;
+        if (p.stack.any((s) => s.toLowerCase().contains(q))) return true;
+        if (p.lookingFor.any((r) => r.toLowerCase().contains(q))) return true;
+        if ((p.author.city ?? '').toLowerCase().contains(q)) return true;
+        if (p.author.login.toLowerCase().contains(q)) return true;
+        return false;
+      });
+    }
+
+    final list = base.toList();
+    if (_sort == ProjectSort.relevance && q.isNotEmpty) {
+      list.sort((a, b) {
+        final cmp = _relevanceScore(b, q).compareTo(_relevanceScore(a, q));
+        if (cmp != 0) return cmp;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+    }
+    return list;
   }
 
-  /// All distinct stack tags across loaded projects (for filter chips).
+  static int _relevanceScore(Project project, String q) {
+    var score = 0;
+    final name = project.name.toLowerCase();
+    if (name == q) {
+      score += 100;
+    } else if (name.startsWith(q)) {
+      score += 60;
+    } else if (name.contains(q)) {
+      score += 40;
+    }
+    if (project.stack.any((s) => s.toLowerCase() == q)) {
+      score += 30;
+    } else if (project.stack.any((s) => s.toLowerCase().contains(q))) {
+      score += 15;
+    }
+    if (project.lookingFor.any((r) => r.toLowerCase().contains(q))) {
+      score += 12;
+    }
+    if (project.description.toLowerCase().contains(q)) score += 10;
+    if ((project.author.city ?? '').toLowerCase().contains(q)) score += 8;
+    if (project.author.login.toLowerCase().contains(q)) score += 5;
+    return score;
+  }
+
   List<String> get availableSkills {
     final seen = <String, String>{};
     for (final project in _projects) {
@@ -45,6 +115,30 @@ class ProjectsService extends ChangeNotifier {
     return tags;
   }
 
+  List<String> get availableRoles {
+    final seen = <String, String>{};
+    for (final project in _projects) {
+      for (final role in project.lookingFor) {
+        seen.putIfAbsent(role.toLowerCase(), () => role);
+      }
+    }
+    final roles = seen.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return roles;
+  }
+
+  List<String> get availableCities {
+    final seen = <String, String>{};
+    for (final project in _projects) {
+      final city = project.author.city;
+      if (city == null || city.isEmpty) continue;
+      seen.putIfAbsent(city.toLowerCase(), () => city);
+    }
+    final cities = seen.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return cities;
+  }
+
   bool isMine(Project project) => project.authorId == _userId;
 
   void setSkillFilter(String? skill) {
@@ -53,11 +147,57 @@ class ProjectsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get hasActiveFilters => _skillFilter != null;
+  void setRoleFilter(String? role) {
+    if (_roleFilter == role) return;
+    _roleFilter = role;
+    notifyListeners();
+  }
+
+  void setCityFilter(String? city) {
+    if (_cityFilter == city) return;
+    _cityFilter = city;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+    _searchQuery = query;
+    final hasQuery = _searchQuery.trim().isNotEmpty;
+    if (hasQuery && _sort == ProjectSort.newest) {
+      _sort = ProjectSort.relevance;
+    } else if (!hasQuery && _sort == ProjectSort.relevance) {
+      _sort = ProjectSort.newest;
+    }
+    notifyListeners();
+  }
+
+  void setSort(ProjectSort sort) {
+    if (_sort == sort) return;
+    _sort = sort;
+    notifyListeners();
+  }
+
+  bool get hasActiveFilters =>
+      _skillFilter != null ||
+      _roleFilter != null ||
+      _cityFilter != null ||
+      _searchQuery.trim().isNotEmpty;
+
+  int get activeChipFilterCount {
+    var n = 0;
+    if (_skillFilter != null) n++;
+    if (_roleFilter != null) n++;
+    if (_cityFilter != null) n++;
+    return n;
+  }
 
   void clearFilters() {
-    if (_skillFilter == null) return;
+    if (!hasActiveFilters && _sort == ProjectSort.newest) return;
     _skillFilter = null;
+    _roleFilter = null;
+    _cityFilter = null;
+    _searchQuery = '';
+    _sort = ProjectSort.newest;
     notifyListeners();
   }
 
@@ -85,7 +225,6 @@ class ProjectsService extends ChangeNotifier {
     }
   }
 
-  /// Returns an error message, or null on success.
   Future<String?> createProject({
     required String name,
     required String description,
@@ -112,7 +251,6 @@ class ProjectsService extends ChangeNotifier {
     }
   }
 
-  /// Returns an error message, or null on success.
   Future<String?> updateProject({
     required String id,
     required String name,
@@ -140,7 +278,6 @@ class ProjectsService extends ChangeNotifier {
     }
   }
 
-  /// Returns an error message, or null on success.
   Future<String?> deleteProject(String id) async {
     try {
       await _client.from('projects').delete().eq('id', id);

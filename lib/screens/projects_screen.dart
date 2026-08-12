@@ -55,6 +55,8 @@ class ProjectsScreen extends StatefulWidget {
 }
 
 class _ProjectsScreenState extends State<ProjectsScreen> {
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -66,7 +68,141 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   @override
   void dispose() {
     boardCreateIntent.removeListener(_onCreateIntent);
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _clearFilters() {
+    _searchController.clear();
+    widget.projectsService.clearFilters();
+  }
+
+  Future<void> _openFiltersSheet() async {
+    final service = widget.projectsService;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: service,
+          builder: (context, _) {
+            final strings = context.strings;
+            final theme = Theme.of(context);
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.viewInsetsOf(context).bottom + 12,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        strings.projectsFilters,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      if (service.availableSkills.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(strings.skillsLabel,
+                            style: theme.textTheme.labelLarge),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final skill in service.availableSkills)
+                              FilterChip(
+                                label: Text(skill),
+                                selected: service.skillFilter != null &&
+                                    service.skillFilter!.toLowerCase() ==
+                                        skill.toLowerCase(),
+                                onSelected: (on) =>
+                                    service.setSkillFilter(on ? skill : null),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (service.availableRoles.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(strings.projectsLookingForLabel,
+                            style: theme.textTheme.labelLarge),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: Text(strings.projectsFilterRoleAll),
+                              selected: service.roleFilter == null,
+                              onSelected: (_) => service.setRoleFilter(null),
+                            ),
+                            for (final role in service.availableRoles)
+                              FilterChip(
+                                label: Text(role),
+                                selected: service.roleFilter != null &&
+                                    service.roleFilter!.toLowerCase() ==
+                                        role.toLowerCase(),
+                                onSelected: (on) =>
+                                    service.setRoleFilter(on ? role : null),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (service.availableCities.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(strings.cityLabel,
+                            style: theme.textTheme.labelLarge),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: Text(strings.listingFilterCityAll),
+                              selected: service.cityFilter == null,
+                              onSelected: (_) => service.setCityFilter(null),
+                            ),
+                            for (final city in service.availableCities)
+                              FilterChip(
+                                label: Text(city),
+                                selected: service.cityFilter != null &&
+                                    service.cityFilter!.toLowerCase() ==
+                                        city.toLowerCase(),
+                                onSelected: (on) =>
+                                    service.setCityFilter(on ? city : null),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          if (service.activeChipFilterCount > 0)
+                            TextButton(
+                              onPressed: _clearFilters,
+                              child: Text(strings.clearFilters),
+                            ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            child: Text(strings.projectsFiltersDone),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _onCreateIntent() {
@@ -201,35 +337,19 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         final projects = service.projects
             .where((p) => !widget.blacklistService.isBlocked(p.author.login))
             .toList();
-        final skills = service.availableSkills;
 
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.projectsFinderLabel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1.1,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          strings.projectsFinderHeading,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      strings.projectsFinderHeading,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   Text(
@@ -242,31 +362,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 ],
               ),
             ),
-            if (skills.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-                child: SizedBox(
-                  height: 36,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final skill in skills) ...[
-                        FilterChip(
-                          label: Text(skill),
-                          visualDensity: VisualDensity.compact,
-                          selected: service.skillFilter != null &&
-                              service.skillFilter!.toLowerCase() ==
-                                  skill.toLowerCase(),
-                          onSelected: (on) =>
-                              service.setSkillFilter(on ? skill : null),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            _ProjectsToolbar(
+              service: service,
+              searchController: _searchController,
+              onClearFilters: _clearFilters,
+              onOpenFilters: _openFiltersSheet,
+            ),
             Divider(
               height: 1,
               color: isLight ? Colors.black12 : Colors.white12,
@@ -288,7 +389,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                   ? strings.clearFilters
                                   : strings.projectsEmptyAction,
                               onAction: service.hasActiveFilters
-                                  ? service.clearFilters
+                                  ? _clearFilters
                                   : _create,
                             )
                           : RefreshIndicator(
@@ -396,6 +497,128 @@ Future<void> _openLink(String url) async {
   final uri = Uri.tryParse(target);
   if (uri != null) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _ProjectsToolbar extends StatefulWidget {
+  const _ProjectsToolbar({
+    required this.service,
+    required this.searchController,
+    required this.onClearFilters,
+    required this.onOpenFilters,
+  });
+
+  final ProjectsService service;
+  final TextEditingController searchController;
+  final VoidCallback onClearFilters;
+  final VoidCallback onOpenFilters;
+
+  @override
+  State<_ProjectsToolbar> createState() => _ProjectsToolbarState();
+}
+
+class _ProjectsToolbarState extends State<_ProjectsToolbar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.searchController.addListener(_onText);
+  }
+
+  @override
+  void dispose() {
+    widget.searchController.removeListener(_onText);
+    super.dispose();
+  }
+
+  void _onText() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    final service = widget.service;
+    final filterCount = service.activeChipFilterCount;
+    final hasQuery = service.searchQuery.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: widget.searchController,
+              onChanged: service.setSearchQuery,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: strings.projectsSearchHint,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: widget.searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          widget.searchController.clear();
+                          service.setSearchQuery('');
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Badge(
+            isLabelVisible: filterCount > 0,
+            label: Text('$filterCount'),
+            child: IconButton(
+              tooltip: strings.projectsFilters,
+              onPressed: widget.onOpenFilters,
+              icon: Icon(
+                filterCount > 0
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined,
+                color: filterCount > 0 ? theme.colorScheme.primary : null,
+              ),
+            ),
+          ),
+          PopupMenuButton<ProjectSort>(
+            tooltip: service.sort == ProjectSort.relevance
+                ? strings.projectsSortRelevance
+                : strings.projectsSortNewest,
+            onSelected: service.setSort,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: ProjectSort.newest,
+                child: Text(strings.projectsSortNewest),
+              ),
+              PopupMenuItem(
+                value: ProjectSort.relevance,
+                enabled: hasQuery,
+                child: Text(strings.projectsSortRelevance),
+              ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(
+                Icons.sort,
+                color: service.sort == ProjectSort.relevance
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (service.hasActiveFilters)
+            IconButton(
+              tooltip: strings.clearFilters,
+              onPressed: widget.onClearFilters,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -764,7 +987,12 @@ class _FinderProjectDetail extends StatelessWidget {
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         Text(
-                          _relativeTime(strings, project.createdAt),
+                          [
+                            if (project.author.city != null &&
+                                project.author.city!.isNotEmpty)
+                              project.author.city!,
+                            _relativeTime(strings, project.createdAt),
+                          ].join(' · '),
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: theme.colorScheme.outline),
                         ),

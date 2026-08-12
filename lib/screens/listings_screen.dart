@@ -45,6 +45,8 @@ class ListingsScreen extends StatefulWidget {
 }
 
 class _ListingsScreenState extends State<ListingsScreen> {
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +58,168 @@ class _ListingsScreenState extends State<ListingsScreen> {
   @override
   void dispose() {
     boardCreateIntent.removeListener(_onCreateIntent);
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _clearFilters() {
+    _searchController.clear();
+    widget.listingsService.clearFilters();
+  }
+
+  Future<void> _openFiltersSheet(BuildContext context) async {
+    final service = widget.listingsService;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: service,
+          builder: (context, _) {
+            final strings = context.strings;
+            final theme = Theme.of(context);
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.viewInsetsOf(context).bottom + 12,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        strings.listingsFilters,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        strings.listingTypeLabel,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: Text(strings.listingFilterAll),
+                            selected: service.typeFilter == null,
+                            onSelected: (_) => service.setTypeFilter(null),
+                          ),
+                          for (final type in ListingType.values)
+                            FilterChip(
+                              label: Text(listingTypeLabel(strings, type)),
+                              selected: service.typeFilter == type,
+                              onSelected: (on) =>
+                                  service.setTypeFilter(on ? type : null),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        strings.listingCompensationLabel,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: Text(strings.listingFilterCompensationAll),
+                            selected: service.compensationFilter == null,
+                            onSelected: (_) =>
+                                service.setCompensationFilter(null),
+                          ),
+                          for (final comp in ListingCompensation.values)
+                            FilterChip(
+                              label: Text(compensationLabel(strings, comp)),
+                              selected: service.compensationFilter == comp,
+                              onSelected: (on) => service
+                                  .setCompensationFilter(on ? comp : null),
+                            ),
+                        ],
+                      ),
+                      if (service.availableCities.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          strings.cityLabel,
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: Text(strings.listingFilterCityAll),
+                              selected: service.cityFilter == null,
+                              onSelected: (_) => service.setCityFilter(null),
+                            ),
+                            for (final city in service.availableCities)
+                              FilterChip(
+                                label: Text(city),
+                                selected: service.cityFilter != null &&
+                                    service.cityFilter!.toLowerCase() ==
+                                        city.toLowerCase(),
+                                onSelected: (on) =>
+                                    service.setCityFilter(on ? city : null),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (service.availableSkills.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          strings.skillsLabel,
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final skill in service.availableSkills)
+                              FilterChip(
+                                label: Text(skill),
+                                selected: service.skillFilter != null &&
+                                    service.skillFilter!.toLowerCase() ==
+                                        skill.toLowerCase(),
+                                onSelected: (on) =>
+                                    service.setSkillFilter(on ? skill : null),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          if (service.activeChipFilterCount > 0)
+                            TextButton(
+                              onPressed: _clearFilters,
+                              child: Text(strings.clearFilters),
+                            ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            child: Text(strings.listingsFiltersDone),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _onCreateIntent() {
@@ -231,12 +394,15 @@ class _ListingsScreenState extends State<ListingsScreen> {
         final listings = service.listings
             .where((l) => !widget.blacklistService.isBlocked(l.author.login))
             .toList();
-        final skills = service.availableSkills;
 
         return Column(
           children: [
-            _TypeFilterBar(service: service),
-            if (skills.isNotEmpty) _SkillFilterBar(service: service),
+            _ListingsToolbar(
+              service: service,
+              searchController: _searchController,
+              onClearFilters: _clearFilters,
+              onOpenFilters: () => _openFiltersSheet(context),
+            ),
             Divider(height: 1, color: Colors.grey.shade200),
             Expanded(
               child: service.error != null
@@ -252,7 +418,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                   ? strings.clearFilters
                                   : strings.listingsEmptyAction,
                               onAction: service.hasActiveFilters
-                                  ? service.clearFilters
+                                  ? _clearFilters
                                   : _create,
                             )
                           : RefreshIndicator(
@@ -365,73 +531,124 @@ String _relativeTime(AppStrings strings, DateTime time) {
       '${time.month.toString().padLeft(2, '0')}.${time.year}';
 }
 
-class _TypeFilterBar extends StatelessWidget {
-  const _TypeFilterBar({required this.service});
+class _ListingsToolbar extends StatefulWidget {
+  const _ListingsToolbar({
+    required this.service,
+    required this.searchController,
+    required this.onClearFilters,
+    required this.onOpenFilters,
+  });
 
   final ListingsService service;
+  final TextEditingController searchController;
+  final VoidCallback onClearFilters;
+  final VoidCallback onOpenFilters;
+
+  @override
+  State<_ListingsToolbar> createState() => _ListingsToolbarState();
+}
+
+class _ListingsToolbarState extends State<_ListingsToolbar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.searchController.addListener(_onText);
+  }
+
+  @override
+  void dispose() {
+    widget.searchController.removeListener(_onText);
+    super.dispose();
+  }
+
+  void _onText() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    final theme = Theme.of(context);
+    final service = widget.service;
+    final filterCount = service.activeChipFilterCount;
+    final hasQuery = service.searchQuery.trim().isNotEmpty;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            ChoiceChip(
-              label: Text(strings.listingFilterAll),
-              selected: service.typeFilter == null,
-              onSelected: (_) => service.setTypeFilter(null),
-            ),
-            const SizedBox(width: 8),
-            for (final type in ListingType.values) ...[
-              ChoiceChip(
-                label: Text(listingTypeLabel(strings, type)),
-                selected: service.typeFilter == type,
-                onSelected: (_) => service.setTypeFilter(
-                  service.typeFilter == type ? null : type,
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: widget.searchController,
+              onChanged: service.setSearchQuery,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: strings.listingsSearchHint,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: widget.searchController.text.isNotEmpty
+                    ? IconButton(
+                        tooltip: strings.clearFilters,
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          widget.searchController.clear();
+                          service.setSearchQuery('');
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 8),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SkillFilterBar extends StatelessWidget {
-  const _SkillFilterBar({required this.service});
-
-  final ListingsService service;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = service.skillFilter;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: SizedBox(
-        height: 36,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            for (final skill in service.availableSkills) ...[
-              FilterChip(
-                label: Text(skill),
-                visualDensity: VisualDensity.compact,
-                selected: selected != null &&
-                    selected.toLowerCase() == skill.toLowerCase(),
-                onSelected: (on) =>
-                    service.setSkillFilter(on ? skill : null),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Badge(
+            isLabelVisible: filterCount > 0,
+            label: Text('$filterCount'),
+            child: IconButton(
+              tooltip: strings.listingsFilters,
+              onPressed: widget.onOpenFilters,
+              icon: Icon(
+                filterCount > 0
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined,
+                color: filterCount > 0 ? theme.colorScheme.primary : null,
               ),
-              const SizedBox(width: 6),
+            ),
+          ),
+          PopupMenuButton<ListingSort>(
+            tooltip: service.sort == ListingSort.relevance
+                ? strings.listingsSortRelevance
+                : strings.listingsSortNewest,
+            onSelected: service.setSort,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: ListingSort.newest,
+                child: Text(strings.listingsSortNewest),
+              ),
+              PopupMenuItem(
+                value: ListingSort.relevance,
+                enabled: hasQuery,
+                child: Text(strings.listingsSortRelevance),
+              ),
             ],
-          ],
-        ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(
+                Icons.sort,
+                color: service.sort == ListingSort.relevance
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (service.hasActiveFilters)
+            IconButton(
+              tooltip: strings.clearFilters,
+              onPressed: widget.onClearFilters,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+            ),
+        ],
       ),
     );
   }
@@ -562,7 +779,12 @@ class _ListingCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        _relativeTime(strings, listing.createdAt),
+                        [
+                          if (listing.author.city != null &&
+                              listing.author.city!.isNotEmpty)
+                            listing.author.city!,
+                          _relativeTime(strings, listing.createdAt),
+                        ].join(' · '),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.outline),
                       ),

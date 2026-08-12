@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/blacklist_service.dart';
+import '../services/moderation_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/unlumen/murkot_fx.dart';
+import 'moderation_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -26,12 +28,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _personalizationExpanded = false;
   bool _interfaceExpanded = false;
   final _labelControllers = <String, TextEditingController>{};
+  final _moderationService = ModerationService();
+  bool _moderatorChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _moderationService.checkModerator().then((_) {
+      if (mounted) setState(() => _moderatorChecked = true);
+    });
+  }
 
   @override
   void dispose() {
     for (final c in _labelControllers.values) {
       c.dispose();
     }
+    _moderationService.dispose();
     super.dispose();
   }
 
@@ -112,11 +125,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         settings: widget.settingsService,
                       );
                       await notifications.setUserEnabled(v);
-                      if (mounted) setState(() {});
+                      if (!mounted) return;
+                      setState(() {});
+                      final strings = context.strings;
+                      if (v) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              notifications.isEnabled
+                                  ? strings.notificationsEnabledDone
+                                  : strings.notificationsDenied,
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                 ),
               ),
+              if (_moderatorChecked &&
+                  _moderationService.isModerator == true) ...[
+                const SizedBox(height: 20),
+                _SectionTitle(title: strings.moderationTitle),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.gavel_outlined,
+                        color: theme.colorScheme.primary),
+                    title: Text(strings.moderationTitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ModerationScreen(
+                            moderationService: _moderationService,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               _SectionTitle(title: strings.interfaceSection),
               Card(

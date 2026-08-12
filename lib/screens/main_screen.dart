@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -203,6 +204,45 @@ class _MainScreenState extends State<MainScreen> {
         _showBoot = false;
       }
     });
+    if (!failed) {
+      unawaited(_maybePromptNotifications());
+    }
+  }
+
+  Future<void> _maybePromptNotifications() async {
+    if (!kIsWeb) return;
+    final user = widget.authService.currentUser;
+    if (user == null) return;
+    final key = 'push_prompt_shown_${user.id}';
+    if (widget.prefs.getBool(key) ?? false) return;
+    await widget.prefs.setBool(key, true);
+    // Already granted → register quietly, no snackbar.
+    if (_notificationService.isEnabled) return;
+    if (!mounted) return;
+    final strings = context.strings;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(strings.enableNotificationsHint),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: strings.enableNotificationsAction,
+          onPressed: () async {
+            final ok =
+                await _notificationService.enableAndRequestPermission();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ok
+                      ? strings.notificationsEnabledDone
+                      : strings.notificationsDenied,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _continueAnyway() {
@@ -214,6 +254,7 @@ class _MainScreenState extends State<MainScreen> {
       _bootSlow = false;
       _loadingData = false;
     });
+    unawaited(_maybePromptNotifications());
   }
 
   void _retryBoot() {

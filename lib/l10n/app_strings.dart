@@ -61,6 +61,36 @@ class AppStrings {
   String get reportReasonFake =>
       isRu ? 'Фейк / ввод в заблуждение' : 'Fake / misleading';
   String get reportReasonOther => isRu ? 'Другое' : 'Other';
+  String get moderationTitle => isRu ? 'Жалобы' : 'Reports';
+  String get moderationEmpty =>
+      isRu ? 'Жалоб пока нет' : 'No reports yet';
+  String get moderationLoadFailed => isRu
+      ? 'Не удалось загрузить жалобы'
+      : 'Could not load reports';
+  String get moderationStatusOpen => isRu ? 'Открытые' : 'Open';
+  String get moderationStatusResolved => isRu ? 'Решено' : 'Resolved';
+  String get moderationStatusDismissed => isRu ? 'Отклонено' : 'Dismissed';
+  String get moderationStatusAll => isRu ? 'Все' : 'All';
+  String get moderationReporter => isRu ? 'Кто пожаловался' : 'Reporter';
+  String get moderationTarget => isRu ? 'Цель' : 'Target';
+  String get moderationResolve => isRu ? 'Решено' : 'Resolve';
+  String get moderationDismiss => isRu ? 'Отклонить' : 'Dismiss';
+  String get moderationResolveTitle =>
+      isRu ? 'Отметить как решённое?' : 'Mark as resolved?';
+  String get moderationDismissTitle =>
+      isRu ? 'Отклонить жалобу?' : 'Dismiss report?';
+  String get moderationResolveConfirm => isRu
+      ? 'Жалоба исчезнет из открытых.'
+      : 'The report will leave the open queue.';
+  String get moderationUpdated =>
+      isRu ? 'Жалоба обновлена' : 'Report updated';
+  String get moderationDeactivateListing =>
+      isRu ? 'Снять объявление' : 'Deactivate listing';
+  String get moderationDeactivateListingConfirm => isRu
+      ? 'Объявление перестанет показываться на доске.'
+      : 'The listing will stop showing on the board.';
+  String get moderationListingDeactivated =>
+      isRu ? 'Объявление снято' : 'Listing deactivated';
   String get hideListing => isRu ? 'Скрыть у себя' : 'Hide for me';
   String get hideListingDone =>
       isRu ? 'Объявление скрыто' : 'Listing hidden';
@@ -276,6 +306,17 @@ class AppStrings {
       isRu ? 'Новое объявление' : 'New listing';
   String get listingTypeLabel => isRu ? 'Тип объявления' : 'Listing type';
   String get listingFilterAll => isRu ? 'Все' : 'All';
+  String get listingsSearchHint => isRu
+      ? 'Поиск: название, навыки, город…'
+      : 'Search: title, skills, city…';
+  String get listingsSortNewest => isRu ? 'Сначала новые' : 'Newest';
+  String get listingsSortRelevance =>
+      isRu ? 'По релевантности' : 'Relevance';
+  String get listingFilterCityAll => isRu ? 'Все города' : 'All cities';
+  String get listingFilterCompensationAll =>
+      isRu ? 'Любые условия' : 'Any terms';
+  String get listingsFilters => isRu ? 'Фильтры' : 'Filters';
+  String get listingsFiltersDone => isRu ? 'Готово' : 'Done';
   String get listingTitleLabel => isRu ? 'Заголовок' : 'Title';
   String get listingTitleHint => isRu
       ? 'Например: Ищу Flutter-разработчика в стартап'
@@ -321,12 +362,18 @@ class AppStrings {
       : 'No listings match these filters';
   String get clearFilters => isRu ? 'Сбросить фильтры' : 'Clear filters';
   String get boardWelcomeTitle =>
-      isRu ? 'Вы на доске' : 'You’re on the board';
+      isRu ? 'Карточка готова — что дальше?' : 'Card ready — what’s next?';
   String get boardWelcomeBody => isRu
-      ? 'Смотрите объявления, проекты и матч — или разместите своё.'
-      : 'Browse listings, projects and Match — or post your own.';
+      ? 'Выберите один шаг: так Murkot сразу начинает работать для вас.'
+      : 'Pick one step so Murkot starts working for you right away.';
   String get boardWelcomeAction =>
-      isRu ? 'Понятно' : 'Got it';
+      isRu ? 'Позже' : 'Later';
+  String get boardWelcomeCtaRespond =>
+      isRu ? 'Откликнуться на объявление' : 'Respond to a listing';
+  String get boardWelcomeCtaMatch =>
+      isRu ? 'Открыть матч' : 'Open Match';
+  String get boardWelcomeCtaPost =>
+      isRu ? 'Разместить своё' : 'Post your listing';
   String get syncDevStatusTitle => isRu
       ? 'Обновить статус в профиле?'
       : 'Update your profile status?';
@@ -395,8 +442,19 @@ class AppStrings {
   String get projectsEmptyAction =>
       isRu ? 'Добавить проект' : 'Add project';
   String get projectsFilterEmpty => isRu
-      ? 'Нет проектов по выбранному стеку'
-      : 'No projects match this stack filter';
+      ? 'Нет проектов по выбранным фильтрам'
+      : 'No projects match these filters';
+  String get projectsSearchHint => isRu
+      ? 'Поиск: название, стек, роль, город…'
+      : 'Search: name, stack, role, city…';
+  String get projectsFilters => isRu ? 'Фильтры' : 'Filters';
+  String get projectsFiltersDone => isRu ? 'Готово' : 'Done';
+  String get projectsSortNewest => isRu ? 'Сначала новые' : 'Newest';
+  String get projectsSortRelevance =>
+      isRu ? 'По релевантности' : 'Relevance';
+  String get projectsFilterRoleAll => isRu ? 'Любая роль' : 'Any role';
+  String get projectsLookingForLabel =>
+      isRu ? 'Ищут в команду' : 'Looking for';
   String get projectNameRequired => isRu
       ? 'Введите название (минимум 3 символа)'
       : 'Enter a name (at least 3 characters)';
@@ -552,8 +610,15 @@ class AppStrings {
   String get loadOlderMessages =>
       isRu ? 'Загрузить раньше' : 'Load earlier';
   String get enableNotificationsHint => isRu
-      ? 'Разрешите уведомления в браузере, чтобы не пропускать сообщения'
-      : 'Allow browser notifications to catch new messages';
+      ? 'Разрешите уведомления в браузере, чтобы не пропускать сообщения и матчи'
+      : 'Allow browser notifications to catch messages and matches';
+  String get enableNotificationsAction =>
+      isRu ? 'Включить' : 'Enable';
+  String get notificationsEnabledDone =>
+      isRu ? 'Уведомления включены' : 'Notifications enabled';
+  String get notificationsDenied => isRu
+      ? 'Браузер заблокировал уведомления. Разрешите их в настройках сайта.'
+      : 'The browser blocked notifications. Allow them in site settings.';
   String get online => _l(PersonalizationKeys.online, 'в сети', 'online');
   String get offline => _l(PersonalizationKeys.offline, 'не в сети', 'offline');
   String get typing => _l(PersonalizationKeys.typing, 'печатает', 'typing');
