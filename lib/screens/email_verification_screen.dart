@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   const EmailVerificationScreen({super.key, required this.authService});
@@ -9,7 +11,8 @@ class EmailVerificationScreen extends StatefulWidget {
   final AuthService authService;
 
   @override
-  State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
+  State<EmailVerificationScreen> createState() =>
+      _EmailVerificationScreenState();
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
@@ -26,9 +29,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _verify() async {
+    final strings = context.strings;
     final code = _codeController.text.trim();
     if (code.length < 6) {
-      setState(() => _error = 'Введите код из письма');
+      setState(() => _error = strings.enterEmailCode);
       return;
     }
 
@@ -48,6 +52,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _resend() async {
+    final strings = context.strings;
     setState(() {
       _isResending = true;
       _error = null;
@@ -62,7 +67,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (error != null) {
         _error = error;
       } else {
-        _info = 'Письмо отправлено повторно';
+        _info = strings.emailResent;
       }
     });
   }
@@ -70,6 +75,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = context.strings;
     final email = widget.authService.pendingEmail;
 
     return Scaffold(
@@ -89,7 +95,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Подтверждение почты',
+                    strings.emailVerificationTitle,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -98,8 +104,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   const SizedBox(height: 8),
                   Text(
                     email == null
-                        ? 'Мы отправили код подтверждения на вашу почту.'
-                        : 'Мы отправили код на $email. Введите его ниже или перейдите по ссылке из письма.',
+                        ? strings.emailVerificationSent
+                        : strings.emailVerificationSentTo(email),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade600,
@@ -151,9 +157,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: MurkotLoaderCompact(),
                           )
-                        : const Text('Подтвердить'),
+                        : Text(strings.confirmAction),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
@@ -162,15 +168,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: MurkotLoaderCompact(size: 18),
                           )
-                        : const Text('Отправить код ещё раз'),
+                        : Text(strings.resendCode),
                   ),
                   TextButton(
                     onPressed: _isLoading
                         ? null
                         : () => widget.authService.cancelVerification(),
-                    child: const Text('Назад'),
+                    child: Text(strings.back),
                   ),
                 ],
               ),

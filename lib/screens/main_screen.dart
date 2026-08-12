@@ -20,7 +20,10 @@ import '../services/settings_service.dart';
 import '../utils/main_tab_bus.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/command_palette.dart';
+import '../widgets/murkot_decor.dart';
 import '../widgets/session_boot.dart';
+import '../widgets/unlumen/murkot_fx.dart';
+import 'about_murkot_screen.dart';
 import 'board_screen.dart';
 import 'messages_hub_screen.dart';
 import 'profile_screen.dart';
@@ -61,6 +64,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    _notificationService.attachSettings(widget.settingsService);
     mainTabIndex.addListener(_onExternalTabChange);
     _initServices();
   }
@@ -278,7 +282,13 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildShell(BuildContext context) {
     final strings = context.strings;
-    final login = widget.authService.currentUser!.login;
+    final currentUser = widget.authService.currentUser;
+    // During a forced re-login the auth screen replaces this widget on the
+    // next frame; render a placeholder instead of crashing on null.
+    if (currentUser == null) {
+      return const Scaffold(body: Center(child: MurkotLoader(size: 48)));
+    }
+    final login = currentUser.login;
     final chatService = _chatService;
     final listingsService = _listingsService;
     final projectsService = _projectsService;
@@ -301,7 +311,7 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    final user = widget.authService.currentUser!;
+    final user = currentUser;
     final theme = Theme.of(context);
 
     final shell = Scaffold(
@@ -317,6 +327,14 @@ class _MainScreenState extends State<MainScreen> {
                     chatService: chatService,
                   ),
                   icon: const Icon(Icons.search_rounded),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: MurkotThemeSwitch(
+                      settings: widget.settingsService,
+                    ),
+                  ),
                 ),
               ],
               bottom: _loadingData && !_showBoot
@@ -407,6 +425,7 @@ class _MainScreenState extends State<MainScreen> {
               profileLogin: user.login,
               profileAvatarPath: user.avatarPath,
               profileAvatarEmoji: user.avatarEmoji,
+              settingsService: widget.settingsService,
             ),
     );
 
@@ -468,6 +487,7 @@ class _CustomBottomNav extends StatelessWidget {
     required this.chatsLabel,
     required this.profileLabel,
     required this.profileLogin,
+    required this.settingsService,
     this.profileAvatarPath,
     this.profileAvatarEmoji,
   });
@@ -478,6 +498,7 @@ class _CustomBottomNav extends StatelessWidget {
   final String chatsLabel;
   final String profileLabel;
   final String profileLogin;
+  final SettingsService settingsService;
   final String? profileAvatarPath;
   final String? profileAvatarEmoji;
 
@@ -491,9 +512,50 @@ class _CustomBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 72,
+          height: 80,
           child: Row(
             children: [
+              // About Murkot — mark + label, separated like profile.
+              SizedBox(
+                width: 76,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AboutMurkotScreen(
+                            settingsService: settingsService,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const MurkotStackedMark(size: 44),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.strings.aboutUs,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 36,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                color: Colors.grey.shade400,
+              ),
               Expanded(
                 child: Row(
                   children: [
@@ -564,54 +626,66 @@ class _ProfileNavItem extends StatelessWidget {
     final color =
         isSelected ? theme.colorScheme.primary : Colors.grey.shade600;
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.primary,
+                            width: 1.5,
+                          ),
+                        )
+                      : null,
+                  child: AvatarDisplay(
+                    name: login,
+                    avatarPath: avatarPath,
+                    avatarEmoji: avatarEmoji,
+                    radius: 13,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  login,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            const SizedBox(height: 3),
-            Container(
-              decoration: isSelected
-                  ? BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.primary,
-                        width: 1.5,
-                      ),
-                    )
-                  : null,
-              child: AvatarDisplay(
-                name: login,
-                avatarPath: avatarPath,
-                avatarEmoji: avatarEmoji,
-                radius: 13,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              login,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -641,24 +715,34 @@ class _NavItem extends StatelessWidget {
         : Colors.grey.shade600;
 
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: Material(
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

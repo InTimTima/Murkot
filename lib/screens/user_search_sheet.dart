@@ -150,10 +150,10 @@ class _UserSearchSheetState extends State<UserSearchSheet> {
                 subtitle: Text(strings.botSubtitle),
                 onTap: () => Navigator.pop(
                   context,
-                  const UserPreview(
+                  UserPreview(
                     id: ChatService.botUserId,
                     login: ChatService.botLogin,
-                    status: 'Всегда на связи',
+                    status: strings.alwaysOnline,
                     avatarEmoji: '🤖',
                     isBot: true,
                   ),

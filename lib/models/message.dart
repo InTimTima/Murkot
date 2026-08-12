@@ -1,4 +1,5 @@
 import 'media_payload.dart';
+import 'system_payload.dart';
 
 enum MessageType {
   text,
@@ -184,7 +185,9 @@ String truncateChatPreview(String? value, {int maxChars = 48}) {
 String messagePreviewText(Message message, {int maxChars = 48}) {
   if (message.isDeletedForAll) return 'Сообщение удалено';
   final String raw;
-  if (message.type == MessageType.text || message.type == MessageType.system) {
+  if (message.type == MessageType.system) {
+    raw = SystemPayload.tryParse(message.content)?.text ?? message.content;
+  } else if (message.type == MessageType.text) {
     raw = message.content;
   } else {
     final label = messageTypeLabel(message.type);

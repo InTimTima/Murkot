@@ -14,6 +14,9 @@ import 'screens/main_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/settings_service.dart';
+import 'widgets/murkot_decor.dart';
+import 'widgets/unlumen/murkot_fx.dart';
+import 'widgets/unlumen/murkot_theme_transition.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +35,6 @@ Future<void> main() async {
   final authService = AuthService();
   final settingsService = SettingsService(prefs);
 
-  // Paint the first frame immediately; auth finishes in the background.
   runApp(MurkotApp(
     prefs: prefs,
     authService: authService,
@@ -42,7 +44,7 @@ Future<void> main() async {
   unawaited(authService.initialize());
 }
 
-class MurkotApp extends StatelessWidget {
+class MurkotApp extends StatefulWidget {
   const MurkotApp({
     super.key,
     required this.prefs,
@@ -54,63 +56,70 @@ class MurkotApp extends StatelessWidget {
   final AuthService authService;
   final SettingsService settingsService;
 
-  Widget _homeScreen() {
-    if (!authService.isReady) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (authService.isAuthenticated) {
-      final user = authService.currentUser!;
-      if (needsOnboarding(user, prefs)) {
-        return OnboardingScreen(
-          authService: authService,
-          prefs: prefs,
-        );
-      }
-      return MainScreen(
-        authService: authService,
-        settingsService: settingsService,
-        prefs: prefs,
-      );
-    }
-    if (authService.needsEmailVerification) {
-      return EmailVerificationScreen(authService: authService);
-    }
-    return AuthScreen(authService: authService);
-  }
+  @override
+  State<MurkotApp> createState() => _MurkotAppState();
+}
+
+class _MurkotAppState extends State<MurkotApp> {
+  /// Keeps navigator / screens alive across theme rebuilds.
+  final _navKey = GlobalKey<NavigatorState>();
+
+  /// Preserves curtain AnimationController across MaterialApp rebuilds.
+  final _curtainKey = GlobalKey();
+
+  /// Stable home instance — recreating `home:` on every settings notify
+  /// was resetting the whole app (looked like a full page reload).
+  late final Widget _home = _MurkotRootHome(
+    authService: widget.authService,
+    settingsService: widget.settingsService,
+    prefs: widget.prefs,
+  );
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([authService, settingsService]),
+      listenable: widget.settingsService,
       builder: (context, _) {
-        final strings = AppStrings(settingsService.language, settingsService);
+        final strings = AppStrings(
+          widget.settingsService.language,
+          widget.settingsService,
+        );
 
         return AppStringsScope(
           strings: strings,
           child: MaterialApp(
+            navigatorKey: _navKey,
             title: strings.appTitle,
             debugShowCheckedModeBanner: false,
-            locale: settingsService.locale,
+            locale: widget.settingsService.locale,
             supportedLocales: const [Locale('ru'), Locale('en')],
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            themeMode: settingsService.themeMode,
-            theme: buildMurkotTheme(Brightness.light),
+            themeMode: widget.settingsService.themeMode,
+            themeAnimationStyle: AnimationStyle.noAnimation,
+            theme: buildMurkotTheme(
+              Brightness.light,
+              lightFlavor: MurkotLightFlavor.light,
+            ),
             darkTheme: buildMurkotTheme(Brightness.dark),
             builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: TextScaler.linear(settingsService.textScaleFactor),
+              return MurkotThemeCurtain(
+                key: _curtainKey,
+                settings: widget.settingsService,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(
+                      widget.settingsService.textScaleFactor,
+                    ),
+                  ),
+                  child: child ?? const SizedBox.shrink(),
                 ),
-                child: child ?? const SizedBox.shrink(),
               );
             },
-            home: _homeScreen(),
+            home: _home,
           ),
         );
       },
@@ -118,5 +127,78 @@ class MurkotApp extends StatelessWidget {
   }
 }
 
-/// Back-compat alias for older imports/tests.
+/// Auth-driven root. Type/key stay stable so MaterialApp never remounts
+/// the navigator when only the theme changes.
+class _MurkotRootHome extends StatelessWidget {
+  const _MurkotRootHome({
+    required this.authService,
+    required this.settingsService,
+    required this.prefs,
+  });
+
+  final AuthService authService;
+  final SettingsService settingsService;
+  final SharedPreferences prefs;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: authService,
+      builder: (context, _) {
+        final strings = context.strings;
+
+        if (!authService.isReady) {
+          return Scaffold(
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: MurkotColors.authGradientLight,
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const StretchCatSilhouette(width: 200),
+                    const SizedBox(height: 24),
+                    const MurkotLoader(size: 52),
+                    const SizedBox(height: 14),
+                    MurkotShimmerText(
+                      strings.loadingMurkot,
+                      style: const TextStyle(
+                        letterSpacing: 0.8,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        if (authService.isAuthenticated) {
+          final user = authService.currentUser!;
+          if (needsOnboarding(user, prefs)) {
+            return OnboardingScreen(
+              authService: authService,
+              prefs: prefs,
+            );
+          }
+          return MainScreen(
+            authService: authService,
+            settingsService: settingsService,
+            prefs: prefs,
+          );
+        }
+        if (authService.needsEmailVerification) {
+          return EmailVerificationScreen(authService: authService);
+        }
+        return AuthScreen(
+          authService: authService,
+          settingsService: settingsService,
+        );
+      },
+    );
+  }
+}
+
 typedef TujhMessengerApp = MurkotApp;

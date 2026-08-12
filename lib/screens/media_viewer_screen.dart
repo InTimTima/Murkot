@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+import '../widgets/unlumen/murkot_fx.dart';
+
 /// Fullscreen in-app viewer for chat images with left/right swiping.
 class MediaViewerScreen extends StatefulWidget {
   const MediaViewerScreen({
@@ -61,8 +64,12 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black.withValues(alpha: 0.6),
         foregroundColor: Colors.white,
+        leading: const MurkotBackButton(),
         title: Text(
-          widget.title ?? (total > 1 ? '${_index + 1} из $total' : ''),
+          widget.title ??
+              (total > 1
+                  ? context.strings.mediaOf(_index + 1, total)
+                  : ''),
           style: const TextStyle(fontSize: 16),
         ),
         centerTitle: true,
@@ -85,7 +92,8 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                         progress == null
                             ? child
                             : const Center(
-                                child: CircularProgressIndicator(
+                                child: MurkotLoader(
+                                  size: 40,
                                   color: Colors.white,
                                 ),
                               ),

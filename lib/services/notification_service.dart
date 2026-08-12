@@ -5,19 +5,46 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'notification_service_stub.dart'
     if (dart.library.html) 'notification_service_web.dart' as impl;
+import 'settings_service.dart';
 
 class NotificationService {
-  bool _enabled = false;
-  bool get isEnabled => _enabled;
+  NotificationService({SettingsService? settings}) : _settings = settings;
+
+  SettingsService? _settings;
+  bool _permissionGranted = false;
+
+  bool get isEnabled =>
+      (_settings?.notificationsEnabled ?? true) && _permissionGranted;
+
+  void attachSettings(SettingsService settings) {
+    _settings = settings;
+  }
 
   Future<bool> initialize() async {
     // Do not prompt on startup — a permission dialog can hang the whole app
     // for minutes if the user ignores it. Only wire up an already-granted grant.
-    _enabled = await impl.hasNotificationPermissionImpl();
-    if (_enabled) {
+    _permissionGranted = await impl.hasNotificationPermissionImpl();
+    if (_permissionGranted && (_settings?.notificationsEnabled ?? true)) {
       unawaited(_registerPushToken());
     }
-    return _enabled;
+    return isEnabled;
+  }
+
+  Future<bool> enableAndRequestPermission() async {
+    await _settings?.setNotificationsEnabled(true);
+    _permissionGranted = await impl.requestNotificationPermissionImpl();
+    if (_permissionGranted) {
+      await _registerPushToken();
+    }
+    return _permissionGranted;
+  }
+
+  Future<void> setUserEnabled(bool enabled) async {
+    await _settings?.setNotificationsEnabled(enabled);
+    if (enabled) {
+      _permissionGranted = await impl.requestNotificationPermissionImpl();
+      if (_permissionGranted) await _registerPushToken();
+    }
   }
 
   Future<void> showIncomingMessage({
@@ -25,9 +52,11 @@ class NotificationService {
     required String body,
     required String conversationId,
   }) async {
-    if (!_enabled) {
-      _enabled = await impl.requestNotificationPermissionImpl();
-      if (!_enabled) return;
+    if (!(_settings?.notificationsEnabled ?? true)) return;
+
+    if (!_permissionGranted) {
+      _permissionGranted = await impl.requestNotificationPermissionImpl();
+      if (!_permissionGranted) return;
       await _registerPushToken();
     }
 

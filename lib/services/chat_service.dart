@@ -9,6 +9,7 @@ import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
 import '../models/public_conversation.dart';
+import '../models/system_payload.dart';
 import '../models/user.dart';
 import '../models/user_preview.dart';
 import '../utils/helpers.dart';
@@ -255,13 +256,18 @@ class ChatService extends ChangeNotifier {
       params: {'other_user_id': user.id},
     );
     final map = Map<String, dynamic>.from(row as Map);
-    return _upsertLocalConversationFromRow(
+    // conversations.name is set by whoever created the DM and is often the
+    // *current* user's login — never trust it for the peer display name.
+    final conversation = _upsertLocalConversationFromRow(
       map,
       fallbackName: user.login,
       fallbackEmoji: user.avatarEmoji,
       memberIds: [_userLogin, user.login],
       contactStatus: user.status,
+      forcePeerDisplay: true,
+      peerAvatarUrl: user.avatarUrl,
     );
+    return conversation;
   }
 
   Future<Conversation> openBotChat() async {
@@ -318,16 +324,34 @@ class ChatService extends ChangeNotifier {
     List<String> memberIds = const [],
     String contactStatus = '',
     bool isAdmin = false,
+    bool forcePeerDisplay = false,
+    String? peerAvatarUrl,
   }) {
     final id = map['id'] as String;
     final existing = getConversation(id);
+    final type = _parseType(map['type'] as String? ?? 'direct');
+    final rawName = map['name'] as String?;
+    // DM rows store an asymmetric creator-picked name — often OUR login.
+    final displayName = forcePeerDisplay
+        ? fallbackName
+        : (type == ConversationType.direct &&
+                (rawName == null ||
+                    rawName.toLowerCase() == _userLogin.toLowerCase()))
+            ? fallbackName
+            : (rawName ?? fallbackName);
+    final displayAvatar = forcePeerDisplay
+        ? (peerAvatarUrl ?? existing?.avatarPath)
+        : (map['avatar_url'] as String? ?? existing?.avatarPath);
     final conversation = Conversation(
       id: id,
-      type: _parseType(map['type'] as String? ?? 'direct'),
-      name: map['name'] as String? ?? fallbackName,
-      avatarPath: map['avatar_url'] as String? ?? existing?.avatarPath,
-      avatarEmoji:
-          map['avatar_emoji'] as String? ?? fallbackEmoji ?? existing?.avatarEmoji,
+      type: type,
+      name: displayName,
+      avatarPath: displayAvatar,
+      avatarEmoji: forcePeerDisplay
+          ? (fallbackEmoji ?? existing?.avatarEmoji)
+          : (map['avatar_emoji'] as String? ??
+              fallbackEmoji ??
+              existing?.avatarEmoji),
       lastMessage: map['last_message'] as String? ?? existing?.lastMessage ?? '',
       lastMessageSender:
           map['last_message_sender'] as String? ?? existing?.lastMessageSender,
@@ -398,7 +422,13 @@ class ChatService extends ChangeNotifier {
     final conversation = getConversation(conversationId);
     if (conversation == null) return;
     await updateConversation(conversation.copyWith(avatarPath: busted));
-    await sendSystemMessage(conversationId, '$_userLogin обновил(а) аватар');
+    await sendSystemMessage(
+      conversationId,
+      SystemPayload(
+        text: '$_userLogin обновил(а) аватар',
+        actorLogin: _userLogin,
+      ).encode(),
+    );
   }
 
   /// Search public groups/channels by name (RPC, see features_v8.sql).
@@ -440,7 +470,13 @@ class ChatService extends ChangeNotifier {
     final conversation = getConversation(conversationId);
     // Channels are read-only for regular members — no system notice there.
     if (conversation != null && conversation.type == ConversationType.group) {
-      await sendSystemMessage(conversationId, '$_userLogin вступил(а) в группу');
+      await sendSystemMessage(
+        conversationId,
+        SystemPayload(
+          text: '$_userLogin вступил(а) в группу',
+          actorLogin: _userLogin,
+        ).encode(),
+      );
     }
     return conversation;
   }
@@ -844,6 +880,22 @@ class ChatService extends ChangeNotifier {
     }
   }
 
+  /// Local-only system notice — visible only on this device/session
+  /// (used for "pin for me").
+  void addLocalSystemMessage(String conversationId, String text) {
+    final message = Message(
+      id: 'local_sys_${DateTime.now().microsecondsSinceEpoch}',
+      conversationId: conversationId,
+      senderId: _userLogin,
+      senderName: _userLogin,
+      type: MessageType.system,
+      content: text,
+      timestamp: DateTime.now(),
+    );
+    _addMessageLocal(message);
+    notifyListeners();
+  }
+
   Future<void> addMemberByLogin(String conversationId, String login) async {
     await _client.rpc(
       'add_conversation_member_by_login',
@@ -854,9 +906,14 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll();
     notifyListeners();
+    final target = login.trim();
     await sendSystemMessage(
       conversationId,
-      '$_userLogin добавил(а) ${login.trim()}',
+      SystemPayload(
+        text: '$_userLogin добавил(а) $target',
+        actorLogin: _userLogin,
+        targetLogin: target,
+      ).encode(),
     );
   }
 
@@ -872,7 +929,11 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
     await sendSystemMessage(
       conversationId,
-      '$_userLogin добавил(а) ${user.login}',
+      SystemPayload(
+        text: '$_userLogin добавил(а) ${user.login}',
+        actorLogin: _userLogin,
+        targetLogin: user.login,
+      ).encode(),
     );
   }
 
@@ -886,9 +947,14 @@ class ChatService extends ChangeNotifier {
     );
     await _loadAll();
     notifyListeners();
+    final target = login.trim();
     await sendSystemMessage(
       conversationId,
-      '$_userLogin удалил(а) ${login.trim()}',
+      SystemPayload(
+        text: '$_userLogin удалил(а) $target',
+        actorLogin: _userLogin,
+        targetLogin: target,
+      ).encode(),
     );
   }
 
@@ -1067,6 +1133,24 @@ class ChatService extends ChangeNotifier {
       _pinnedForMe[conversationId] = pinned;
     }
     notifyListeners();
+
+    final target = _findMessage(messageId);
+    final preview = target == null
+        ? 'сообщение'
+        : messagePreviewText(target, maxChars: 40);
+    final payload = SystemPayload(
+      text: forEveryone
+          ? '$_userLogin закрепил(а) сообщение'
+          : 'Вы закрепили сообщение для себя',
+      actorLogin: _userLogin,
+      targetMessageId: messageId,
+      targetPreview: preview,
+    ).encode();
+    if (forEveryone) {
+      await sendSystemMessage(conversationId, payload);
+    } else {
+      addLocalSystemMessage(conversationId, payload);
+    }
   }
 
   Future<void> unpinMessage(
@@ -1116,19 +1200,25 @@ class ChatService extends ChangeNotifier {
     if (index == -1) return;
 
     final reactions = Map<String, String>.from(list[index].reactions);
+    final isLocalOnly = messageId.startsWith('local_');
+
     if (reactions[_userLogin] == emoji) {
-      await _client
-          .from('message_reactions')
-          .delete()
-          .eq('message_id', messageId)
-          .eq('user_id', _userId);
+      if (!isLocalOnly) {
+        await _client
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', messageId)
+            .eq('user_id', _userId);
+      }
       reactions.remove(_userLogin);
     } else {
-      await _client.from('message_reactions').upsert({
-        'message_id': messageId,
-        'user_id': _userId,
-        'emoji': emoji,
-      });
+      if (!isLocalOnly) {
+        await _client.from('message_reactions').upsert({
+          'message_id': messageId,
+          'user_id': _userId,
+          'emoji': emoji,
+        });
+      }
       reactions[_userLogin] = emoji;
     }
 
@@ -1791,14 +1881,14 @@ class ChatService extends ChangeNotifier {
   }
 
   void _updateConversationPreview(String conversationId, Message message) {
-    final preview = message.type == MessageType.text
-        ? message.content
-        : messageTypeLabel(message.type);
+    final preview = messagePreviewText(message, maxChars: 80);
     final index = _conversations.indexWhere((c) => c.id == conversationId);
     if (index == -1) return;
     _conversations[index] = _conversations[index].copyWith(
       lastMessage: preview,
-      lastMessageSender: _userLogin,
+      lastMessageSender: message.type == MessageType.system
+          ? null
+          : _userLogin,
       lastActivity: message.timestamp,
     );
   }
@@ -1818,11 +1908,10 @@ class ChatService extends ChangeNotifier {
 
     final last = visible.last;
     _conversations[index] = _conversations[index].copyWith(
-      lastMessage: last.type == MessageType.text
-          ? last.content
-          : messageTypeLabel(last.type),
-      lastMessageSender:
-          last.senderId == _userLogin ? _userLogin : last.senderName,
+      lastMessage: messagePreviewText(last, maxChars: 80),
+      lastMessageSender: last.type == MessageType.system
+          ? null
+          : (last.senderId == _userLogin ? _userLogin : last.senderName),
       lastActivity: last.timestamp,
     );
   }

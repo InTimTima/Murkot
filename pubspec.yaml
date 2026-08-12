@@ -20,14 +20,42 @@ dependencies:
   record: ^7.1.1
   audioplayers: ^6.8.1
   video_player: ^2.13.0
+  google_fonts: ^8.2.1
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/v2/png/murkot3.1-02.png
+  web:
+    generate: true
+    image_path: assets/branding/v2/png/murkot3.1-02.png
+    background_color: "#FFF6E8"
+    theme_color: "#F1891E"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/branding/murkot_icon.png
+    - assets/branding/murkot_logo_main.png
     - assets/branding/murkot_stretch_cat.png
+    - assets/branding/murkot_stretch_mark.png
+    - assets/branding/murkot_logo_sheet.png
+    - assets/branding/svg/logo_main.svg
+    - assets/branding/svg/cat_stretch.svg
+    - assets/branding/svg/citrus.svg
+    - assets/branding/svg/circles.svg
+    - assets/branding/svg/drops.svg
+    - assets/branding/v2/png/
+    - assets/branding/v2/svg/
+  fonts:
+    - family: ArialRoundedMTBold
+      fonts:
+        - asset: assets/fonts/ArialRoundedMTBold.ttf
+          weight: 700
