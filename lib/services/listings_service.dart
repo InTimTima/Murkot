@@ -11,8 +11,9 @@ class ListingsService extends ChangeNotifier {
   final String _userId;
   final _client = Supabase.instance.client;
 
+  // Disambiguate after hidden_listings created a second listings↔profiles path.
   static const _authorSelect =
-      '*, author:profiles(id, login, status, avatar_emoji, avatar_url, is_bot)';
+      '*, author:profiles!listings_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot)';
 
   List<Listing> _listings = const [];
   final Set<String> _hiddenIds = {};

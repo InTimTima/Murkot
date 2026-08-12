@@ -126,8 +126,16 @@ class AuthService extends ChangeNotifier {
       debugPrint('get_own_profile RPC unavailable: $e');
     }
 
-    // Fallback when v16 is not applied yet (may omit email after grants).
-    return await _client.from('profiles').select().eq('id', userId).maybeSingle();
+    // Fallback when v16 RPC is missing. Omit email — column grants hide it.
+    return await _client
+        .from('profiles')
+        .select(
+          'id, login, status, avatar_url, avatar_emoji, profile_wallpaper_id, '
+          'custom_wallpaper_url, birthday, created_at, updated_at, last_seen_at, '
+          'is_bot, dev_status, skills, experience_level, github_url, portfolio_url, city',
+        )
+        .eq('id', userId)
+        .maybeSingle();
   }
 
   Future<void> _loadProfile(String userId) async {

@@ -102,20 +102,21 @@ Future<void> main() async {
 
   final auth = {'Authorization': 'Bearer $accessToken'};
 
-  // 2) Profile exists (trigger or upsert path)
+  // 2) Profile exists via security-definer RPC (select=* fails without email grant)
   await Future<void>.delayed(const Duration(milliseconds: 800));
   final profile = await httpJson(
-    'GET',
-    '/rest/v1/profiles?id=eq.$userId&select=*',
+    'POST',
+    '/rest/v1/rpc/get_own_profile',
     headers: auth,
+    body: {},
   );
-  expectOk('profile select', profile);
+  expectOk('get_own_profile', profile);
   final profiles = profile['body'] as List<dynamic>;
   if (profiles.isEmpty) {
     final upsert = await httpJson(
       'POST',
       '/rest/v1/profiles',
-      headers: {...auth, 'Prefer': 'resolution=merge-duplicates,return=representation'},
+      headers: {...auth, 'Prefer': 'resolution=merge-duplicates,return=minimal'},
       body: {
         'id': userId,
         'login': login,
