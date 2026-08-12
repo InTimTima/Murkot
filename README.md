@@ -43,8 +43,10 @@ dart run tool/backend_smoke_test.dart  # signup → chat → cleanup
 
 ### Публичный профиль
 
-- Ссылка вида `https://quannxxii.github.io/Murkot/@login` (кнопка «ссылка» в своём профиле)
-- Deep link открывает карточку после входа; для GitHub Pages нужен `web/404.html` в деплое
+- Ссылка вида `https://…/@login` (кнопка «ссылка» в своём профиле; на web берётся текущий origin)
+- Deep link открывает карточку после входа
+- **Vercel (рекомендуется):** см. [`docs/vercel.md`](docs/vercel.md) — `base-href /`, SPA rewrites
+- GitHub Pages: `https://quannxxii.github.io/Murkot/` + `web/404.html`
 
 ### Модерация (после v18)
 

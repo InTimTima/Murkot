@@ -17,7 +17,7 @@
 
 ## 4. Auth
 - Confirm email: включить на prod.
-- Redirect URLs: `https://quannxxii.github.io/Murkot/**` и будущий кастомный домен.
+- Redirect URLs: `https://quannxxii.github.io/Murkot/**`, Vercel URL (`https://*.vercel.app/**`) и будущий кастомный домен.
 - Site URL: prod web origin.
 
 ## 5. Push

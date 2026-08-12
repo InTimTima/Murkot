@@ -1,0 +1,17 @@
+.dart_tool
+.git
+.github
+.idea
+.vscode
+android
+ios
+linux
+macos
+windows
+test
+.merge_tmp
+supabase/.temp
+build/web
+*.iml
+**/*.md
+!README.md
