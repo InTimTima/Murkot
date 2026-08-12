@@ -1,167 +1,48 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../config/brand_theme.dart';
+import '../models/conversation.dart';
 
-/// Stylized citrus half-slice (Murkot juice motif).
-class CitrusSlice extends StatelessWidget {
-  const CitrusSlice({
-    super.key,
-    this.size = 48,
-    this.color = MurkotColors.orange,
-    this.opacity = 0.9,
-  });
+/// Brand assets from the design sheet (`assets/branding/v2`).
+/// Prefer PNG for complex marks — Illustrator SVG CSS often renders black on web.
+abstract final class MurkotAssets {
+  static const appIcon = 'assets/branding/v2/png/murkot2.1-02.png';
+  static const appIconFull = 'assets/branding/v2/png/murkot2-02.png';
+  static const authMark = 'assets/branding/v2/png/murkot3.1-02.png';
+  static const authLogo = 'assets/branding/v2/png/murkot3-02.png';
+  static const stackedMark = 'assets/branding/v2/png/murkot1-02.png';
+  static const stretchCat = 'assets/branding/v2/png/murkot4-02.png';
+  static const settingsBg = 'assets/branding/v2/png/murkot5.1-02.png';
+  static const chatsMark = 'assets/branding/v2/png/murkot6.2-02.png';
+  static const groupsMark = 'assets/branding/v2/png/murkot5.2-02.png';
+  static const channelsMark = 'assets/branding/v2/png/murkot2.2-02.png';
+  static const drops = 'assets/branding/v2/svg/murkot7-02.svg';
+  static const circles = 'assets/branding/v2/svg/murkot8-02.svg';
+  static const citrus = 'assets/branding/v2/svg/murkot9-02.svg';
+  static const wordmark = 'assets/branding/v2/svg/murkot10-02.svg';
 
-  final double size;
-  final Color color;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity,
-      child: CustomPaint(
-        size: Size.square(size),
-        painter: _CitrusSlicePainter(color),
-      ),
-    );
-  }
+  static String sectionMark(ConversationType type) => switch (type) {
+        ConversationType.direct => chatsMark,
+        ConversationType.group => groupsMark,
+        ConversationType.channel => channelsMark,
+      };
 }
 
-class _CitrusSlicePainter extends CustomPainter {
-  _CitrusSlicePainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.55);
-    final radius = size.width * 0.42;
-    final rind = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.08;
-    final fill = Paint()..color = color.withValues(alpha: 0.22);
-    final segment = Paint()
-      ..color = color.withValues(alpha: 0.85)
-      ..strokeWidth = size.width * 0.035
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawCircle(center, radius, fill);
-    canvas.drawCircle(center, radius, rind);
-
-    const segments = 6;
-    for (var i = 0; i < segments; i++) {
-      final a = -math.pi / 2 + (i * 2 * math.pi / segments);
-      canvas.drawLine(
-        center,
-        center + Offset(math.cos(a), math.sin(a)) * radius * 0.88,
-        segment,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CitrusSlicePainter oldDelegate) =>
-      oldDelegate.color != color;
+Color murkotDecorTint(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return isDark ? MurkotColors.cream : MurkotColors.orange;
 }
 
-/// Stretching-cat silhouette (brand row 3).
-class StretchCatSilhouette extends StatelessWidget {
-  const StretchCatSilhouette({
+/// Soft decorative circle (fallback ornament).
+class SoftCircle extends StatelessWidget {
+  const SoftCircle({
     super.key,
-    this.width = 120,
+    this.size = 80,
     this.color = MurkotColors.orange,
     this.opacity = 0.18,
   });
 
-  final double width;
-  final Color color;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity,
-      child: CustomPaint(
-        size: Size(width, width * 0.55),
-        painter: _StretchCatPainter(color),
-      ),
-    );
-  }
-}
-
-class _StretchCatPainter extends CustomPainter {
-  _StretchCatPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    // Simplified play-bow silhouette.
-    final w = size.width;
-    final h = size.height;
-
-    // Head
-    path.addOval(Rect.fromCenter(
-      center: Offset(w * 0.12, h * 0.55),
-      width: w * 0.18,
-      height: h * 0.32,
-    ));
-    // Ears
-    path.moveTo(w * 0.05, h * 0.42);
-    path.lineTo(w * 0.08, h * 0.22);
-    path.lineTo(w * 0.14, h * 0.42);
-    path.close();
-    path.moveTo(w * 0.14, h * 0.4);
-    path.lineTo(w * 0.18, h * 0.2);
-    path.lineTo(w * 0.22, h * 0.42);
-    path.close();
-
-    // Body bow
-    path.moveTo(w * 0.18, h * 0.62);
-    path.quadraticBezierTo(w * 0.4, h * 0.85, w * 0.55, h * 0.55);
-    path.quadraticBezierTo(w * 0.68, h * 0.2, w * 0.78, h * 0.38);
-    path.quadraticBezierTo(w * 0.72, h * 0.7, w * 0.5, h * 0.78);
-    path.quadraticBezierTo(w * 0.3, h * 0.85, w * 0.18, h * 0.68);
-    path.close();
-
-    // Tail arc
-    final tail = Path()
-      ..moveTo(w * 0.78, h * 0.4)
-      ..quadraticBezierTo(w * 0.95, h * 0.05, w * 0.88, h * 0.55)
-      ..quadraticBezierTo(w * 0.9, h * 0.35, w * 0.8, h * 0.42);
-    path.addPath(tail, Offset.zero);
-
-    // Front paws
-    path.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.2, h * 0.72, w * 0.22, h * 0.1),
-      const Radius.circular(8),
-    ));
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _StretchCatPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
-
-/// Soft juice droplet accent.
-class JuiceDrop extends StatelessWidget {
-  const JuiceDrop({
-    super.key,
-    this.size = 14,
-    this.color = MurkotColors.orange,
-    this.opacity = 0.55,
-  });
-
   final double size;
   final Color color;
   final double opacity;
@@ -170,35 +51,274 @@ class JuiceDrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: opacity,
-      child: CustomPaint(
-        size: Size(size, size * 1.35),
-        painter: _DropPainter(color),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
 }
 
-class _DropPainter extends CustomPainter {
-  _DropPainter(this.color);
+/// Raw brand PNG — no ColorFilter, no theme tinting.
+class MurkotBrandImage extends StatelessWidget {
+  const MurkotBrandImage({
+    super.key,
+    required this.asset,
+    this.width,
+    this.height,
+    this.opacity = 1,
+    this.fit = BoxFit.contain,
+  });
 
-  final Color color;
+  final String asset;
+  final double? width;
+  final double? height;
+  final double opacity;
+  final BoxFit fit;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..quadraticBezierTo(size.width, size.height * 0.45, size.width / 2, size.height)
-      ..quadraticBezierTo(0, size.height * 0.45, size.width / 2, 0);
-    canvas.drawPath(path, paint);
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: opacity,
+      child: Image.asset(
+        asset,
+        width: width,
+        height: height,
+        fit: fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _DropPainter oldDelegate) =>
-      oldDelegate.color != color;
 }
 
-/// Decorative background wash for auth / empty states.
+/// Auth / launcher mark — cropped icon (design #3.1).
+class MurkotLogoMark extends StatelessWidget {
+  const MurkotLogoMark({super.key, this.size = 96});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.22),
+      child: MurkotBrandImage(
+        asset: MurkotAssets.authMark,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+}
+
+/// Full auth lockup with baked-in MURKOT wordmark (design #3).
+class MurkotLogoFull extends StatelessWidget {
+  const MurkotLogoFull({super.key, this.size = 200});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return MurkotBrandImage(
+      asset: MurkotAssets.authLogo,
+      width: size,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
+/// Stacked cat + MUR/KOT (design #1) — about slot / channel panel.
+class MurkotStackedMark extends StatelessWidget {
+  const MurkotStackedMark({
+    super.key,
+    this.size = 48,
+    this.opacity = 1,
+  });
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return MurkotBrandImage(
+      asset: MurkotAssets.stackedMark,
+      width: size,
+      height: size,
+      opacity: opacity,
+    );
+  }
+}
+
+/// Stretching cat + MUR/KOT (design #4).
+class StretchCatSilhouette extends StatelessWidget {
+  const StretchCatSilhouette({
+    super.key,
+    this.width = 120,
+    this.color,
+    this.opacity = 1,
+  });
+
+  final double width;
+  final Color? color;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return MurkotBrandImage(
+      asset: MurkotAssets.stretchCat,
+      width: width,
+      opacity: opacity,
+    );
+  }
+}
+
+/// Section mark for chats / groups / channels lists & desktop rail.
+class MurkotSectionMark extends StatelessWidget {
+  const MurkotSectionMark({
+    super.key,
+    required this.type,
+    this.width = 220,
+    this.opacity = 1,
+  });
+
+  final ConversationType type;
+  final double width;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return MurkotBrandImage(
+      asset: MurkotAssets.sectionMark(type),
+      width: width,
+      opacity: opacity,
+    );
+  }
+}
+
+/// Citrus half-slice (design #9) — mono ornament, tint OK.
+class CitrusSlice extends StatelessWidget {
+  const CitrusSlice({
+    super.key,
+    this.size = 72,
+    this.color,
+    this.opacity = 0.85,
+  });
+
+  final double size;
+  final Color? color;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? murkotDecorTint(context);
+    return Opacity(
+      opacity: opacity,
+      child: SvgPicture.asset(
+        MurkotAssets.citrus,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(tint, BlendMode.srcIn),
+      ),
+    );
+  }
+}
+
+/// Bubble / circle cluster (design #8).
+class CircleCluster extends StatelessWidget {
+  const CircleCluster({
+    super.key,
+    this.size = 120,
+    this.color,
+    this.opacity = 0.35,
+  });
+
+  final double size;
+  final Color? color;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? murkotDecorTint(context);
+    return Opacity(
+      opacity: opacity,
+      child: SvgPicture.asset(
+        MurkotAssets.circles,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(tint, BlendMode.srcIn),
+      ),
+    );
+  }
+}
+
+/// Juice-drop splash (design #7).
+class JuiceDrops extends StatelessWidget {
+  const JuiceDrops({
+    super.key,
+    this.size = 80,
+    this.color,
+    this.opacity = 0.45,
+  });
+
+  final double size;
+  final Color? color;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? murkotDecorTint(context);
+    return Opacity(
+      opacity: opacity,
+      child: SvgPicture.asset(
+        MurkotAssets.drops,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(tint, BlendMode.srcIn),
+      ),
+    );
+  }
+}
+
+/// Empty / watermark hero for a section — single mark, no stacked cats.
+class MurkotEmptyHero extends StatelessWidget {
+  const MurkotEmptyHero({
+    super.key,
+    required this.type,
+    this.width = 260,
+    this.caption,
+  });
+
+  final ConversationType type;
+  final double width;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MurkotSectionMark(type: type, width: width),
+        if (caption != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            caption!,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Decorative background for auth — rich radial gradient + ornaments.
 class MurkotAtmosphere extends StatelessWidget {
   const MurkotAtmosphere({super.key, this.child});
 
@@ -206,41 +326,57 @@ class MurkotAtmosphere extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Stack(
       children: [
-        const Positioned.fill(
+        Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(gradient: MurkotColors.softGradient),
+            decoration: BoxDecoration(
+              gradient: isDark
+                  ? MurkotColors.authGradientDark
+                  : MurkotColors.authGradientLight,
+            ),
           ),
         ),
         Positioned(
-          top: -20,
-          right: -10,
-          child: CitrusSlice(size: 120, opacity: 0.35),
+          top: -60,
+          right: -70,
+          child: CircleCluster(size: 260, opacity: isDark ? 0.35 : 0.55),
         ),
         Positioned(
           top: 80,
-          left: -30,
-          child: CitrusSlice(
-            size: 90,
-            color: MurkotColors.yellow,
-            opacity: 0.4,
+          left: -70,
+          child: CircleCluster(
+            size: 200,
+            color: isDark ? MurkotColors.cream : MurkotColors.yellow,
+            opacity: isDark ? 0.2 : 0.32,
           ),
         ),
-        const Positioned(
-          bottom: 40,
-          right: 24,
-          child: StretchCatSilhouette(width: 140),
+        Positioned(
+          top: 40,
+          left: 40,
+          child: JuiceDrops(size: 130, opacity: isDark ? 0.32 : 0.45),
         ),
         Positioned(
-          bottom: 120,
-          left: 36,
-          child: JuiceDrop(size: 18, opacity: 0.4),
+          bottom: 20,
+          left: -20,
+          child: JuiceDrops(size: 160, opacity: isDark ? 0.34 : 0.48),
+        ),
+        Positioned(
+          bottom: 36,
+          right: -10,
+          child: CitrusSlice(size: 140, opacity: isDark ? 0.42 : 0.62),
+        ),
+        Positioned(
+          top: 180,
+          right: 12,
+          child: CitrusSlice(size: 72, opacity: isDark ? 0.36 : 0.55),
         ),
         Positioned(
           bottom: 160,
-          left: 58,
-          child: JuiceDrop(size: 12, color: MurkotColors.yellow, opacity: 0.5),
+          left: 24,
+          child: CircleCluster(size: 90, opacity: isDark ? 0.22 : 0.3),
         ),
         if (child != null) Positioned.fill(child: child!),
       ],

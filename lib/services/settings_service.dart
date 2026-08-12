@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/unlumen/murkot_theme_transition.dart';
+
 enum AppLanguage { ru, en }
 
 enum AppTextSize { small, normal, large }
@@ -28,12 +30,20 @@ class SettingsService extends ChangeNotifier {
     _themeMode = ThemeMode.values[_prefs.getInt(_themeKey) ?? 0];
     _language = AppLanguage.values[_prefs.getInt(_languageKey) ?? 0];
     _textSize = AppTextSize.values[_prefs.getInt(_textSizeKey) ?? 1];
+    _notificationsEnabled = _prefs.getBool(_notificationsKey) ?? true;
+    _floatingTooltips = _prefs.getBool(_floatingTooltipsKey) ?? true;
+    _authSpotlight = _prefs.getBool(_authSpotlightKey) ?? true;
+    _smoothTheme = _prefs.getBool(_smoothThemeKey) ?? true;
     _loadPersonalization();
   }
 
   static const _themeKey = 'settings_theme';
   static const _languageKey = 'settings_language';
   static const _textSizeKey = 'settings_text_size';
+  static const _notificationsKey = 'settings_notifications';
+  static const _floatingTooltipsKey = 'settings_floating_tooltips';
+  static const _authSpotlightKey = 'settings_auth_spotlight';
+  static const _smoothThemeKey = 'settings_smooth_theme';
   static const _personalizationKey = 'settings_personalization';
 
   final SharedPreferences _prefs;
@@ -41,11 +51,19 @@ class SettingsService extends ChangeNotifier {
   late ThemeMode _themeMode;
   late AppLanguage _language;
   late AppTextSize _textSize;
+  late bool _notificationsEnabled;
+  late bool _floatingTooltips;
+  late bool _authSpotlight;
+  late bool _smoothTheme;
   Map<String, String> _personalization = {};
 
   ThemeMode get themeMode => _themeMode;
   AppLanguage get language => _language;
   AppTextSize get textSize => _textSize;
+  bool get notificationsEnabled => _notificationsEnabled;
+  bool get floatingTooltips => _floatingTooltips;
+  bool get authSpotlight => _authSpotlight;
+  bool get smoothTheme => _smoothTheme;
   Map<String, String> get personalization => Map.unmodifiable(_personalization);
 
   Locale get locale =>
@@ -64,9 +82,31 @@ class SettingsService extends ChangeNotifier {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    _themeMode = mode;
-    await _prefs.setInt(_themeKey, mode.index);
-    notifyListeners();
+    if (mode == _themeMode) return;
+
+    bool nextIsDark(ThemeMode m) {
+      if (m == ThemeMode.dark) return true;
+      if (m == ThemeMode.light) return false;
+      // system — approximate from platform; host may refine.
+      return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.dark;
+    }
+
+    Future<void> apply() async {
+      _themeMode = mode;
+      await _prefs.setInt(_themeKey, mode.index);
+      notifyListeners();
+    }
+
+    if (_smoothTheme) {
+      await MurkotThemeTransition.instance.run(
+        apply,
+        next: mode,
+        nextIsDark: nextIsDark(mode),
+      );
+    } else {
+      await apply();
+    }
   }
 
   Future<void> setLanguage(AppLanguage language) async {
@@ -78,6 +118,30 @@ class SettingsService extends ChangeNotifier {
   Future<void> setTextSize(AppTextSize size) async {
     _textSize = size;
     await _prefs.setInt(_textSizeKey, size.index);
+    notifyListeners();
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    await _prefs.setBool(_notificationsKey, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setFloatingTooltips(bool enabled) async {
+    _floatingTooltips = enabled;
+    await _prefs.setBool(_floatingTooltipsKey, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setAuthSpotlight(bool enabled) async {
+    _authSpotlight = enabled;
+    await _prefs.setBool(_authSpotlightKey, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setSmoothTheme(bool enabled) async {
+    _smoothTheme = enabled;
+    await _prefs.setBool(_smoothThemeKey, enabled);
     notifyListeners();
   }
 

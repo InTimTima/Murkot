@@ -3,7 +3,7 @@
     "short_name": "Murkot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#FCBF34",
+    "background_color": "#FFF6E8",
     "theme_color": "#F1891E",
     "description": "Murkot — мессенджер со вкусом свежего сока.",
     "orientation": "portrait-primary",

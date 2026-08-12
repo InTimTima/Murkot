@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import 'unlumen/murkot_fx.dart';
+
 class CircleVideoPlayer extends StatefulWidget {
   const CircleVideoPlayer({
     super.key,
@@ -82,11 +84,7 @@ class _CircleVideoPlayerState extends State<CircleVideoPlayer> {
                   )
                 else
                   const Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                    child: MurkotLoader(size: 28),
                   ),
                 if (_ready && !_controller.value.isPlaying)
                   const Center(

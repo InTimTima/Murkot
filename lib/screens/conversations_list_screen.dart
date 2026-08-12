@@ -14,6 +14,7 @@ import '../widgets/confirm_dialogs.dart';
 import '../widgets/conversation_list_tile.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/section_search_bar.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 import 'chat_screen.dart';
 import 'conversation_search_sheet.dart';
 import 'stranger_profile_screen.dart';
@@ -196,6 +197,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           chatService: widget.chatService,
           blacklistService: widget.blacklistService,
           currentUserLogin: widget.currentUserLogin,
+          settingsService: widget.settingsService,
         ),
       ),
     );
@@ -212,6 +214,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         widget.presenceService,
       ]),
       builder: (context, _) {
+        final theme = Theme.of(context);
         final conversations = widget.chatService.searchConversations(
           widget.type,
           _query,
@@ -226,27 +229,26 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
             ),
             if (_searchingMessages) const LinearProgressIndicator(minHeight: 2),
             Expanded(
-              child: conversations.isEmpty && _messageHits.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CitrusSlice(size: 72, opacity: 0.55),
-                              StretchCatSilhouette(width: 96, opacity: 0.35),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            strings.emptyList,
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Single section mark — watermark when list has items.
+                  if (conversations.isNotEmpty || _messageHits.isNotEmpty)
+                    IgnorePointer(
+                      child: MurkotSectionMark(
+                        type: widget.type,
+                        width: 280,
+                        opacity: 0.28,
                       ),
+                    ),
+                  if (conversations.isEmpty && _messageHits.isEmpty)
+                    MurkotEmptyHero(
+                      type: widget.type,
+                      width: 280,
+                      caption: strings.emptyList,
                     )
-                  : ListView(
+                  else
+                    ListView(
                       children: [
                         for (var i = 0; i < conversations.length; i++) ...[
                           Builder(builder: (context) {
@@ -256,18 +258,20 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                                 ? widget.presenceService
                                     .isOnline(conversation.name)
                                 : false;
-                            return ConversationListTile(
+                            return MurkotVelocityHighlight(
+                              child: ConversationListTile(
                               conversation: conversation,
                               isOnline: online,
                               onTapBody: () => _openChat(conversation),
                               onTapAvatar: () => _openProfile(conversation),
+                            ),
                             );
                           }),
                           if (i < conversations.length - 1)
                             Divider(
                               height: 1,
                               indent: 72,
-                              color: Colors.grey.shade200,
+                              color: theme.dividerColor.withValues(alpha: 0.35),
                             ),
                         ],
                         if (_query.trim().length >= 2 &&
@@ -317,6 +321,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                         ],
                       ],
                     ),
+                ],
+              ),
             ),
             if (widget.type != ConversationType.direct)
               _StickyActionButton(

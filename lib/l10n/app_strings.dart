@@ -176,6 +176,15 @@ class AppStrings {
   String deleteGroupOrChannelConfirm(String name) =>
       isRu ? 'Удалить «$name» навсегда?' : 'Delete "$name" permanently?';
   String get rename => isRu ? 'Переименовать' : 'Rename';
+  String get profileActions => isRu ? 'Действия' : 'Actions';
+  String get editDescription =>
+      isRu ? 'Изменить описание' : 'Edit description';
+  String get descriptionHint =>
+      isRu ? 'Коротко о группе или канале' : 'Short group or channel bio';
+  String get descriptionUpdated =>
+      isRu ? 'Описание обновлено' : 'Description updated';
+  String get noDescription =>
+      isRu ? 'Описание не указано' : 'No description yet';
   String get manageMembers => isRu ? 'Управление участниками' : 'Manage members';
   String get members => isRu ? 'Участники' : 'Members';
   String get addMember => isRu ? 'Добавить участника' : 'Add member';
@@ -214,6 +223,163 @@ class AppStrings {
   String get personalizationHint =>
       isRu ? 'Замените стандартные подписи на свои' : 'Replace default labels with your own';
   String get resetLabels => isRu ? 'Сбросить' : 'Reset';
+  String get aboutUs => isRu ? 'О нас' : 'About us';
+  String get aboutTitle => isRu ? 'О Murkot' : 'About Murkot';
+  String get back => isRu ? 'Назад' : 'Back';
+  String get notifications => isRu ? 'Уведомления' : 'Notifications';
+  String get notificationsMessages =>
+      isRu ? 'Уведомления о сообщениях' : 'Message notifications';
+  String get notificationsHint => isRu
+      ? 'Показывать системные уведомления о новых сообщениях'
+      : 'Show system notifications for new messages';
+  String get interfaceSection => isRu ? 'Интерфейс' : 'Interface';
+  String get interfaceSectionHint => isRu
+      ? 'Анимации и подсказки'
+      : 'Animations and tooltips';
+  String get floatingTooltips =>
+      isRu ? 'Плавающие подсказки' : 'Floating tooltips';
+  String get floatingTooltipsHint => isRu
+      ? 'Подсказки следуют за курсором'
+      : 'Tooltips follow the cursor';
+  String get authSpotlight =>
+      isRu ? 'Эффект на экране входа' : 'Auth screen spotlight';
+  String get authSpotlightHint => isRu
+      ? 'Волнистая область при уходе с карточки входа'
+      : 'Wavy area when leaving the login card';
+  String get smoothTheme =>
+      isRu ? 'Плавная смена темы' : 'Smooth theme transition';
+  String get showPassword => isRu ? 'Показать пароль' : 'Show password';
+  String get hidePassword => isRu ? 'Скрыть пароль' : 'Hide password';
+  String get createAccount => isRu ? 'Создайте аккаунт' : 'Create an account';
+  String get signInAccount => isRu ? 'Войдите в аккаунт' : 'Sign in';
+  String get register => isRu ? 'Зарегистрироваться' : 'Sign up';
+  String get signIn => isRu ? 'Войти' : 'Sign in';
+  String get haveAccount =>
+      isRu ? 'Уже есть аккаунт? Войти' : 'Already have an account? Sign in';
+  String get noAccount =>
+      isRu ? 'Нет аккаунта? Создать' : 'No account? Create one';
+  String get enterLogin => isRu ? 'Введите логин' : 'Enter login';
+  String get enterEmail =>
+      isRu ? 'Введите корректную почту' : 'Enter a valid email';
+  String get minPassword =>
+      isRu ? 'Минимум 6 символов' : 'At least 6 characters';
+  String get circleVideo => isRu ? 'Кружок' : 'Circle';
+  String get voiceNote => isRu ? 'Голосовое' : 'Voice';
+  String get send => isRu ? 'Отправить' : 'Send';
+  String get recording => isRu ? 'Запись…' : 'Recording…';
+  String get retry => isRu ? 'Повторить' : 'Retry';
+  String get loadFailed =>
+      isRu ? 'Не удалось загрузить данные' : 'Failed to load data';
+  String get loadingMurkot =>
+      isRu ? 'Загрузка Murkot…' : 'Loading Murkot…';
+  String mediaOf(int index, int total) =>
+      isRu ? '$index из $total' : '$index of $total';
+  String get serverTimeout => isRu
+      ? 'Сервер не отвечает. Проверьте интернет-соединение и попробуйте ещё раз.'
+      : 'Server is not responding. Check your internet connection and try again.';
+  String get smoothThemeHint => isRu
+      ? 'Шторка сверху закрывает экран, тема меняется под ней'
+      : 'A curtain drops, theme switches underneath, then rises';
+  String get messageDeleted =>
+      isRu ? 'Сообщение удалено' : 'Message deleted';
+  String get editedShort => isRu ? 'изм.' : 'edited';
+  String pinnedMessageOf(int index, int total) => isRu
+      ? 'Закреплённое сообщение $index из $total'
+      : 'Pinned message $index of $total';
+  String get micDenied =>
+      isRu ? 'Нет доступа к микрофону' : 'Microphone access denied';
+  String get voiceRecordFailed =>
+      isRu ? 'Не удалось записать голосовое' : 'Could not record voice note';
+  String videoTooLargeMb(String mb) => isRu
+      ? 'Видео слишком большое ($mb МБ, максимум 50 МБ)'
+      : 'Video is too large ($mb MB, max 50 MB)';
+  String videoTooLarge(int mb) => videoTooLargeMb('$mb');
+  String userNotFound(String login) =>
+      isRu ? 'Пользователь @$login не найден' : 'User @$login not found';
+  String openProfileFailed(Object e) =>
+      isRu ? 'Не удалось открыть профиль: $e' : 'Could not open profile: $e';
+  String blockFailed(Object e) =>
+      isRu ? 'Не удалось заблокировать: $e' : 'Could not block: $e';
+  String unblockFailed(Object e) =>
+      isRu ? 'Не удалось разблокировать: $e' : 'Could not unblock: $e';
+  String get alwaysOnline =>
+      isRu ? 'Всегда на связи' : 'Always online';
+  String get emailVerificationTitle =>
+      isRu ? 'Подтверждение почты' : 'Email verification';
+  String get emailVerificationSent => isRu
+      ? 'Мы отправили код подтверждения на вашу почту.'
+      : 'We sent a verification code to your email.';
+  String emailVerificationSentTo(String email) => isRu
+      ? 'Мы отправили код на $email. Введите его ниже или перейдите по ссылке из письма.'
+      : 'We sent a code to $email. Enter it below or open the link from the email.';
+  String get enterEmailCode =>
+      isRu ? 'Введите код из письма' : 'Enter the code from the email';
+  String get emailResent =>
+      isRu ? 'Письмо отправлено повторно' : 'Email resent';
+  String get confirmAction => isRu ? 'Подтвердить' : 'Confirm';
+  String get resendCode =>
+      isRu ? 'Отправить код ещё раз' : 'Resend code';
+  String get aboutTagline => isRu
+      ? 'Мессенджер со вкусом свежего сока'
+      : 'A messenger with a fresh juice taste';
+  String get aboutBody1 => isRu
+      ? 'Murkot — это мессенджер, который мы делаем как свой продукт: '
+          'чаты, группы, каналы, медиаальбомы, голосовые, кружки, '
+          'стикеры и всё остальное, что нужно для живого общения. '
+          'Визуальный язык — тёплый апельсиновый, с котом-маскотом, '
+          'который тянется, сидит и выглядывает из каждого свободного '
+          'угла интерфейса.'
+      : 'Murkot is a messenger we build as our own product: chats, groups, '
+          'channels, media albums, voice notes, circles, stickers, and '
+          'everything else for lively conversations. The visual language is '
+          'warm orange, with a cat mascot that stretches, sits, and peeks '
+          'from every free corner of the UI.';
+  String get aboutBody2 => isRu
+      ? 'Под капотом — Flutter-клиент и Supabase: авторизация, профили, '
+          'realtime-сообщения, вложения, присутствие «в сети». Проект '
+          'вырос из простой идеи: сделать мессенджер «под себя», а не '
+          'очередной клон чужого интерфейса. Отсюда и название, и кот, '
+          'и сок — всё, что хотелось видеть на экране каждый день.'
+      : 'Under the hood — a Flutter client and Supabase: auth, profiles, '
+          'realtime messages, attachments, and online presence. The project '
+          'grew from a simple idea: make a messenger for ourselves, not just '
+          'another clone. Hence the name, the cat, and the juice — everything '
+          'we wanted to see on screen every day.';
+  String get aboutBody3 => isRu
+      ? 'Мы собираем desktop-раскладку в три колонки, мобильную навигацию '
+          'с брендовым слотом «О приложении», системные сообщения, '
+          'закрепления, реакции и медиа-просмотрщик. Где-то уже гладко, '
+          'где-то кот ещё дотягивается лапой — так и живём в активной '
+          'разработке.'
+      : 'We are building a three-column desktop layout, mobile navigation '
+          'with a branded About slot, system messages, pins, reactions, and a '
+          'media viewer. Some parts are already smooth; elsewhere the cat is '
+          'still reaching with a paw — that is active development.';
+  String get aboutTeam => isRu ? 'Команда' : 'Team';
+  String get aboutPhotoSoon =>
+      isRu ? 'Фото появится позже' : 'Photo coming soon';
+  String get aboutCreator1Role => isRu
+      ? 'Идея, продукт, дизайн и разработка клиента'
+      : 'Idea, product, design, and client development';
+  String get aboutCreator2Role => isRu
+      ? 'Соавтор, инфраструктура и бэкенд'
+      : 'Co-author, infrastructure, and backend';
+  String get aboutBody4 => isRu
+      ? 'Эта страница — живая заглушка раздела «О проекте». Позже здесь '
+          'появятся настоящие фотографии, точные имена и более подробная '
+          'история: как выбирали цвета, почему кот тянется именно так, '
+          'и зачем в интерфейсе столько капель и долек цитруса.'
+      : 'This page is a living stub for the About section. Later it will get '
+          'real photos, exact names, and a fuller story: how we chose the '
+          'colors, why the cat stretches the way it does, and why the UI has '
+          'so many drops and citrus slices.';
+  String get aboutBody5 => isRu
+      ? 'Если ты читаешь это в ранней сборке — спасибо. Murkot ещё '
+          'растёт, и каждый экран, каждая анимация и каждый кот на фоне '
+          'появляются не просто так. Налей себе сока и оставайся с нами.'
+      : 'If you are reading this in an early build — thank you. Murkot is '
+          'still growing, and every screen, animation, and background cat '
+          'is there for a reason. Pour yourself some juice and stay with us.';
 }
 
 class AppStringsScope extends InheritedWidget {
@@ -224,6 +390,12 @@ class AppStringsScope extends InheritedWidget {
   });
 
   final AppStrings strings;
+
+  static AppStrings? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<AppStringsScope>()
+        ?.strings;
+  }
 
   @override
   bool updateShouldNotify(AppStringsScope oldWidget) =>

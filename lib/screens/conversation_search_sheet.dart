@@ -7,6 +7,7 @@ import '../models/conversation.dart';
 import '../models/public_conversation.dart';
 import '../services/chat_service.dart';
 import '../widgets/avatar_display.dart';
+import '../widgets/murkot_decor.dart';
 
 /// Search for public groups/channels; returns the selected preview.
 Future<PublicConversationPreview?> showConversationSearchSheet({
@@ -166,17 +167,34 @@ class _ConversationSearchSheetState extends State<ConversationSearchSheet> {
                     )
                   : _controller.text.trim().isEmpty
                       ? Center(
-                          child: Text(
-                            strings.searchUsersEmptyHint,
-                            style: TextStyle(color: Colors.grey.shade600),
-                            textAlign: TextAlign.center,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CitrusSlice(size: 88, opacity: 0.55),
+                              const SizedBox(height: 12),
+                              Text(
+                                strings.searchUsersEmptyHint,
+                                style:
+                                    TextStyle(color: Colors.grey.shade600),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         )
                       : _results.isEmpty && !_loading
                           ? Center(
-                              child: Text(
-                                strings.nothingFound,
-                                style: TextStyle(color: Colors.grey.shade600),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircleCluster(
+                                      size: 100, opacity: 0.4),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    strings.nothingFound,
+                                    style: TextStyle(
+                                        color: Colors.grey.shade600),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.separated(
@@ -188,6 +206,11 @@ class _ConversationSearchSheetState extends State<ConversationSearchSheet> {
                               ),
                               itemBuilder: (context, index) {
                                 final item = _results[index];
+                                final subtitle = [
+                                  strings.membersCount(item.memberCount),
+                                  if (item.description.trim().isNotEmpty)
+                                    item.description.trim(),
+                                ].join(' · ');
                                 return ListTile(
                                   leading: AvatarDisplay(
                                     name: item.name,
@@ -201,8 +224,8 @@ class _ConversationSearchSheetState extends State<ConversationSearchSheet> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   subtitle: Text(
-                                    strings.membersCount(item.memberCount),
-                                    maxLines: 1,
+                                    subtitle,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   trailing: item.isMember

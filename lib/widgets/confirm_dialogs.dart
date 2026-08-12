@@ -118,6 +118,8 @@ Future<String?> showTextInputDialog({
   String? Function(String?)? validator,
   bool obscureText = false,
   TextInputType keyboardType = TextInputType.text,
+  int maxLines = 1,
+  int? maxLength,
 }) async {
   return showDialog<String>(
     context: context,
@@ -128,6 +130,8 @@ Future<String?> showTextInputDialog({
       validator: validator,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      maxLines: maxLines,
+      maxLength: maxLength,
     ),
   );
 }
@@ -140,6 +144,8 @@ class _TextInputDialog extends StatefulWidget {
     this.validator,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
+    this.maxLength,
   });
 
   final String title;
@@ -148,6 +154,8 @@ class _TextInputDialog extends StatefulWidget {
   final String? Function(String?)? validator;
   final bool obscureText;
   final TextInputType keyboardType;
+  final int maxLines;
+  final int? maxLength;
 
   @override
   State<_TextInputDialog> createState() => _TextInputDialogState();
@@ -182,7 +190,11 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           decoration: InputDecoration(hintText: widget.hint),
           autofocus: true,
           obscureText: widget.obscureText,
-          keyboardType: widget.keyboardType,
+          keyboardType: widget.maxLines > 1
+              ? TextInputType.multiline
+              : widget.keyboardType,
+          maxLines: widget.obscureText ? 1 : widget.maxLines,
+          maxLength: widget.maxLength,
           validator: widget.validator,
         ),
       ),

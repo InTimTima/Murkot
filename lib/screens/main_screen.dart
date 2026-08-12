@@ -16,6 +16,9 @@ import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../utils/main_tab_bus.dart';
 import '../widgets/avatar_display.dart';
+import '../widgets/murkot_decor.dart';
+import '../widgets/unlumen/murkot_fx.dart';
+import 'about_murkot_screen.dart';
 import 'conversations_list_screen.dart';
 import 'profile_screen.dart';
 
@@ -42,11 +45,14 @@ class _MainScreenState extends State<MainScreen> {
   PresenceService? _presenceService;
   final _notificationService = NotificationService();
   String? _loadError;
-  bool _retriedInit = false;
+  bool _initRunning = false;
+
+  static const _maxInitAttempts = 3;
 
   @override
   void initState() {
     super.initState();
+    _notificationService.attachSettings(widget.settingsService);
     mainTabIndex.addListener(_onExternalTabChange);
     _initServices();
   }
@@ -56,27 +62,106 @@ class _MainScreenState extends State<MainScreen> {
     setState(() => _currentIndex = mainTabIndex.value);
   }
 
-  /// If the stored auth token expired (e.g. the app was closed overnight),
-  /// refresh it before the first data queries — otherwise they fail with
-  /// "JWT expired" and the shell shows a load error.
-  Future<void> _ensureFreshSession() async {
+  /// Refreshes the stored auth token before data queries. Returns false when
+  /// the session is beyond recovery (dead refresh token) and the user must
+  /// log in again.
+  Future<bool> _ensureFreshSession({bool force = false}) async {
+    final auth = Supabase.instance.client.auth;
+    final session = auth.currentSession;
+    if (session == null) return false;
+
+    // Refresh proactively when the token is expired or about to expire, so
+    // the batch of startup queries never runs with a stale JWT.
+    final expiresAt = session.expiresAt;
+    final expiresSoon = session.isExpired ||
+        (expiresAt != null &&
+            DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000)
+                    .difference(DateTime.now()) <
+                const Duration(minutes: 2));
+    if (!force && !expiresSoon) return true;
+
     try {
-      final auth = Supabase.instance.client.auth;
-      final session = auth.currentSession;
-      if (session != null && session.isExpired) {
-        await auth.refreshSession().timeout(const Duration(seconds: 8));
-      }
+      await auth.refreshSession().timeout(const Duration(seconds: 10));
+      return true;
+    } on AuthException catch (e) {
+      debugPrint('Session refresh rejected: ${e.message}');
+      // Invalid/expired refresh token — a retry will never succeed.
+      return false;
     } catch (e) {
+      // Network hiccup: not fatal, the attempt loop will retry.
       debugPrint('Session refresh failed: $e');
+      return true;
     }
   }
 
+  bool _looksLikeAuthError(Object e) {
+    if (e is AuthException) return true;
+    final text = e.toString().toLowerCase();
+    return text.contains('jwt') ||
+        text.contains('401') ||
+        text.contains('refresh_token') ||
+        text.contains('invalid_grant') ||
+        text.contains('pgrst301');
+  }
+
+  Future<void> _forceRelogin() async {
+    debugPrint('Session is not recoverable, signing out.');
+    await widget.authService.logout();
+  }
+
+  String _friendlyLoadError(Object e) {
+    if (e is TimeoutException) {
+      return context.strings.serverTimeout;
+    }
+    return e.toString();
+  }
+
   Future<void> _initServices() async {
-    final user = widget.authService.currentUser;
-    if (user == null) return;
+    if (_initRunning) return;
+    _initRunning = true;
+    try {
+      await _runInitAttempts();
+    } finally {
+      _initRunning = false;
+    }
+  }
 
-    await _ensureFreshSession();
+  Future<void> _runInitAttempts() async {
+    for (var attempt = 1; attempt <= _maxInitAttempts; attempt++) {
+      final user = widget.authService.currentUser;
+      if (user == null || !mounted) return;
 
+      // On retries force a token refresh: the most common reason the first
+      // attempt fails after a long idle period is a stale JWT.
+      final sessionOk = await _ensureFreshSession(force: attempt > 1);
+      if (!sessionOk) {
+        await _forceRelogin();
+        return;
+      }
+
+      final error = await _tryInitOnce(user, attempt);
+      if (error == null) return; // success
+
+      if (_looksLikeAuthError(error)) {
+        // Token is rejected even after refresh — session is broken,
+        // re-login instead of hanging forever.
+        await _forceRelogin();
+        return;
+      }
+
+      if (attempt < _maxInitAttempts) {
+        await Future<void>.delayed(Duration(seconds: 2 * attempt));
+        continue;
+      }
+
+      if (mounted) {
+        setState(() => _loadError = _friendlyLoadError(error));
+      }
+    }
+  }
+
+  /// One full init attempt. Returns null on success, the error otherwise.
+  Future<Object?> _tryInitOnce(dynamic user, int attempt) async {
     final blacklistService =
         BlacklistService(userId: user.id, userLogin: user.login);
     final presenceService = PresenceService(
@@ -103,15 +188,17 @@ class _MainScreenState extends State<MainScreen> {
 
     try {
       // Load chats + blacklist in parallel; never block UI on push permission.
+      // Give later attempts more time: after DB updates or a cold start the
+      // backend may answer slowly on the first requests.
       await Future.wait([
         blacklistService.initialize(),
         chatService.initialize(),
-      ]).timeout(const Duration(seconds: 12));
+      ]).timeout(Duration(seconds: 12 + 8 * (attempt - 1)));
 
       if (!mounted) {
         chatService.dispose();
         presenceService.dispose();
-        return;
+        return null;
       }
       setState(() {
         _chatService = chatService;
@@ -122,21 +209,11 @@ class _MainScreenState extends State<MainScreen> {
 
       unawaited(presenceService.initialize());
       unawaited(_notificationService.initialize());
+      return null;
     } catch (e) {
       chatService.dispose();
       presenceService.dispose();
-      if (!mounted) return;
-
-      // One silent retry: the first attempt may race the token refresh
-      // right after a cold start.
-      if (!_retriedInit) {
-        _retriedInit = true;
-        await Future<void>.delayed(const Duration(seconds: 2));
-        if (mounted) await _initServices();
-        return;
-      }
-
-      setState(() => _loadError = e.toString());
+      return e;
     }
   }
 
@@ -168,12 +245,19 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildShell(BuildContext context) {
     final strings = context.strings;
-    final login = widget.authService.currentUser!.login;
+    final currentUser = widget.authService.currentUser;
+    // During a forced re-login the auth screen replaces this widget on the
+    // next frame; render a placeholder instead of crashing on null.
+    if (currentUser == null) {
+      return const Scaffold(body: Center(child: MurkotLoader(size: 48)));
+    }
+    final login = currentUser.login;
     final chatService = _chatService;
     final blacklistService = _blacklistService;
     final presenceService = _presenceService;
 
     if (_loadError != null) {
+      final strings = context.strings;
       return Scaffold(
         body: Center(
           child: Padding(
@@ -182,7 +266,7 @@ class _MainScreenState extends State<MainScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Не удалось загрузить данные',
+                  strings.loadFailed,
                   style: Theme.of(context).textTheme.titleMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -191,11 +275,15 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
-                    _retriedInit = false;
                     setState(() => _loadError = null);
                     _initServices();
                   },
-                  child: const Text('Повторить'),
+                  child: Text(strings.retry),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => widget.authService.logout(),
+                  child: Text(strings.logout),
                 ),
               ],
             ),
@@ -208,14 +296,28 @@ class _MainScreenState extends State<MainScreen> {
         blacklistService == null ||
         presenceService == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: ConversationListSkeleton(),
       );
     }
 
     final user = widget.authService.currentUser!;
 
     return Scaffold(
-      appBar: _currentIndex == 3 ? null : AppBar(title: Text(_sectionTitle)),
+      appBar: _currentIndex == 3
+          ? null
+          : AppBar(
+              title: Text(_sectionTitle),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: MurkotThemeSwitch(
+                      settings: widget.settingsService,
+                    ),
+                  ),
+                ),
+              ],
+            ),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -263,6 +365,7 @@ class _MainScreenState extends State<MainScreen> {
         profileLogin: user.login,
         profileAvatarPath: user.avatarPath,
         profileAvatarEmoji: user.avatarEmoji,
+        settingsService: widget.settingsService,
       ),
     );
   }
@@ -277,6 +380,7 @@ class _CustomBottomNav extends StatelessWidget {
     required this.channelsLabel,
     required this.profileLabel,
     required this.profileLogin,
+    required this.settingsService,
     this.profileAvatarPath,
     this.profileAvatarEmoji,
   });
@@ -288,6 +392,7 @@ class _CustomBottomNav extends StatelessWidget {
   final String channelsLabel;
   final String profileLabel;
   final String profileLogin;
+  final SettingsService settingsService;
   final String? profileAvatarPath;
   final String? profileAvatarEmoji;
 
@@ -301,9 +406,50 @@ class _CustomBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 72,
+          height: 80,
           child: Row(
             children: [
+              // About Murkot — mark + label, separated like profile.
+              SizedBox(
+                width: 76,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AboutMurkotScreen(
+                            settingsService: settingsService,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const MurkotStackedMark(size: 44),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.strings.aboutUs,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 36,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                color: Colors.grey.shade400,
+              ),
               Expanded(
                 child: Row(
                   children: [
@@ -381,54 +527,66 @@ class _ProfileNavItem extends StatelessWidget {
     final color =
         isSelected ? theme.colorScheme.primary : Colors.grey.shade600;
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.primary,
+                            width: 1.5,
+                          ),
+                        )
+                      : null,
+                  child: AvatarDisplay(
+                    name: login,
+                    avatarPath: avatarPath,
+                    avatarEmoji: avatarEmoji,
+                    radius: 13,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  login,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            const SizedBox(height: 3),
-            Container(
-              decoration: isSelected
-                  ? BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.primary,
-                        width: 1.5,
-                      ),
-                    )
-                  : null,
-              child: AvatarDisplay(
-                name: login,
-                avatarPath: avatarPath,
-                avatarEmoji: avatarEmoji,
-                radius: 13,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              login,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -458,24 +616,34 @@ class _NavItem extends StatelessWidget {
         : Colors.grey.shade600;
 
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        child: Material(
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isSelected ? selectedIcon : icon, color: color, size: 22),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

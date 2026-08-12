@@ -11,6 +11,7 @@ import '../services/settings_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -297,13 +298,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
-                            gradient: wallpaper.gradient,
                             borderRadius: BorderRadius.circular(12),
                             border: isSelected
                                 ? Border.all(
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     width: 3)
                                 : null,
+                          ),
+                          child: ProfileWallpaperSurface(
+                            wallpaper: wallpaper,
+                            borderRadius: BorderRadius.circular(12),
+                            ornamentSize: 40,
+                            ornamentOpacity: 0.55,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -402,8 +409,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? (isNetworkWallpaper
                       ? Image.network(customPath, fit: BoxFit.cover)
                       : Image.file(File(customPath), fit: BoxFit.cover))
-                  : DecoratedBox(
-                      decoration: BoxDecoration(gradient: wallpaper.gradient),
+                  : ProfileWallpaperSurface(
+                      wallpaper: wallpaper,
+                      ornamentSize: 220,
+                      ornamentOpacity: 0.28,
                     ),
             ),
             SafeArea(
@@ -426,10 +435,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.settings_outlined),
-                                    tooltip: strings.settingsTitle,
-                                    onPressed: _openSettings,
+                                  child: MurkotFloatingTooltip(
+                                    message: strings.settingsTitle,
+                                    child: IconButton(
+                                      icon: const Icon(
+                                          Icons.settings_outlined),
+                                      tooltip: '',
+                                      onPressed: _openSettings,
+                                    ),
                                   ),
                                 ),
                                 _AvatarSection(
@@ -459,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               child: SizedBox(
                                                 width: 20,
                                                 height: 20,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                                child: MurkotLoaderCompact(),
                                               ),
                                             )
                                           : IconButton(
@@ -627,7 +640,7 @@ class _AvatarSection extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: MurkotLoader(size: 36, color: Colors.white),
                 ),
               ),
           ],

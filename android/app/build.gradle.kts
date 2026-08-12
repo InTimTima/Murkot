@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.tujh.tujh_messenger"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker / lifecycle plugins require API 36+.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/blacklist_service.dart';
+import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/confirm_dialogs.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -22,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _blacklistExpanded = false;
   bool _personalizationExpanded = false;
+  bool _interfaceExpanded = false;
   final _labelControllers = <String, TextEditingController>{};
 
   @override
@@ -75,9 +78,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(strings.settingsTitle)),
+      appBar: AppBar(
+        leading: const MurkotBackButton(),
+        title: Text(strings.settingsTitle),
+      ),
       body: ListenableBuilder(
-        listenable: Listenable.merge([widget.settingsService, widget.blacklistService]),
+        listenable: Listenable.merge(
+            [widget.settingsService, widget.blacklistService]),
         builder: (context, _) {
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -91,12 +98,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SectionTitle(title: strings.theme),
               _themeCard(theme),
               const SizedBox(height: 20),
+              _SectionTitle(title: strings.notifications),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.notifications_outlined,
+                      color: theme.colorScheme.primary),
+                  title: Text(strings.notificationsMessages),
+                  subtitle: Text(strings.notificationsHint),
+                  trailing: MurkotSwitch(
+                    value: widget.settingsService.notificationsEnabled,
+                    onChanged: (v) async {
+                      final notifications = NotificationService(
+                        settings: widget.settingsService,
+                      );
+                      await notifications.setUserEnabled(v);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _SectionTitle(title: strings.interfaceSection),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.display_settings_outlined,
+                          color: theme.colorScheme.primary),
+                      title: Text(strings.interfaceSection),
+                      subtitle: Text(strings.interfaceSectionHint),
+                      trailing: Icon(
+                        _interfaceExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                      ),
+                      onTap: () => setState(
+                          () => _interfaceExpanded = !_interfaceExpanded),
+                    ),
+                    if (_interfaceExpanded) ...[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: Icon(Icons.tips_and_updates_outlined,
+                            color: theme.colorScheme.primary),
+                        title: Text(strings.floatingTooltips),
+                        subtitle: Text(strings.floatingTooltipsHint),
+                        value: widget.settingsService.floatingTooltips,
+                        onChanged: widget.settingsService.setFloatingTooltips,
+                      ),
+                      SwitchListTile(
+                        secondary: Icon(Icons.auto_awesome_outlined,
+                            color: theme.colorScheme.primary),
+                        title: Text(strings.authSpotlight),
+                        subtitle: Text(strings.authSpotlightHint),
+                        value: widget.settingsService.authSpotlight,
+                        onChanged: widget.settingsService.setAuthSpotlight,
+                      ),
+                      SwitchListTile(
+                        secondary: Icon(Icons.animation_outlined,
+                            color: theme.colorScheme.primary),
+                        title: Text(strings.smoothTheme),
+                        subtitle: Text(strings.smoothThemeHint),
+                        value: widget.settingsService.smoothTheme,
+                        onChanged: widget.settingsService.setSmoothTheme,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
               _SectionTitle(title: strings.personalization),
               Card(
                 child: Column(
                   children: [
                     ListTile(
-                      leading: Icon(Icons.tune, color: theme.colorScheme.primary),
+                      leading: Icon(Icons.tune,
+                          color: theme.colorScheme.primary),
                       title: Text(strings.personalization),
                       subtitle: Text(strings.personalizationHint),
                       trailing: Icon(
@@ -242,28 +318,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _textSizeCard() {
+    final size = widget.settingsService.textSize;
+    final value = switch (size) {
+      AppTextSize.small => 0.0,
+      AppTextSize.normal => 1.0,
+      AppTextSize.large => 2.0,
+    };
     return Card(
-      child: Column(
-        children: AppTextSize.values.map((size) {
-          final label = switch (size) {
-            AppTextSize.small => context.strings.textSmall,
-            AppTextSize.normal => context.strings.textNormal,
-            AppTextSize.large => context.strings.textLarge,
-          };
-          return Column(
-            children: [
-              if (size != AppTextSize.small) const Divider(height: 1),
-              RadioListTile<AppTextSize>(
-                title: Text(label),
-                value: size,
-                groupValue: widget.settingsService.textSize,
-                onChanged: (v) {
-                  if (v != null) widget.settingsService.setTextSize(v);
-                },
-              ),
-            ],
-          );
-        }).toList(),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(context.strings.textSmall),
+                Text(context.strings.textNormal),
+                Text(context.strings.textLarge),
+              ],
+            ),
+            MurkotSlider(
+              value: value,
+              min: 0,
+              max: 2,
+              divisions: 2,
+              onChanged: (v) {
+                final next = switch (v.round()) {
+                  0 => AppTextSize.small,
+                  2 => AppTextSize.large,
+                  _ => AppTextSize.normal,
+                };
+                widget.settingsService.setTextSize(next);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
