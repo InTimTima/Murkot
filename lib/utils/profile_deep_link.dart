@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import 'profile_deep_link_stub.dart'
+    if (dart.library.html) 'profile_deep_link_web.dart' as stash;
+
 /// Pending `/@login` deep link consumed after auth + MainScreen boot.
 final ValueNotifier<String?> pendingProfileLogin = ValueNotifier<String?>(null);
 
@@ -42,8 +45,10 @@ String? _loginFromPath(String path) {
 /// Captures the browser URL once at startup.
 void captureInitialProfileDeepLink() {
   if (!kIsWeb) return;
-  final login = extractProfileLogin(Uri.base);
-  if (login != null) {
+  final fromUri = extractProfileLogin(Uri.base);
+  final fromStash = stash.consumeStashedProfileLogin();
+  final login = fromUri ?? fromStash;
+  if (login != null && isValidProfileLogin(login)) {
     pendingProfileLogin.value = login;
   }
 }
@@ -69,7 +74,9 @@ String buildPublicProfileUrl(String login) {
         segs.removeRange(segs.length - 2, segs.length);
       }
     }
-    final prefix = segs.isEmpty ? '' : '/${segs.join('/')}';
+    // Prefer site root (Vercel / custom domain), keep /Murkot only for GH Pages.
+    final keepPrefix = segs.length == 1 && segs.first == 'Murkot';
+    final prefix = keepPrefix ? '/Murkot' : '';
     return base
         .replace(
           path: '$prefix/@$clean',
@@ -78,7 +85,7 @@ String buildPublicProfileUrl(String login) {
         )
         .toString();
   }
-  return 'https://quannxxii.github.io/Murkot/@$clean';
+  return 'https://murkot.vercel.app/@$clean';
 }
 
 /// Takes and clears [pendingProfileLogin] if set.
