@@ -5,12 +5,15 @@ import 'package:image_picker/image_picker.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/profile_wallpaper.dart';
+import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/settings_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
+import '../widgets/dev_card.dart';
+import '../widgets/dev_status_badge.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -263,6 +266,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _editDevCard() async {
+    final saved = await showDevCardEditSheet(
+      context: context,
+      authService: widget.authService,
+    );
+    if (saved == true && mounted) {
+      _showMessage(context.strings.devCardSaved);
+    }
+  }
+
   Future<void> _pickWallpaper() async {
     final strings = context.strings;
     final currentId = widget.authService.currentUser?.profileWallpaperId ?? 'blue';
@@ -351,8 +364,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _deleteAccount() async {
     final confirmed = await showDeleteAccountDialog(context);
-    if (confirmed && mounted) {
-      await widget.authService.deleteAccount();
+    if (!confirmed || !mounted) return;
+    final error = await widget.authService.deleteAccount();
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
     }
   }
 
@@ -437,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   avatarEmoji: current.avatarEmoji,
                                   login: current.login,
                                   status: current.status,
+                                  devStatus: current.devStatus,
                                   isLoading: _isUpdatingAvatar,
                                   hint: strings.changeAvatarHint,
                                   onTap: _isUpdatingAvatar ? null : _showAvatarOptions,
@@ -511,6 +530,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
+                                _ProfileField(
+                                  icon: Icons.work_outline,
+                                  label: strings.devCardTitle,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      DevCardView(user: current),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton.icon(
+                                          onPressed: _editDevCard,
+                                          icon: const Icon(Icons.edit_outlined, size: 16),
+                                          label: Text(strings.devCardEdit),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
                                 ListTile(
                                   contentPadding: EdgeInsets.zero,
                                   leading: Icon(Icons.wallpaper, color: theme.colorScheme.primary),
@@ -581,6 +619,7 @@ class _AvatarSection extends StatelessWidget {
     required this.avatarEmoji,
     required this.login,
     required this.status,
+    required this.devStatus,
     required this.isLoading,
     required this.hint,
     required this.onTap,
@@ -591,6 +630,7 @@ class _AvatarSection extends StatelessWidget {
   final String? avatarEmoji;
   final String login;
   final String status;
+  final DevStatus devStatus;
   final bool isLoading;
   final String hint;
   final VoidCallback? onTap;
@@ -646,9 +686,47 @@ class _AvatarSection extends StatelessWidget {
           ),
         ),
         if (status.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(status,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.dividerColor),
+              color: theme.colorScheme.surface.withValues(alpha: 0.65),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.push_pin_outlined,
+                        size: 14, color: theme.colorScheme.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      context.strings.pinnedNoteLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  status,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (devStatus != DevStatus.none) ...[
+          const SizedBox(height: 10),
+          DevStatusBadge(status: devStatus, large: true),
         ],
         const SizedBox(height: 4),
         Text(hint,

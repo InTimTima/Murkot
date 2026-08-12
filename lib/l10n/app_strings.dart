@@ -14,12 +14,35 @@ class AppStrings {
       settingsService.label(key, isRu ? ru : en);
 
   String get appTitle => 'Murkot';
+  String get appTagline => isRu
+      ? 'Найти команду и проект в IT'
+      : 'Find a team and a project in IT';
+  String get messagesTab => isRu ? 'Чаты' : 'Chats';
+  String get chatsLoadFailed => isRu
+      ? 'Не удалось загрузить чаты. Проверьте сеть и нажмите «Повторить».'
+      : 'Could not load chats. Check your network and tap Retry.';
+  String get authLoginTitle =>
+      isRu ? 'Войдите, чтобы продолжить' : 'Sign in to continue';
+  String get authRegisterTitle =>
+      isRu ? 'Создайте аккаунт' : 'Create an account';
+  String get authLoginAction => isRu ? 'Войти' : 'Sign in';
+  String get authRegisterAction =>
+      isRu ? 'Зарегистрироваться' : 'Sign up';
+  String get authHaveAccount =>
+      isRu ? 'Уже есть аккаунт? Войти' : 'Already have an account? Sign in';
+  String get authNeedAccount =>
+      isRu ? 'Нет аккаунта? Создать' : 'No account? Create one';
+  String get loginRequired => isRu ? 'Введите логин' : 'Enter login';
+  String get emailRequired =>
+      isRu ? 'Введите корректную почту' : 'Enter a valid email';
+  String get passwordMinLength =>
+      isRu ? 'Минимум 6 символов' : 'At least 6 characters';
   String get profile => _l(PersonalizationKeys.profile, 'Профиль', 'Profile');
   String get chats => _l(PersonalizationKeys.chats, 'Чаты', 'Chats');
   String get groups => _l(PersonalizationKeys.groups, 'Группы', 'Groups');
   String get channels => _l(PersonalizationKeys.channels, 'Каналы', 'Channels');
   String get settingsTitle => _l(PersonalizationKeys.settings, 'Настройки', 'Settings');
-  String get status => isRu ? 'Статус' : 'Status';
+  String get status => isRu ? 'Заметка' : 'Note';
   String get email => isRu ? 'Почта' : 'Email';
   String get login => isRu ? 'Логин' : 'Login';
   String get logout => isRu ? 'Выйти из аккаунта' : 'Log out';
@@ -32,13 +55,356 @@ class AppStrings {
   String get confirmLogout => isRu ? 'Выйти' : 'Log out';
   String get changeAvatarHint =>
       isRu ? 'Нажмите на аватар, чтобы изменить' : 'Tap avatar to change';
-  String get statusHint => isRu ? 'Чем заняты?' : 'What are you up to?';
+  String get statusHint => isRu
+      ? 'Зачем вы здесь? Одна-две строки'
+      : 'Why are you here? One or two lines';
   String get gallery => isRu ? 'Галерея' : 'Gallery';
   String get camera => isRu ? 'Камера' : 'Camera';
   String get removeAvatar => isRu ? 'Удалить аватар' : 'Remove avatar';
   String get avatarUpdated => isRu ? 'Аватар обновлён' : 'Avatar updated';
   String get avatarRemoved => isRu ? 'Аватар удалён' : 'Avatar removed';
-  String get statusSaved => isRu ? 'Статус сохранён' : 'Status saved';
+  String get statusSaved => isRu ? 'Заметка сохранена' : 'Note saved';
+  String get pinnedNoteLabel => isRu ? 'ЗАКРЕПЛЕНО' : 'PINNED';
+  String get devCardTitle =>
+      isRu ? 'Карточка разработчика' : 'Developer card';
+  String get devCardSubtitle => isRu
+      ? 'Расскажите, кого или что вы ищете'
+      : 'Tell others what you are looking for';
+  String get devCardEdit => isRu ? 'Редактировать карточку' : 'Edit card';
+  String get devCardSaved => isRu ? 'Карточка сохранена' : 'Card saved';
+  String get devStatusLabel => isRu ? 'Статус поиска' : 'Search status';
+  String get devStatusNone => isRu ? 'Не указан' : 'Not set';
+  String get devStatusLookingForTeam =>
+      isRu ? 'Ищу команду / работу' : 'Looking for a team / job';
+  String get devStatusLookingForMembers =>
+      isRu ? 'Ищу людей в проект' : 'Looking for teammates';
+  String get devStatusOpenToOffers =>
+      isRu ? 'Открыт к предложениям' : 'Open to offers';
+  String get availabilityLookingForTeam =>
+      isRu ? 'доступен для команды' : 'available for a team';
+  String get availabilityLookingForMembers =>
+      isRu ? 'собирает команду' : 'building a team';
+  String get availabilityOpenToOffers =>
+      isRu ? 'открыт к предложениям' : 'open to offers';
+  String get sessionBootTitle =>
+      isRu ? 'Загружаем Murkot…' : 'Loading Murkot…';
+  String get sessionBootSubtitle => isRu
+      ? 'Доска, чаты и профиль почти готовы'
+      : 'Board, chats and profile are almost ready';
+  String get sessionBootFailedTitle => isRu
+      ? 'Не удалось загрузить данные'
+      : 'Could not load your data';
+  String get sessionBootFailedSubtitle => isRu
+      ? 'Нет связи с сервером. Можно продолжить и повторить позже.'
+      : 'No connection to the server. You can continue and retry later.';
+  String get openWorkspace => isRu ? 'Продолжить' : 'Continue';
+  String get onboardingEyebrow =>
+      isRu ? 'СТАРТ — КАРТОЧКА' : 'START — YOUR CARD';
+  String get onboardingNeedMinimum => isRu
+      ? 'Нужны цель и минимум 2 навыка — иначе вас не найдут.'
+      : 'You need a goal and at least 2 skills — or people cannot find you.';
+  String get onboardingSkipTitle =>
+      isRu ? 'Выйти без карточки?' : 'Leave without a card?';
+  String get onboardingSkipMessage => isRu
+      ? 'Матч и поиск команды работают плохо без цели и стека. Можно заполнить позже в профиле.'
+      : 'Match and team search work poorly without a goal and stack. You can fill this in later in Profile.';
+  String get onboardingSkipConfirm =>
+      isRu ? 'Всё равно выйти' : 'Leave anyway';
+  String get onboardingWelcome => isRu
+      ? 'Соберём вашу карточку'
+      : 'Let’s build your card';
+  String get onboardingWelcomeSub => isRu
+      ? 'Пять коротких шагов — и вас смогут найти на доске и в матче.'
+      : 'Five short steps — then people can find you on the board and in Match.';
+  String get onboardingStepGoal => isRu ? 'Цель' : 'Goal';
+  String get onboardingStepGoalTitle => isRu
+      ? 'Что вы ищете сейчас?'
+      : 'What are you looking for?';
+  String get onboardingStepGoalSub => isRu
+      ? 'Это главный сигнал для матча и объявлений.'
+      : 'This is the main signal for Match and listings.';
+  String get onboardingStepSkills => isRu ? 'Стек' : 'Stack';
+  String get onboardingStepSkillsTitle => isRu
+      ? 'Ваш стек технологий'
+      : 'Your tech stack';
+  String get onboardingStepSkillsSub => isRu
+      ? 'Добавьте 2–5 навыков, по которым вас будут находить.'
+      : 'Add 2–5 skills people can filter by.';
+  String get onboardingStepLevel => isRu ? 'Уровень' : 'Level';
+  String get onboardingStepLevelTitle =>
+      isRu ? 'Ваш уровень' : 'Your level';
+  String get onboardingStepLevelSub => isRu
+      ? 'Можно пропустить и указать позже в профиле.'
+      : 'You can skip and set this later in your profile.';
+  String get onboardingStepCity => isRu ? 'Город' : 'City';
+  String get onboardingStepCityTitle =>
+      isRu ? 'Откуда вы?' : 'Where are you based?';
+  String get onboardingStepCitySub => isRu
+      ? 'Город помогает собирать локальные команды.'
+      : 'City helps people form local teams.';
+  String get onboardingStepLinks => isRu ? 'Ссылки' : 'Links';
+  String get onboardingStepLinksTitle => isRu
+      ? 'Покажите работы'
+      : 'Show your work';
+  String get onboardingStepLinksSub => isRu
+      ? 'GitHub или портфолио — по желанию.'
+      : 'GitHub or portfolio — optional.';
+  String get onboardingNext => isRu ? 'Дальше' : 'Next';
+  String get onboardingBack => isRu ? 'Назад' : 'Back';
+  String get onboardingSkip => isRu ? 'Пропустить' : 'Skip';
+  String get onboardingFinish =>
+      isRu ? 'Открыть Murkot' : 'Open Murkot';
+  String get onboardingSaveFailed => isRu
+      ? 'Не удалось сохранить. Можно открыть приложение и заполнить позже.'
+      : 'Could not save. You can open the app and fill this in later.';
+  String get cmdPlaceholder => isRu
+      ? 'Быстрое действие…'
+      : 'Quick action…';
+  String get cmdShortcutHint => '⌘K / Ctrl+K';
+  String get cmdEmpty =>
+      isRu ? 'Ничего не найдено' : 'No matching actions';
+  String get cmdFindPeople => isRu ? 'Найти людей' : 'Find people';
+  String get cmdFindPeopleSub =>
+      isRu ? 'Поиск по логину' : 'Search by login';
+  String get cmdNewListing =>
+      isRu ? 'Создать объявление' : 'Create listing';
+  String get cmdNewListingSub =>
+      isRu ? 'Доска → объявления' : 'Board → listings';
+  String get cmdNewProject => isRu ? 'Добавить проект' : 'Add project';
+  String get cmdNewProjectSub =>
+      isRu ? 'Доска → проекты' : 'Board → projects';
+  String get cmdOpenListings =>
+      isRu ? 'Открыть объявления' : 'Open listings';
+  String get cmdOpenProjects =>
+      isRu ? 'Открыть проекты' : 'Open projects';
+  String get cmdOpenMatch => isRu ? 'Открыть матч' : 'Open Match';
+  String get cmdOpenCommunities =>
+      isRu ? 'Открыть сообщества' : 'Open communities';
+  String get cmdOpenBoardSub =>
+      isRu ? 'Перейти на доску' : 'Go to the board';
+  String get cmdOpenChats => isRu ? 'Открыть чаты' : 'Open chats';
+  String get cmdOpenChatsSub =>
+      isRu ? 'Личные, группы и каналы' : 'DMs, groups and channels';
+  String get cmdOpenProfile => isRu ? 'Открыть профиль' : 'Open profile';
+  String get cmdOpenProfileSub => isRu
+      ? 'Заметка и карточка разработчика'
+      : 'Note and developer card';
+  String get airdropEyebrow => isRu ? 'ОТКЛИК' : 'RESPONSE';
+  String get airdropTitle =>
+      isRu ? 'Отправить отклик?' : 'Send a response?';
+  String airdropSubtitle(String login, String subject) => isRu
+      ? 'Откроется чат с @$login по поводу «$subject».'
+      : 'This opens a chat with @$login about “$subject”.';
+  String get airdropSend =>
+      isRu ? 'Отправить отклик' : 'Send response';
+  String get matchNeedCardTitle => isRu
+      ? 'Сначала заполните карточку'
+      : 'Complete your card first';
+  String get matchNeedCardBody => isRu
+      ? 'Укажите цель и хотя бы 2 навыка в профиле — тогда матч станет осмысленным.'
+      : 'Set a goal and at least 2 skills in Profile — then Match makes sense.';
+  String get matchNeedCardAction =>
+      isRu ? 'Открыть профиль' : 'Open profile';
+  String get skillsLabel => isRu ? 'Стек технологий' : 'Tech stack';
+  String get skillsHint => isRu
+      ? 'Например: Flutter, Python, DevOps'
+      : 'E.g. Flutter, Python, DevOps';
+  String get skillAddHint =>
+      isRu ? 'Добавить навык…' : 'Add a skill…';
+  String get experienceLabel => isRu ? 'Уровень' : 'Level';
+  String get levelJunior => isRu ? 'Джуниор' : 'Junior';
+  String get levelMiddle => isRu ? 'Мидл' : 'Middle';
+  String get levelSenior => isRu ? 'Сеньор' : 'Senior';
+  String get levelLead => isRu ? 'Лид' : 'Lead';
+  String get levelNotSet => isRu ? 'Не указан' : 'Not set';
+  String get githubLabel => 'GitHub';
+  String get portfolioLabel => isRu ? 'Портфолио' : 'Portfolio';
+  String get cityLabel => isRu ? 'Город' : 'City';
+  String get cityHint =>
+      isRu ? 'Например: Алматы' : 'E.g. Warsaw';
+  String get linkHint => 'https://…';
+  String get listingsTab => isRu ? 'Доска' : 'Board';
+  String get listingsTitle => isRu ? 'Доска объявлений' : 'Listings board';
+  String get listingCreate =>
+      isRu ? 'Разместить объявление' : 'Post a listing';
+  String get listingNewTitle =>
+      isRu ? 'Новое объявление' : 'New listing';
+  String get listingTypeLabel => isRu ? 'Тип объявления' : 'Listing type';
+  String get listingFilterAll => isRu ? 'Все' : 'All';
+  String get listingTitleLabel => isRu ? 'Заголовок' : 'Title';
+  String get listingTitleHint => isRu
+      ? 'Например: Ищу Flutter-разработчика в стартап'
+      : 'E.g. Looking for a Flutter dev for a startup';
+  String get listingDescriptionLabel => isRu ? 'Описание' : 'Description';
+  String get listingDescriptionHint => isRu
+      ? 'Расскажите о проекте, задачах и кого ищете'
+      : 'Describe the project, tasks and who you need';
+  String get listingCompensationLabel => isRu ? 'Условия' : 'Compensation';
+  String get compensationPaid => isRu ? 'За деньги' : 'Paid';
+  String get compensationEquity => isRu ? 'За долю' : 'Equity';
+  String get compensationPetProject => isRu ? 'Пет-проект' : 'Pet project';
+  String get compensationNotSet => isRu ? 'Не указано' : 'Not set';
+  String get listingRespond => isRu ? 'Откликнуться' : 'Respond';
+  String listingRespondPrefill(String title) => isRu
+      ? 'Привет! Откликаюсь на объявление «$title».'
+      : 'Hi! Responding to your listing "$title".';
+  String projectContactPrefill(String name) => isRu
+      ? 'Привет! Пишу по поводу проекта «$name».'
+      : 'Hi! Reaching out about your project "$name".';
+  String get listingMineBadge => isRu ? 'Моё' : 'Mine';
+  String get listingDelete =>
+      isRu ? 'Удалить объявление' : 'Delete listing';
+  String get listingDeleteConfirm => isRu
+      ? 'Объявление будет удалено безвозвратно.'
+      : 'The listing will be permanently deleted.';
+  String get listingDeleted =>
+      isRu ? 'Объявление удалено' : 'Listing deleted';
+  String get listingPublished =>
+      isRu ? 'Объявление опубликовано' : 'Listing published';
+  String get listingUpdated =>
+      isRu ? 'Объявление обновлено' : 'Listing updated';
+  String get listingEdit =>
+      isRu ? 'Редактировать объявление' : 'Edit listing';
+  String get listingEditAction => isRu ? 'Изменить' : 'Edit';
+  String get listingsEmpty => isRu
+      ? 'Пока нет объявлений.\nРазместите первое!'
+      : 'No listings yet.\nPost the first one!';
+  String get listingsFilterEmpty => isRu
+      ? 'Нет объявлений по выбранным фильтрам'
+      : 'No listings match these filters';
+  String get clearFilters => isRu ? 'Сбросить фильтры' : 'Clear filters';
+  String get syncDevStatusTitle => isRu
+      ? 'Обновить статус в профиле?'
+      : 'Update your profile status?';
+  String syncDevStatusMessage(String statusLabel) => isRu
+      ? 'Поставить в карточке разработчика: «$statusLabel» — так вас легче найдут в матчинге.'
+      : 'Set your developer card to "$statusLabel" so matching can find you more easily.';
+  String get syncDevStatusConfirm =>
+      isRu ? 'Обновить статус' : 'Update status';
+  String get syncDevStatusDone =>
+      isRu ? 'Статус в профиле обновлён' : 'Profile status updated';
+  String get listingTitleRequired => isRu
+      ? 'Введите заголовок (минимум 3 символа)'
+      : 'Enter a title (at least 3 characters)';
+  String get listingSaveFailed => isRu
+      ? 'Не удалось опубликовать объявление'
+      : 'Could not publish the listing';
+  String get listingLoadFailed => isRu
+      ? 'Не удалось загрузить объявления'
+      : 'Could not load listings';
+  String get retry => isRu ? 'Повторить' : 'Retry';
+  String get deleteAction => isRu ? 'Удалить' : 'Delete';
+  String get boardListingsTab => isRu ? 'Объявления' : 'Listings';
+  String get boardProjectsTab => isRu ? 'Проекты' : 'Projects';
+  String get projectsFinderLabel =>
+      isRu ? 'ПРОЕКТЫ' : 'PROJECTS';
+  String get projectsFinderHeading => isRu ? 'Витрина' : 'Showcase';
+  String projectsObjectsCount(int count) {
+    if (!isRu) {
+      return count == 1 ? '1 project' : '$count projects';
+    }
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod10 == 1 && mod100 != 11) return '$count объект';
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return '$count объекта';
+    }
+    return '$count объектов';
+  }
+
+  String get projectCreate => isRu ? 'Добавить проект' : 'Add project';
+  String get projectNewTitle => isRu ? 'Новый проект' : 'New project';
+  String get projectNameLabel => isRu ? 'Название' : 'Name';
+  String get projectNameHint =>
+      isRu ? 'Например: Murkot Messenger' : 'E.g. Murkot Messenger';
+  String get projectDescriptionHint => isRu
+      ? 'Что за проект, на каком он этапе и куда движется'
+      : 'What the project is, its stage and where it is heading';
+  String get projectLookingForLabel =>
+      isRu ? 'Кого не хватает в команде' : 'Who the team needs';
+  String get projectLookingForHint =>
+      isRu ? 'Добавить роль…' : 'Add a role…';
+  String get projectDemoLabel => isRu ? 'Демо' : 'Demo';
+  String get projectRepoLabel => isRu ? 'Репозиторий' : 'Repository';
+  String get projectContactAuthor =>
+      isRu ? 'Написать автору' : 'Message author';
+  String get projectDelete => isRu ? 'Удалить проект' : 'Delete project';
+  String get projectDeleteConfirm => isRu
+      ? 'Проект будет удалён безвозвратно.'
+      : 'The project will be permanently deleted.';
+  String get projectDeleted => isRu ? 'Проект удалён' : 'Project deleted';
+  String get projectPublished =>
+      isRu ? 'Проект опубликован' : 'Project published';
+  String get projectUpdated =>
+      isRu ? 'Проект обновлён' : 'Project updated';
+  String get projectEdit => isRu ? 'Редактировать проект' : 'Edit project';
+  String get projectsEmpty => isRu
+      ? 'Пока нет проектов.\nПокажите свой первым!'
+      : 'No projects yet.\nShow yours first!';
+  String get projectsFilterEmpty => isRu
+      ? 'Нет проектов по выбранному стеку'
+      : 'No projects match this stack filter';
+  String get projectNameRequired => isRu
+      ? 'Введите название (минимум 3 символа)'
+      : 'Enter a name (at least 3 characters)';
+  String get projectSaveFailed => isRu
+      ? 'Не удалось опубликовать проект'
+      : 'Could not publish the project';
+  String get projectLoadFailed => isRu
+      ? 'Не удалось загрузить проекты'
+      : 'Could not load projects';
+  String get boardMatchTab => isRu ? 'Матч' : 'Match';
+  String get boardCommunitiesTab => isRu ? 'Сообщества' : 'Communities';
+  String get communitiesHint => isRu
+      ? 'Тематические сообщества. Вступите и обсуждайте идеи с другими.'
+      : 'Themed communities. Join and discuss ideas with others.';
+  String get communitiesEmpty => isRu
+      ? 'Каталог сообществ пока пуст.\nСкоро здесь появятся тематические комнаты.'
+      : 'Community catalog is empty.\nThemed rooms will appear here soon.';
+  String get communitiesLoadFailed => isRu
+      ? 'Не удалось загрузить сообщества'
+      : 'Could not load communities';
+  String get communityJoin => isRu ? 'Вступить' : 'Join';
+  String get communityOpen => isRu ? 'Открыть' : 'Open';
+  String get communityJoined => isRu ? 'Вы вступили' : 'Joined';
+  String get communityCategoryStartup =>
+      isRu ? 'Стартапы' : 'Startups';
+  String get communityCategoryCareer =>
+      isRu ? 'Карьера' : 'Career';
+  String get communityCategoryDev =>
+      isRu ? 'Разработка' : 'Development';
+  String get communityCategoryCreative =>
+      isRu ? 'Дизайн' : 'Design';
+  String get communityCategoryGeneral =>
+      isRu ? 'Общее' : 'General';
+  String get matchFeedTitle => isRu ? 'Поиск команды' : 'Find a team';
+  String get matchMatchesTitle => isRu ? 'Мои матчи' : 'My matches';
+  String get matchLike => isRu ? 'Интересно' : 'Interested';
+  String get matchPass => isRu ? 'Пропустить' : 'Pass';
+  String get matchItsAMatch => isRu ? 'Это матч!' : "It's a match!";
+  String get matchItsAMatchBody => isRu
+      ? 'Вы оба заинтересованы. Откройте чат и познакомьтесь.'
+      : 'You both are interested. Open a chat and say hi.';
+  String get matchOpenChat => isRu ? 'Написать' : 'Message';
+  String get matchKeepSwiping =>
+      isRu ? 'Продолжить' : 'Keep swiping';
+  String get matchEmptyFeed => isRu
+      ? 'Пока никого нет.\nЗаполните карточку разработчика в профиле — так вас тоже найдут.'
+      : 'No one left for now.\nFill your developer card in the profile so others can find you.';
+  String get matchEmptyMatches => isRu
+      ? 'Пока нет взаимных матчей.\nЛайкайте тех, с кем хотите работать.'
+      : 'No mutual matches yet.\nLike people you want to work with.';
+  String get matchLoadFailed => isRu
+      ? 'Не удалось загрузить ленту матчинга'
+      : 'Could not load the match feed';
+  String get matchSwipeFailed => isRu
+      ? 'Не удалось сохранить выбор'
+      : 'Could not save your choice';
+  String get matchSharedSkills =>
+      isRu ? 'Общий стек' : 'Shared stack';
+  String get matchHint => isRu
+      ? 'Лайкайте подходящих людей — при взаимном интересе откроется чат'
+      : 'Like people who fit — a mutual interest opens a chat';
   String get languageLabel => isRu ? 'Язык' : 'Language';
   String get textSize => isRu ? 'Размер текста' : 'Text size';
   String get theme => isRu ? 'Тема' : 'Theme';

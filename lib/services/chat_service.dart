@@ -3,17 +3,20 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
 import '../models/public_conversation.dart';
+import '../models/user.dart';
 import '../models/user_preview.dart';
 import '../utils/helpers.dart';
 import 'blacklist_service.dart';
 import 'media_service.dart';
 
+/// Owns conversation list, message cache, realtime and outbox for the signed-in
+/// user. Full repository split is deferred; keep dispose/subscriptions tight.
 class ChatService extends ChangeNotifier {
   ChatService({
     required String userId,
@@ -93,6 +96,38 @@ class ChatService extends ChangeNotifier {
       return hasMoreMessages(conversationId);
     }
     return _fetchMessagesPage(conversationId, older: true);
+  }
+
+  /// Loads a user's public profile by login (e.g. for the stranger screen).
+  Future<User?> fetchProfileByLogin(String login) async {
+    try {
+      final rows = await _client.rpc(
+        'get_public_profile_by_login',
+        params: {'p_login': login},
+      );
+      if (rows is List && rows.isNotEmpty) {
+        return User.fromProfileRow(
+          Map<String, dynamic>.from(rows.first as Map),
+        );
+      }
+
+      // Fallback if RPC migration not applied yet.
+      final row = await _client
+          .from('profiles')
+          .select(
+            'id, login, status, avatar_url, avatar_emoji, profile_wallpaper_id, '
+            'custom_wallpaper_url, birthday, created_at, updated_at, '
+            'dev_status, skills, experience_level, github_url, portfolio_url, '
+            'city, is_bot, last_seen_at',
+          )
+          .ilike('login', login)
+          .maybeSingle();
+      if (row == null) return null;
+      return User.fromProfileRow(row);
+    } catch (e) {
+      debugPrint('fetchProfileByLogin failed: $e');
+      return null;
+    }
   }
 
   void _onBlacklistChanged() => notifyListeners();
@@ -379,6 +414,15 @@ class ChatService extends ChangeNotifier {
       params: {'search_query': q, 'p_type': type.name},
     );
 
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(PublicConversationPreview.fromRow)
+        .toList();
+  }
+
+  /// Featured community channels for the Board catalog (features_v14.sql).
+  Future<List<PublicConversationPreview>> listCommunityChannels() async {
+    final rows = await _client.rpc('list_community_channels');
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(PublicConversationPreview.fromRow)
@@ -902,13 +946,25 @@ class ChatService extends ChangeNotifier {
     final index = list.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
 
-    final next = list[index].viewCount + 1;
-    await _client
-        .from('messages')
-        .update({'view_count': next}).eq('id', messageId);
-
-    list[index] = list[index].copyWith(viewCount: next);
+    final nextLocal = list[index].viewCount + 1;
+    list[index] = list[index].copyWith(viewCount: nextLocal);
     notifyListeners();
+
+    try {
+      final next = await _client.rpc(
+        'increment_message_view_count',
+        params: {'p_message_id': messageId},
+      );
+      final resolved = next is int ? next : nextLocal;
+      final fresh = _messages[conversationId];
+      if (fresh == null) return;
+      final i = fresh.indexWhere((m) => m.id == messageId);
+      if (i == -1) return;
+      fresh[i] = fresh[i].copyWith(viewCount: resolved);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('incrementViews failed: $e');
+    }
   }
 
   Future<void> editMessage(
@@ -937,10 +993,10 @@ class ChatService extends ChangeNotifier {
     required bool forEveryone,
   }) async {
     if (forEveryone) {
-      await _client.from('messages').update({
-        'is_deleted_for_all': true,
-        'content': '',
-      }).eq('id', messageId);
+      await _client.rpc(
+        'soft_delete_message_for_all',
+        params: {'p_message_id': messageId},
+      );
 
       final list = _messages[conversationId];
       if (list != null) {

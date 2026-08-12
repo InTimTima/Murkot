@@ -11,6 +11,7 @@ import 'l10n/app_strings.dart';
 import 'screens/auth_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/settings_service.dart';
 
@@ -60,6 +61,13 @@ class MurkotApp extends StatelessWidget {
       );
     }
     if (authService.isAuthenticated) {
+      final user = authService.currentUser!;
+      if (needsOnboarding(user, prefs)) {
+        return OnboardingScreen(
+          authService: authService,
+          prefs: prefs,
+        );
+      }
       return MainScreen(
         authService: authService,
         settingsService: settingsService,

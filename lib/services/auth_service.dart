@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../models/user.dart';
+import '../utils/board_tab_bus.dart';
 import '../utils/helpers.dart';
+import '../utils/main_tab_bus.dart';
 import 'avatar_service.dart';
 
 class AuthService extends ChangeNotifier {
@@ -20,6 +21,13 @@ class AuthService extends ChangeNotifier {
   bool _awaitingEmailConfirmation = false;
   bool _ready = false;
 
+  /// Bumped on sign-out / intentional session invalidation so in-flight
+  /// hydrates cannot resurrect [_currentUser] after logout.
+  int _hydrateGeneration = 0;
+
+  /// Skips auth-listener hydrate during same-user password re-check.
+  bool _suppressAuthHydrate = false;
+
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get needsEmailVerification => _awaitingEmailConfirmation;
@@ -27,18 +35,14 @@ class AuthService extends ChangeNotifier {
   String? get pendingVerificationCode => null;
   String? get pendingEmail => _pendingEmail;
 
+  /// Forces listeners to rebuild (e.g. after a prefs-only gate change).
+  void pingListeners() => notifyListeners();
+
   Future<void> initialize() async {
     try {
       final session = _client.auth.currentSession;
       if (session != null) {
-        try {
-          await _loadProfile(session.user.id).timeout(_profileTimeout);
-        } on TimeoutException {
-          debugPrint('Profile load timed out — using session fallback');
-          _currentUser ??= _userFromSession(session);
-        }
-        // If the network failed entirely, still let the user into the shell.
-        _currentUser ??= _userFromSession(session);
+        await _hydrateSession(session);
       }
     } finally {
       _ready = true;
@@ -50,23 +54,49 @@ class AuthService extends ChangeNotifier {
       final session = data.session;
 
       if (event == AuthChangeEvent.signedOut || session == null) {
+        _hydrateGeneration++;
         _currentUser = null;
+        resetMainTabBus();
+        resetBoardTabBus();
         notifyListeners();
         return;
       }
 
+      if (_suppressAuthHydrate) return;
+
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed ||
           event == AuthChangeEvent.userUpdated) {
-        try {
-          await _loadProfile(session.user.id).timeout(_profileTimeout);
-        } on TimeoutException {
-          debugPrint('Profile refresh timed out');
-          _currentUser ??= _userFromSession(session);
-          notifyListeners();
-        }
+        await _hydrateSession(session);
       }
     });
+  }
+
+  /// Loads the profile row; on any failure still admits the user via session.
+  Future<void> _hydrateSession(Session session) async {
+    final gen = ++_hydrateGeneration;
+    final userId = session.user.id;
+    try {
+      await _loadProfile(userId).timeout(_profileTimeout);
+    } on TimeoutException {
+      debugPrint('Profile load timed out — using session fallback');
+    } catch (e) {
+      debugPrint('Profile hydrate failed: $e');
+    }
+
+    // Logout (or a newer hydrate) won the race — do not restore user.
+    if (gen != _hydrateGeneration) return;
+    if (_client.auth.currentSession?.user.id != userId) return;
+
+    _currentUser ??= _userFromSession(session);
+    notifyListeners();
+  }
+
+  /// Re-fetches the signed-in profile (used before onboarding save).
+  Future<void> reloadOwnProfile() async {
+    final session = _client.auth.currentSession;
+    if (session == null) return;
+    await _loadProfile(session.user.id).timeout(_profileTimeout);
   }
 
   User _userFromSession(Session session) {
@@ -85,13 +115,23 @@ class AuthService extends ChangeNotifier {
     );
   }
 
+  Future<Map<String, dynamic>?> _fetchOwnProfileRow(String userId) async {
+    try {
+      final rows = await _client.rpc('get_own_profile');
+      if (rows is List && rows.isNotEmpty) {
+        return Map<String, dynamic>.from(rows.first as Map);
+      }
+    } catch (e) {
+      debugPrint('get_own_profile RPC unavailable: $e');
+    }
+
+    // Fallback when v16 is not applied yet (may omit email after grants).
+    return await _client.from('profiles').select().eq('id', userId).maybeSingle();
+  }
+
   Future<void> _loadProfile(String userId) async {
     try {
-      final row = await _client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      var row = await _fetchOwnProfileRow(userId);
 
       if (row == null) {
         final authUser = _client.auth.currentUser;
@@ -112,15 +152,15 @@ class AuthService extends ChangeNotifier {
           'status': 'В сети',
         });
 
-        final created = await _client
-            .from('profiles')
-            .select()
-            .eq('id', userId)
-            .single();
-        _currentUser = User.fromProfileRow(created);
-      } else {
-        _currentUser = User.fromProfileRow(row);
+        row = await _fetchOwnProfileRow(userId);
+        if (row == null) return;
       }
+
+      final parsed = User.fromProfileRow(row);
+      final sessionEmail = _client.auth.currentUser?.email ?? '';
+      _currentUser = parsed.email.isEmpty && sessionEmail.isNotEmpty
+          ? parsed.copyWith(email: sessionEmail)
+          : parsed;
 
       _awaitingEmailConfirmation = false;
       _pendingEmail = null;
@@ -130,10 +170,15 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Confirms the current user's password without treating auth events as a
+  /// fresh login (avoids hydrate races / session thrash on web).
   Future<bool> verifyPassword(String password) async {
-    final email = _currentUser?.email;
-    if (email == null || email.isEmpty) return false;
+    final email = (_currentUser?.email.isNotEmpty == true)
+        ? _currentUser!.email
+        : (_client.auth.currentUser?.email ?? '');
+    if (email.isEmpty) return false;
 
+    _suppressAuthHydrate = true;
     try {
       final response = await _client.auth.signInWithPassword(
         email: email,
@@ -142,6 +187,8 @@ class AuthService extends ChangeNotifier {
       return response.session != null;
     } on AuthException {
       return false;
+    } finally {
+      _suppressAuthHydrate = false;
     }
   }
 
@@ -187,7 +234,10 @@ class AuthService extends ChangeNotifier {
       }
 
       if (response.session != null) {
-        await _loadProfile(response.user!.id);
+        await _hydrateSession(response.session!);
+        if (_currentUser == null) {
+          return 'Аккаунт создан, но профиль не загрузился. Войдите снова.';
+        }
         return null;
       }
 
@@ -223,20 +273,24 @@ class AuthService extends ChangeNotifier {
         password: password,
       );
 
-      final user = response.user;
-      if (user == null || response.session == null) {
+      final session = response.session;
+      if (response.user == null || session == null) {
         return 'Не удалось войти';
       }
 
-      await _loadProfile(user.id);
+      await _hydrateSession(session);
 
       final current = _currentUser;
-      if (current != null &&
-          current.login.toLowerCase() != trimmedLogin.toLowerCase()) {
-        await _client.auth.signOut();
-        _currentUser = null;
-        notifyListeners();
-        return 'Логин не совпадает с аккаунтом';
+      if (current == null) {
+        return 'Вход прошёл, но профиль не загрузился. Проверьте сеть и попробуйте ещё раз.';
+      }
+
+      // Email+password already authenticate the account. A mistyped login used
+      // to sign the user back out with no clear path forward — only warn.
+      if (current.login.toLowerCase() != trimmedLogin.toLowerCase()) {
+        debugPrint(
+          'Login field "$trimmedLogin" differs from profile "${current.login}" — allowing email sign-in',
+        );
       }
 
       return null;
@@ -295,26 +349,35 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _client.auth.signOut();
+    _hydrateGeneration++;
     _currentUser = null;
+    resetMainTabBus();
+    resetBoardTabBus();
     notifyListeners();
+    await _client.auth.signOut();
   }
 
-  Future<void> deleteAccount() async {
+  /// Deletes auth user via SECURITY DEFINER RPC. Returns an error message on
+  /// failure — never pretends success after a partial profile-only wipe.
+  Future<String?> deleteAccount() async {
     final user = _currentUser;
-    if (user == null) return;
+    if (user == null) return 'Пользователь не авторизован';
 
     try {
-      await AvatarService.deleteAvatar(user.login);
+      try {
+        await AvatarService.deleteAvatar(user.login);
+      } catch (_) {}
       await _client.rpc('delete_own_account');
+      _hydrateGeneration++;
+      _currentUser = null;
+      resetMainTabBus();
+      resetBoardTabBus();
+      notifyListeners();
+      return null;
     } catch (e) {
       debugPrint('deleteAccount error: $e');
-      await _client.from('profiles').delete().eq('id', user.id);
-      await _client.auth.signOut();
+      return 'Не удалось удалить аккаунт. Попробуйте позже.';
     }
-
-    _currentUser = null;
-    notifyListeners();
   }
 
   Future<void> updateProfile(User updated) async {
@@ -368,6 +431,35 @@ class AuthService extends ChangeNotifier {
       return _mapAuthError(e);
     } catch (e) {
       return 'Не удалось сменить почту';
+    }
+  }
+
+  /// Saves the developer card (job-search status, stack, level, links, city).
+  Future<String?> updateDeveloperCard({
+    required DevStatus devStatus,
+    required List<String> skills,
+    required ExperienceLevel? experienceLevel,
+    required String? githubUrl,
+    required String? portfolioUrl,
+    required String? city,
+  }) async {
+    final user = _currentUser;
+    if (user == null) return 'Пользователь не авторизован';
+
+    try {
+      await updateProfile(user.copyWith(
+        devStatus: devStatus,
+        skills: skills,
+        experienceLevel: experienceLevel,
+        clearExperienceLevel: experienceLevel == null,
+        githubUrl: githubUrl ?? '',
+        portfolioUrl: portfolioUrl ?? '',
+        city: city ?? '',
+      ));
+      return null;
+    } catch (e) {
+      debugPrint('updateDeveloperCard failed: $e');
+      return 'Не удалось сохранить карточку разработчика';
     }
   }
 

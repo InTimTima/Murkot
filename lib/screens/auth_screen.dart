@@ -107,11 +107,20 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _isRegister
-                                ? 'Создайте аккаунт'
-                                : 'Войдите в аккаунт',
+                            strings.appTagline,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _isRegister
+                                ? strings.authRegisterTitle
+                                : strings.authLoginTitle,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -119,13 +128,13 @@ class _AuthScreenState extends State<AuthScreen> {
                           TextFormField(
                             controller: _loginController,
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Логин',
-                              prefixIcon: Icon(Icons.person_outline),
+                            decoration: InputDecoration(
+                              labelText: strings.login,
+                              prefixIcon: const Icon(Icons.person_outline),
                             ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'Введите логин';
+                                return strings.loginRequired;
                               }
                               return null;
                             },
@@ -135,13 +144,13 @@ class _AuthScreenState extends State<AuthScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Почта',
-                              prefixIcon: Icon(Icons.email_outlined),
+                            decoration: InputDecoration(
+                              labelText: strings.email,
+                              prefixIcon: const Icon(Icons.email_outlined),
                             ),
                             validator: (value) {
                               if (value == null || !value.contains('@')) {
-                                return 'Введите корректную почту';
+                                return strings.emailRequired;
                               }
                               return null;
                             },
@@ -153,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
                             decoration: InputDecoration(
-                              labelText: 'Пароль',
+                              labelText: strings.passwordHint,
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
@@ -168,7 +177,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.length < 6) {
-                                return 'Минимум 6 символов';
+                                return strings.passwordMinLength;
                               }
                               return null;
                             },
@@ -193,7 +202,11 @@ class _AuthScreenState extends State<AuthScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Text(_isRegister ? 'Зарегистрироваться' : 'Войти'),
+                                : Text(
+                                    _isRegister
+                                        ? strings.authRegisterAction
+                                        : strings.authLoginAction,
+                                  ),
                           ),
                           TextButton(
                             onPressed: _isLoading
@@ -204,8 +217,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     }),
                             child: Text(
                               _isRegister
-                                  ? 'Уже есть аккаунт? Войти'
-                                  : 'Нет аккаунта? Создать',
+                                  ? strings.authHaveAccount
+                                  : strings.authNeedAccount,
                             ),
                           ),
                         ],

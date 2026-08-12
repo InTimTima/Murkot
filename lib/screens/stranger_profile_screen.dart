@@ -6,11 +6,13 @@ import '../l10n/app_strings.dart';
 import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
+import '../models/user.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart' hide pickRandomEmoji;
 import '../widgets/confirm_dialogs.dart';
+import '../widgets/dev_card.dart';
 import 'media_viewer_screen.dart';
 import 'user_search_sheet.dart';
 
@@ -36,12 +38,24 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late Conversation _conversation;
+  User? _peerProfile;
 
   @override
   void initState() {
     super.initState();
     _conversation = widget.conversation;
     _tabController = TabController(length: 5, vsync: this);
+    if (_conversation.type == ConversationType.direct) {
+      _loadPeerProfile();
+    }
+  }
+
+  Future<void> _loadPeerProfile() async {
+    final profile =
+        await widget.chatService.fetchProfileByLogin(_conversation.name);
+    if (mounted && profile != null) {
+      setState(() => _peerProfile = profile);
+    }
   }
 
   @override
@@ -363,15 +377,71 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
               Text(_conversation.name,
                   style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
               if (_isDirect && _conversation.contactStatus.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(_conversation.contactStatus,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.push_pin_outlined,
+                                size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              strings.pinnedNoteLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                letterSpacing: 1.0,
+                                fontWeight: FontWeight.w800,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _conversation.contactStatus,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
               if (_isDirect && _conversation.contactBirthday != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   '${formatBirthday(_conversation.contactBirthday!)} (${strings.ageYears(calculateAge(_conversation.contactBirthday!))})',
                   style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                ),
+              ],
+              if (_isDirect &&
+                  _peerProfile != null &&
+                  DevCardView.hasContent(_peerProfile!)) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: DevCardView(
+                      user: _peerProfile!,
+                      showPlaceholderWhenEmpty: false,
+                    ),
+                  ),
                 ),
               ],
               if (_isGroup) ...[

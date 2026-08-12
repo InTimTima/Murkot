@@ -1,22 +1,28 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../l10n/app_strings.dart';
-import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
+import '../services/listings_service.dart';
+import '../services/match_service.dart';
 import '../services/notification_service.dart';
 import '../services/presence_service.dart';
+import '../services/projects_service.dart';
 import '../services/settings_service.dart';
 import '../utils/main_tab_bus.dart';
 import '../widgets/avatar_display.dart';
-import 'conversations_list_screen.dart';
+import '../widgets/command_palette.dart';
+import '../widgets/session_boot.dart';
+import 'board_screen.dart';
+import 'messages_hub_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -37,12 +43,20 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  final Set<int> _builtTabs = {MainTabs.board};
   ChatService? _chatService;
+  ListingsService? _listingsService;
+  ProjectsService? _projectsService;
+  MatchService? _matchService;
   BlacklistService? _blacklistService;
   PresenceService? _presenceService;
   final _notificationService = NotificationService();
   String? _loadError;
+  bool _loadingData = false;
+  bool _showBoot = true;
+  bool _bootFailed = false;
   bool _retriedInit = false;
+  DateTime? _bootStartedAt;
 
   @override
   void initState() {
@@ -52,20 +66,45 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onExternalTabChange() {
-    if (!mounted || _currentIndex == mainTabIndex.value) return;
-    setState(() => _currentIndex = mainTabIndex.value);
+    if (!mounted) return;
+    final next = mainTabIndex.value;
+    if (_currentIndex == next && _builtTabs.contains(next)) return;
+    setState(() {
+      _builtTabs.add(next);
+      _currentIndex = next;
+    });
   }
 
-  /// If the stored auth token expired (e.g. the app was closed overnight),
-  /// refresh it before the first data queries — otherwise they fail with
-  /// "JWT expired" and the shell shows a load error.
+  void _selectTab(int index) {
+    mainTabIndex.value = index;
+    setState(() {
+      _builtTabs.add(index);
+      _currentIndex = index;
+    });
+  }
+
+  void _disposeSessionServices() {
+    _chatService?.dispose();
+    _presenceService?.dispose();
+    _listingsService?.dispose();
+    _projectsService?.dispose();
+    _matchService?.dispose();
+    _blacklistService?.dispose();
+    _chatService = null;
+    _presenceService = null;
+    _listingsService = null;
+    _projectsService = null;
+    _matchService = null;
+    _blacklistService = null;
+  }
+
+  /// Best-effort token refresh. Never block the boot screen for long —
+  /// web often hangs on refresh when Supabase is unreachable.
   Future<void> _ensureFreshSession() async {
     try {
       final auth = Supabase.instance.client.auth;
-      final session = auth.currentSession;
-      if (session != null && session.isExpired) {
-        await auth.refreshSession().timeout(const Duration(seconds: 8));
-      }
+      if (auth.currentSession == null) return;
+      await auth.refreshSession().timeout(const Duration(seconds: 4));
     } catch (e) {
       debugPrint('Session refresh failed: $e');
     }
@@ -75,7 +114,8 @@ class _MainScreenState extends State<MainScreen> {
     final user = widget.authService.currentUser;
     if (user == null) return;
 
-    await _ensureFreshSession();
+    // Dispose previous attempt (e.g. after "Retry").
+    _disposeSessionServices();
 
     final blacklistService =
         BlacklistService(userId: user.id, userLogin: user.login);
@@ -101,59 +141,129 @@ class _MainScreenState extends State<MainScreen> {
       );
     };
 
-    try {
-      // Load chats + blacklist in parallel; never block UI on push permission.
-      await Future.wait([
-        blacklistService.initialize(),
-        chatService.initialize(),
-      ]).timeout(const Duration(seconds: 12));
-
-      if (!mounted) {
-        chatService.dispose();
-        presenceService.dispose();
-        return;
-      }
-      setState(() {
-        _chatService = chatService;
-        _blacklistService = blacklistService;
-        _presenceService = presenceService;
-        _loadError = null;
-      });
-
-      unawaited(presenceService.initialize());
-      unawaited(_notificationService.initialize());
-    } catch (e) {
+    if (!mounted) {
       chatService.dispose();
       presenceService.dispose();
-      if (!mounted) return;
+      return;
+    }
 
-      // One silent retry: the first attempt may race the token refresh
-      // right after a cold start.
+    // Show the shell under a boot overlay — chats hydrate in the background.
+    setState(() {
+      _chatService = chatService;
+      _listingsService = ListingsService(userId: user.id);
+      _projectsService = ProjectsService(userId: user.id);
+      _matchService = MatchService();
+      _blacklistService = blacklistService;
+      _presenceService = presenceService;
+      _loadError = null;
+      _loadingData = true;
+      _showBoot = true;
+      _bootFailed = false;
+      _bootStartedAt = DateTime.now();
+    });
+
+    unawaited(_notificationService.initialize());
+    unawaited(
+      _hydrateServices(chatService, blacklistService, presenceService),
+    );
+  }
+
+  Future<void> _dismissBoot({bool failed = false}) async {
+    final started = _bootStartedAt ?? DateTime.now();
+    const minShow = Duration(milliseconds: 900);
+    final elapsed = DateTime.now().difference(started);
+    if (!failed && elapsed < minShow) {
+      await Future<void>.delayed(minShow - elapsed);
+    }
+    if (!mounted) return;
+    setState(() {
+      if (failed) {
+        _bootFailed = true;
+        _showBoot = true;
+      } else {
+        _bootFailed = false;
+        _showBoot = false;
+      }
+    });
+  }
+
+  void _openWorkspaceAnyway() {
+    if (!mounted) return;
+    setState(() {
+      _showBoot = false;
+      _bootFailed = false;
+      _loadingData = false;
+    });
+  }
+
+  void _retryBoot() {
+    _retriedInit = false;
+    _initServices();
+  }
+
+  Future<void> _hydrateServices(
+    ChatService chatService,
+    BlacklistService blacklistService,
+    PresenceService presenceService,
+  ) async {
+    // Refresh in parallel with data load — don't serialize a slow timeout.
+    final refresh = _ensureFreshSession();
+
+    try {
+      await Future.wait([
+        refresh,
+        blacklistService.initialize().catchError((Object e) {
+          debugPrint('Blacklist init failed: $e');
+        }),
+        chatService.initialize(),
+      ]).timeout(const Duration(seconds: 8));
+
+      if (!mounted || !identical(_chatService, chatService)) return;
+      setState(() {
+        _loadingData = false;
+        _loadError = null;
+        _bootFailed = false;
+      });
+      unawaited(presenceService.initialize());
+      unawaited(_dismissBoot());
+    } catch (e) {
+      debugPrint('Hydrate services failed: $e');
+      if (!mounted || !identical(_chatService, chatService)) return;
+
+      // One quick retry, then surface the failure on the boot screen.
       if (!_retriedInit) {
         _retriedInit = true;
-        await Future<void>.delayed(const Duration(seconds: 2));
-        if (mounted) await _initServices();
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        if (mounted && identical(_chatService, chatService)) {
+          await _hydrateServices(
+            chatService,
+            blacklistService,
+            presenceService,
+          );
+        }
         return;
       }
 
-      setState(() => _loadError = e.toString());
+      setState(() {
+        _loadingData = false;
+        _loadError = e.toString();
+      });
+      unawaited(_dismissBoot(failed: true));
     }
   }
 
   @override
   void dispose() {
     mainTabIndex.removeListener(_onExternalTabChange);
-    _chatService?.dispose();
-    _presenceService?.dispose();
+    _disposeSessionServices();
     super.dispose();
   }
 
   String get _sectionTitle {
     final strings = context.strings;
     return switch (_currentIndex) {
-      0 => strings.chats,
-      1 => strings.groups,
-      2 => strings.channels,
+      MainTabs.board => strings.listingsTab,
+      MainTabs.chats => strings.messagesTab,
       _ => strings.profile,
     };
   }
@@ -170,111 +280,192 @@ class _MainScreenState extends State<MainScreen> {
     final strings = context.strings;
     final login = widget.authService.currentUser!.login;
     final chatService = _chatService;
+    final listingsService = _listingsService;
+    final projectsService = _projectsService;
+    final matchService = _matchService;
     final blacklistService = _blacklistService;
     final presenceService = _presenceService;
 
-    if (_loadError != null) {
+    if (chatService == null ||
+        listingsService == null ||
+        projectsService == null ||
+        matchService == null ||
+        blacklistService == null ||
+        presenceService == null) {
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Не удалось загрузить данные',
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(_loadError!, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    _retriedInit = false;
-                    setState(() => _loadError = null);
-                    _initServices();
-                  },
-                  child: const Text('Повторить'),
-                ),
-              ],
-            ),
-          ),
+        body: SessionBootOverlay(
+          failed: _bootFailed,
+          onOpenWorkspace: _bootFailed ? _openWorkspaceAnyway : null,
+          onRetry: _bootFailed ? _retryBoot : null,
         ),
       );
     }
 
-    if (chatService == null ||
-        blacklistService == null ||
-        presenceService == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     final user = widget.authService.currentUser!;
+    final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: _currentIndex == 3 ? null : AppBar(title: Text(_sectionTitle)),
-      body: IndexedStack(
-        index: _currentIndex,
+    final shell = Scaffold(
+      appBar: _currentIndex == MainTabs.profile
+          ? null
+          : AppBar(
+              title: Text(_sectionTitle),
+              actions: [
+                IconButton(
+                  tooltip: strings.cmdShortcutHint,
+                  onPressed: () => showCommandPalette(
+                    context: context,
+                    chatService: chatService,
+                  ),
+                  icon: const Icon(Icons.search_rounded),
+                ),
+              ],
+              bottom: _loadingData && !_showBoot
+                  ? const PreferredSize(
+                      preferredSize: Size.fromHeight(3),
+                      child: LinearProgressIndicator(minHeight: 3),
+                    )
+                  : null,
+            ),
+      body: Column(
         children: [
-          ConversationsListScreen(
-            type: ConversationType.direct,
-            chatService: chatService,
-            blacklistService: blacklistService,
-            presenceService: presenceService,
-            currentUserLogin: login,
-            settingsService: widget.settingsService,
-          ),
-          ConversationsListScreen(
-            type: ConversationType.group,
-            chatService: chatService,
-            blacklistService: blacklistService,
-            presenceService: presenceService,
-            currentUserLogin: login,
-            settingsService: widget.settingsService,
-          ),
-          ConversationsListScreen(
-            type: ConversationType.channel,
-            chatService: chatService,
-            blacklistService: blacklistService,
-            presenceService: presenceService,
-            currentUserLogin: login,
-            settingsService: widget.settingsService,
-          ),
-          ProfileScreen(
-            authService: widget.authService,
-            settingsService: widget.settingsService,
-            blacklistService: blacklistService,
+          if (_loadError != null && !_showBoot)
+            Material(
+              color: theme.colorScheme.errorContainer,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi_off,
+                        color: theme.colorScheme.onErrorContainer),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        strings.chatsLoadFailed,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        _retriedInit = false;
+                        _initServices();
+                      },
+                      child: Text(strings.retry),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: [
+                _builtTabs.contains(MainTabs.board)
+                    ? BoardScreen(
+                        listingsService: listingsService,
+                        projectsService: projectsService,
+                        matchService: matchService,
+                        chatService: chatService,
+                        blacklistService: blacklistService,
+                        presenceService: presenceService,
+                        currentUserLogin: login,
+                        settingsService: widget.settingsService,
+                        authService: widget.authService,
+                      )
+                    : const SizedBox.shrink(),
+                _builtTabs.contains(MainTabs.chats)
+                    ? MessagesHubScreen(
+                        chatService: chatService,
+                        blacklistService: blacklistService,
+                        presenceService: presenceService,
+                        currentUserLogin: login,
+                        settingsService: widget.settingsService,
+                      )
+                    : const SizedBox.shrink(),
+                _builtTabs.contains(MainTabs.profile)
+                    ? ProfileScreen(
+                        authService: widget.authService,
+                        settingsService: widget.settingsService,
+                        blacklistService: blacklistService,
+                      )
+                    : const SizedBox.shrink(),
+              ],
+            ),
           ),
         ],
       ),
-      bottomNavigationBar: _CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          mainTabIndex.value = index;
-          setState(() => _currentIndex = index);
+      bottomNavigationBar: _showBoot
+          ? null
+          : _CustomBottomNav(
+              currentIndex: _currentIndex,
+              onTap: _selectTab,
+              boardLabel: strings.listingsTab,
+              chatsLabel: strings.messagesTab,
+              profileLabel: strings.profile,
+              profileLogin: user.login,
+              profileAvatarPath: user.avatarPath,
+              profileAvatarEmoji: user.avatarEmoji,
+            ),
+    );
+
+    final content = Stack(
+      fit: StackFit.expand,
+      children: [
+        shell,
+        if (_showBoot)
+          AnimatedOpacity(
+            opacity: _showBoot ? 1 : 0,
+            duration: const Duration(milliseconds: 320),
+            child: SessionBootOverlay(
+              failed: _bootFailed,
+              onOpenWorkspace: _bootFailed ? _openWorkspaceAnyway : null,
+              onRetry: _bootFailed ? _retryBoot : null,
+            ),
+          ),
+      ],
+    );
+
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            _OpenCommandPaletteIntent(),
+        SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            _OpenCommandPaletteIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _OpenCommandPaletteIntent: CallbackAction<_OpenCommandPaletteIntent>(
+            onInvoke: (_) {
+              if (_showBoot || _chatService == null) return null;
+              showCommandPalette(
+                context: context,
+                chatService: _chatService!,
+              );
+              return null;
+            },
+          ),
         },
-        chatsLabel: strings.chats,
-        groupsLabel: strings.groups,
-        channelsLabel: strings.channels,
-        profileLabel: strings.profile,
-        profileLogin: user.login,
-        profileAvatarPath: user.avatarPath,
-        profileAvatarEmoji: user.avatarEmoji,
+        child: Focus(
+          autofocus: true,
+          child: content,
+        ),
       ),
     );
   }
+}
+
+class _OpenCommandPaletteIntent extends Intent {
+  const _OpenCommandPaletteIntent();
 }
 
 class _CustomBottomNav extends StatelessWidget {
   const _CustomBottomNav({
     required this.currentIndex,
     required this.onTap,
+    required this.boardLabel,
     required this.chatsLabel,
-    required this.groupsLabel,
-    required this.channelsLabel,
     required this.profileLabel,
     required this.profileLogin,
     this.profileAvatarPath,
@@ -283,9 +474,8 @@ class _CustomBottomNav extends StatelessWidget {
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final String boardLabel;
   final String chatsLabel;
-  final String groupsLabel;
-  final String channelsLabel;
   final String profileLabel;
   final String profileLogin;
   final String? profileAvatarPath;
@@ -308,25 +498,18 @@ class _CustomBottomNav extends StatelessWidget {
                 child: Row(
                   children: [
                     _NavItem(
+                      icon: Icons.grid_view_outlined,
+                      selectedIcon: Icons.grid_view_rounded,
+                      label: boardLabel,
+                      isSelected: currentIndex == MainTabs.board,
+                      onTap: () => onTap(MainTabs.board),
+                    ),
+                    _NavItem(
                       icon: Icons.chat_bubble_outline,
                       selectedIcon: Icons.chat_bubble,
                       label: chatsLabel,
-                      isSelected: currentIndex == 0,
-                      onTap: () => onTap(0),
-                    ),
-                    _NavItem(
-                      icon: Icons.group_outlined,
-                      selectedIcon: Icons.group,
-                      label: groupsLabel,
-                      isSelected: currentIndex == 1,
-                      onTap: () => onTap(1),
-                    ),
-                    _NavItem(
-                      icon: Icons.campaign_outlined,
-                      selectedIcon: Icons.campaign,
-                      label: channelsLabel,
-                      isSelected: currentIndex == 2,
-                      onTap: () => onTap(2),
+                      isSelected: currentIndex == MainTabs.chats,
+                      onTap: () => onTap(MainTabs.chats),
                     ),
                   ],
                 ),
@@ -344,8 +527,8 @@ class _CustomBottomNav extends StatelessWidget {
                   login: profileLogin,
                   avatarPath: profileAvatarPath,
                   avatarEmoji: profileAvatarEmoji,
-                  isSelected: currentIndex == 3,
-                  onTap: () => onTap(3),
+                  isSelected: currentIndex == MainTabs.profile,
+                  onTap: () => onTap(MainTabs.profile),
                 ),
               ),
             ],

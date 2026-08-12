@@ -37,6 +37,7 @@ class ChatScreen extends StatefulWidget {
     required this.currentUserLogin,
     required this.settingsService,
     this.initialMessageId,
+    this.initialComposerText,
   });
 
   final Conversation conversation;
@@ -48,6 +49,9 @@ class ChatScreen extends StatefulWidget {
 
   /// If set, the chat opens scrolled to this message (search result).
   final String? initialMessageId;
+
+  /// Prefills the message composer (e.g. listing respond context).
+  final String? initialComposerText;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -80,9 +84,19 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _conversation = widget.conversation;
+    final draft = widget.initialComposerText?.trim();
+    if (draft != null && draft.isNotEmpty) {
+      _messageController.text = draft;
+      _messageController.selection =
+          TextSelection.collapsed(offset: draft.length);
+    }
     _scrollController.addListener(_onScroll);
     widget.chatService.setActiveConversation(_conversation.id);
-    _bootstrapMessages();
+    // Defer loading until after the first frame: _fetchMessagesPage notifies
+    // listeners synchronously, which is not allowed during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _bootstrapMessages();
+    });
   }
 
   Future<void> _bootstrapMessages() async {
@@ -216,17 +230,16 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return switch (_conversation.type) {
-      ConversationType.direct => widget.presenceService.isOnline(_conversation.name)
-          ? strings.online
-          : formatLastSeen(
-              widget.presenceService.lastSeenOf(_conversation.name) ??
-                  _conversation.contactLastSeen,
-              isRu: strings.isRu,
-            ),
+      ConversationType.direct =>
+        widget.presenceService.isOnline(_conversation.name)
+            ? strings.online
+            : formatLastSeen(
+                widget.presenceService.lastSeenOf(_conversation.name) ??
+                    _conversation.contactLastSeen,
+                isRu: strings.isRu,
+              ),
       ConversationType.group => strings.onlineCount(
-          _conversation.memberIds
-              .where(widget.presenceService.isOnline)
-              .length,
+          _conversation.memberIds.where(widget.presenceService.isOnline).length,
         ),
       ConversationType.channel =>
         strings.subscriberCount(_conversation.subscriberCount),
@@ -309,7 +322,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final index = messages.indexWhere((m) => m.id == messageId);
       if (index == -1) return;
 
-      final fraction = messages.length <= 1 ? 0.0 : index / (messages.length - 1);
+      final fraction =
+          messages.length <= 1 ? 0.0 : index / (messages.length - 1);
       final position = _scrollController.position;
       _scrollController.jumpTo(
         (position.maxScrollExtent * fraction)
@@ -472,14 +486,11 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       String? captionLeft = caption.isEmpty ? null : caption;
 
-      final images =
-          drafts.where((d) => d.type == MessageType.image).toList();
-      final others =
-          drafts.where((d) => d.type != MessageType.image).toList();
+      final images = drafts.where((d) => d.type == MessageType.image).toList();
+      final others = drafts.where((d) => d.type != MessageType.image).toList();
 
       for (var i = 0; i < images.length; i += 10) {
-        final chunk =
-            images.sublist(i, math.min(i + 10, images.length));
+        final chunk = images.sublist(i, math.min(i + 10, images.length));
         await widget.chatService.sendImageAlbum(
           conversationId: _conversation.id,
           images: [
@@ -664,56 +675,59 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isChannel)
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isChannel)
+                ListTile(
+                  leading: const Icon(Icons.reply),
+                  title: Text(strings.reply),
+                  onTap: () => Navigator.pop(context, 'reply'),
+                ),
               ListTile(
-                leading: const Icon(Icons.reply),
-                title: Text(strings.reply),
-                onTap: () => Navigator.pop(context, 'reply'),
+                leading: const Icon(Icons.forward),
+                title: Text(strings.forward),
+                onTap: () => Navigator.pop(context, 'forward'),
               ),
-            ListTile(
-              leading: const Icon(Icons.forward),
-              title: Text(strings.forward),
-              onTap: () => Navigator.pop(context, 'forward'),
-            ),
-            if (isOwn && !isChannel) ...[
+              if (isOwn && !isChannel) ...[
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: Text(strings.editMessage),
+                  onTap: () => Navigator.pop(context, 'edit'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(strings.deleteForMe),
+                  onTap: () => Navigator.pop(context, 'delete_me'),
+                ),
+                ListTile(
+                  leading: Icon(Icons.delete_forever,
+                      color: Theme.of(context).colorScheme.error),
+                  title: Text(strings.deleteForAll,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                  onTap: () => Navigator.pop(context, 'delete_all'),
+                ),
+              ],
               ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: Text(strings.editMessage),
-                onTap: () => Navigator.pop(context, 'edit'),
+                leading: const Icon(Icons.push_pin_outlined),
+                title: Text(strings.pinForMe),
+                onTap: () => Navigator.pop(context, 'pin_me'),
               ),
+              if (isOwn || _conversation.isAdmin)
+                ListTile(
+                  leading: const Icon(Icons.push_pin),
+                  title: Text(strings.pinForAll),
+                  onTap: () => Navigator.pop(context, 'pin_all'),
+                ),
               ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: Text(strings.deleteForMe),
-                onTap: () => Navigator.pop(context, 'delete_me'),
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_forever,
-                    color: Theme.of(context).colorScheme.error),
-                title: Text(strings.deleteForAll,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                onTap: () => Navigator.pop(context, 'delete_all'),
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: Text(strings.addReaction),
+                onTap: () => Navigator.pop(context, 'react'),
               ),
             ],
-            ListTile(
-              leading: const Icon(Icons.push_pin_outlined),
-              title: Text(strings.pinForMe),
-              onTap: () => Navigator.pop(context, 'pin_me'),
-            ),
-            if (isOwn || _conversation.isAdmin)
-              ListTile(
-                leading: const Icon(Icons.push_pin),
-                title: Text(strings.pinForAll),
-                onTap: () => Navigator.pop(context, 'pin_all'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.add_reaction_outlined),
-              title: Text(strings.addReaction),
-              onTap: () => Navigator.pop(context, 'react'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -740,12 +754,12 @@ class _ChatScreenState extends State<ChatScreen> {
               v == null || v.trim().isEmpty ? strings.nameRequired : null,
         );
         if (newText != null) {
-          await widget.chatService.editMessage(
-              _conversation.id, message.id, newText);
+          await widget.chatService
+              .editMessage(_conversation.id, message.id, newText);
         }
       case 'delete_me':
-        await widget.chatService.deleteMessage(
-            _conversation.id, message.id, forEveryone: false);
+        await widget.chatService
+            .deleteMessage(_conversation.id, message.id, forEveryone: false);
       case 'delete_all':
         final confirmed = await showConfirmDialog(
           context: context,
@@ -754,15 +768,15 @@ class _ChatScreenState extends State<ChatScreen> {
           isDestructive: true,
         );
         if (confirmed == true) {
-          await widget.chatService.deleteMessage(
-              _conversation.id, message.id, forEveryone: true);
+          await widget.chatService
+              .deleteMessage(_conversation.id, message.id, forEveryone: true);
         }
       case 'pin_me':
-        await widget.chatService.pinMessage(
-            _conversation.id, message.id, forEveryone: false);
+        await widget.chatService
+            .pinMessage(_conversation.id, message.id, forEveryone: false);
       case 'pin_all':
-        await widget.chatService.pinMessage(
-            _conversation.id, message.id, forEveryone: true);
+        await widget.chatService
+            .pinMessage(_conversation.id, message.id, forEveryone: true);
       case 'react':
         await _showReactionPicker(message);
     }
@@ -790,8 +804,8 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
     if (emoji != null) {
-      await widget.chatService.toggleReaction(
-          _conversation.id, message.id, emoji);
+      await widget.chatService
+          .toggleReaction(_conversation.id, message.id, emoji);
     }
   }
 
@@ -833,8 +847,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             itemBuilder: (context, index) {
                               if (index == shown.length) {
                                 return TextButton(
-                                  onPressed: () => setSheetState(
-                                      () => visibleCount += 10),
+                                  onPressed: () =>
+                                      setSheetState(() => visibleCount += 10),
                                   child: Text(strings.showMore),
                                 );
                               }
@@ -923,8 +937,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ))
             : widget.chatService.getMessages(_conversation.id);
         final pinned = widget.chatService.getPinnedMessages(_conversation.id);
-        final isBlocked =
-            widget.chatService.isDirectBlocked(_conversation);
+        final isBlocked = widget.chatService.isDirectBlocked(_conversation);
         final isOnlineDirect = _conversation.type == ConversationType.direct &&
             widget.presenceService.isOnline(_conversation.name);
 
@@ -1028,268 +1041,268 @@ class _ChatScreenState extends State<ChatScreen> {
                   )
                 : null,
             child: Stack(
-            children: [
-              Column(
-                children: [
-                  if (pinned.isNotEmpty)
-                    _PinnedBar(
-                      pinned: pinned,
-                      onJump: _revealMessage,
-                    ),
-                  if (_loadingHistory ||
-                      _searchLoading ||
-                      widget.chatService.isLoadingMessages(_conversation.id))
-                    const LinearProgressIndicator(minHeight: 2),
-                  Expanded(
-                    child: messages.isEmpty
-                        ? Center(
-                            child: widget.chatService
-                                    .isLoadingMessages(_conversation.id)
-                                ? const CircularProgressIndicator()
-                                : Text(
-                                    _searchMode && _chatSearchQuery.isNotEmpty
-                                        ? strings.noSearchResults
-                                        : strings.noMessages,
-                                    style:
-                                        TextStyle(color: Colors.grey.shade600),
-                                  ),
-                          )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            itemCount: messages.length +
-                                (widget.chatService
-                                        .hasMoreMessages(_conversation.id) &&
-                                    !_searchMode
-                                    ? 1
-                                    : 0),
-                            itemBuilder: (context, index) {
-                              if (!_searchMode &&
-                                  widget.chatService
-                                      .hasMoreMessages(_conversation.id) &&
-                                  index == 0) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Center(
-                                    child: TextButton(
-                                      onPressed: _loadOlder,
-                                      child: Text(strings.loadOlderMessages),
+              children: [
+                Column(
+                  children: [
+                    if (pinned.isNotEmpty)
+                      _PinnedBar(
+                        pinned: pinned,
+                        onJump: _revealMessage,
+                      ),
+                    if (_loadingHistory ||
+                        _searchLoading ||
+                        widget.chatService.isLoadingMessages(_conversation.id))
+                      const LinearProgressIndicator(minHeight: 2),
+                    Expanded(
+                      child: messages.isEmpty
+                          ? Center(
+                              child: widget.chatService
+                                      .isLoadingMessages(_conversation.id)
+                                  ? const CircularProgressIndicator()
+                                  : Text(
+                                      _searchMode && _chatSearchQuery.isNotEmpty
+                                          ? strings.noSearchResults
+                                          : strings.noMessages,
+                                      style: TextStyle(
+                                          color: Colors.grey.shade600),
                                     ),
-                                  ),
-                                );
-                              }
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              itemCount: messages.length +
+                                  (widget.chatService.hasMoreMessages(
+                                              _conversation.id) &&
+                                          !_searchMode
+                                      ? 1
+                                      : 0),
+                              itemBuilder: (context, index) {
+                                if (!_searchMode &&
+                                    widget.chatService
+                                        .hasMoreMessages(_conversation.id) &&
+                                    index == 0) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Center(
+                                      child: TextButton(
+                                        onPressed: _loadOlder,
+                                        child: Text(strings.loadOlderMessages),
+                                      ),
+                                    ),
+                                  );
+                                }
 
-                              final messageIndex = !_searchMode &&
-                                      widget.chatService.hasMoreMessages(
-                                          _conversation.id)
-                                  ? index - 1
-                                  : index;
-                              final message = messages[messageIndex];
-                              final prev = messageIndex > 0
-                                  ? messages[messageIndex - 1]
-                                  : null;
-                              final showDate = prev == null ||
-                                  !_sameDay(prev.timestamp, message.timestamp);
+                                final messageIndex = !_searchMode &&
+                                        widget.chatService
+                                            .hasMoreMessages(_conversation.id)
+                                    ? index - 1
+                                    : index;
+                                final message = messages[messageIndex];
+                                final prev = messageIndex > 0
+                                    ? messages[messageIndex - 1]
+                                    : null;
+                                final showDate = prev == null ||
+                                    !_sameDay(
+                                        prev.timestamp, message.timestamp);
 
-                              _messageKeys.putIfAbsent(
-                                  message.id, () => GlobalKey());
+                                _messageKeys.putIfAbsent(
+                                    message.id, () => GlobalKey());
 
-                              if (isChannel && _viewedPosts.add(message.id)) {
-                                widget.chatService.incrementViews(
-                                    _conversation.id, message.id);
-                              }
+                                if (isChannel && _viewedPosts.add(message.id)) {
+                                  widget.chatService.incrementViews(
+                                      _conversation.id, message.id);
+                                }
 
-                              if (message.type == MessageType.system) {
+                                if (message.type == MessageType.system) {
+                                  return Column(
+                                    key: _messageKeys[message.id],
+                                    children: [
+                                      if (showDate)
+                                        _DateSeparator(date: message.timestamp),
+                                      _SystemNotice(text: message.content),
+                                    ],
+                                  );
+                                }
+
                                 return Column(
                                   key: _messageKeys[message.id],
                                   children: [
                                     if (showDate)
                                       _DateSeparator(date: message.timestamp),
-                                    _SystemNotice(text: message.content),
+                                    _MessageBubble(
+                                      message: message,
+                                      isOwn: message.senderId ==
+                                          widget.currentUserLogin,
+                                      forceLeft: isWide,
+                                      senderAvatarUrl: widget.chatService
+                                          .avatarUrlForLogin(message.senderId),
+                                      showSender: isWide ||
+                                          _conversation.type !=
+                                              ConversationType.direct ||
+                                          message.senderId !=
+                                              widget.currentUserLogin,
+                                      isChannel: isChannel,
+                                      commentCount: widget.chatService
+                                          .getComments(message.id)
+                                          .length,
+                                      onLongPress: () =>
+                                          _showMessageActions(message),
+                                      onImageTap: _openImageViewer,
+                                      onReactionTap: () =>
+                                          _showReactionPicker(message),
+                                      onCommentsTap: isChannel
+                                          ? () => _showComments(message)
+                                          : null,
+                                      onRetry: message.sendStatus ==
+                                              MessageSendStatus.failed
+                                          ? () => widget.chatService
+                                              .retryFailedMessage(message.id)
+                                          : null,
+                                    ),
                                   ],
                                 );
-                              }
-
-                              return Column(
-                                key: _messageKeys[message.id],
-                                children: [
-                                  if (showDate)
-                                    _DateSeparator(date: message.timestamp),
-                                  _MessageBubble(
-                                    message: message,
-                                    isOwn: message.senderId ==
-                                        widget.currentUserLogin,
-                                    forceLeft: isWide,
-                                    senderAvatarUrl: widget.chatService
-                                        .avatarUrlForLogin(message.senderId),
-                                    showSender: isWide ||
-                                        _conversation.type !=
-                                            ConversationType.direct ||
-                                        message.senderId !=
-                                            widget.currentUserLogin,
-                                    isChannel: isChannel,
-                                    commentCount: widget.chatService
-                                        .getComments(message.id)
-                                        .length,
-                                    onLongPress: () =>
-                                        _showMessageActions(message),
-                                    onImageTap: _openImageViewer,
-                                    onReactionTap: () =>
-                                        _showReactionPicker(message),
-                                    onCommentsTap: isChannel
-                                        ? () => _showComments(message)
-                                        : null,
-                                    onRetry: message.sendStatus ==
-                                            MessageSendStatus.failed
-                                        ? () => widget.chatService
-                                            .retryFailedMessage(message.id)
-                                        : null,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                  ),
-                  if (isBlocked)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      color: theme.colorScheme.errorContainer,
-                      child: Text(
-                        strings.userBlockedBanner,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: theme.colorScheme.onErrorContainer,
-                        ),
-                      ),
-                    )
-                  else if (canSend) ...[
-                    if (_drafts.isNotEmpty)
-                      Material(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 6,
-                          ),
-                          child: SizedBox(
-                            height: 72,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _drafts.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) => _DraftChip(
-                                draft: _drafts[index],
-                                onRemove: _sendingDrafts
-                                    ? null
-                                    : () => setState(
-                                        () => _drafts.removeAt(index)),
-                              ),
+                              },
                             ),
-                          ),
-                        ),
-                      ),
-                    if (_replyTo != null)
-                      Material(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: ListTile(
-                          dense: true,
-                          leading: Icon(
-                            Icons.reply,
-                            color: theme.colorScheme.primary,
-                          ),
-                          title: Text(
-                            '${strings.replyTo} ${_replyTo!.senderName}',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            messagePreviewText(_replyTo!, maxChars: 48),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => setState(() => _replyTo = null),
-                          ),
-                        ),
-                      ),
-                    if (_recordingVoice)
-                      Material(
+                    ),
+                    if (isBlocked)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
                         color: theme.colorScheme.errorContainer,
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.mic,
-                            color: theme.colorScheme.error,
-                          ),
-                          title: Text(
-                            'Запись… ${_voiceElapsed()}',
-                            style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: 'Отмена',
-                                onPressed: () => _stopVoiceNote(send: false),
-                                icon: const Icon(Icons.close),
-                              ),
-                              IconButton(
-                                tooltip: 'Отправить',
-                                onPressed: () => _stopVoiceNote(send: true),
-                                icon: Icon(
-                                  Icons.send,
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                            ],
+                        child: Text(
+                          strings.userBlockedBanner,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: theme.colorScheme.onErrorContainer,
                           ),
                         ),
                       )
-                    else
-                      _MessageInputBar(
-                        controller: _messageController,
-                        focusNode: _messageFocusNode,
-                        onChanged: _onTextChanged,
-                        onSend: _sendText,
-                        // Desktop: attachments live in the right-side panel.
-                        onAttach: isWide ? null : _showAttachMenu,
-                        onVoiceStart: _startVoiceNote,
-                        hintText: _drafts.isNotEmpty
-                            ? strings.captionHint
-                            : null,
-                        forceSendButton: _drafts.isNotEmpty,
+                    else if (canSend) ...[
+                      if (_drafts.isNotEmpty)
+                        Material(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            child: SizedBox(
+                              height: 72,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _drafts.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) => _DraftChip(
+                                  draft: _drafts[index],
+                                  onRemove: _sendingDrafts
+                                      ? null
+                                      : () => setState(
+                                          () => _drafts.removeAt(index)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (_replyTo != null)
+                        Material(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(
+                              Icons.reply,
+                              color: theme.colorScheme.primary,
+                            ),
+                            title: Text(
+                              '${strings.replyTo} ${_replyTo!.senderName}',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              messagePreviewText(_replyTo!, maxChars: 48),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setState(() => _replyTo = null),
+                            ),
+                          ),
+                        ),
+                      if (_recordingVoice)
+                        Material(
+                          color: theme.colorScheme.errorContainer,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.mic,
+                              color: theme.colorScheme.error,
+                            ),
+                            title: Text(
+                              'Запись… ${_voiceElapsed()}',
+                              style: TextStyle(
+                                color: theme.colorScheme.onErrorContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Отмена',
+                                  onPressed: () => _stopVoiceNote(send: false),
+                                  icon: const Icon(Icons.close),
+                                ),
+                                IconButton(
+                                  tooltip: 'Отправить',
+                                  onPressed: () => _stopVoiceNote(send: true),
+                                  icon: Icon(
+                                    Icons.send,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        _MessageInputBar(
+                          controller: _messageController,
+                          focusNode: _messageFocusNode,
+                          onChanged: _onTextChanged,
+                          onSend: _sendText,
+                          // Desktop: attachments live in the right-side panel.
+                          onAttach: isWide ? null : _showAttachMenu,
+                          onVoiceStart: _startVoiceNote,
+                          hintText:
+                              _drafts.isNotEmpty ? strings.captionHint : null,
+                          forceSendButton: _drafts.isNotEmpty,
+                        ),
+                    ] else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Text(
+                          strings.channelReadOnly,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
                       ),
-                  ] else
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Text(
-                        strings.channelReadOnly,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ),
-                ],
-              ),
-              if (_showScrollDown)
-                Positioned(
-                  right: 16,
-                  bottom: canSend && !isBlocked ? 80 : 16,
-                  child: FloatingActionButton.small(
-                    onPressed: () => _scrollToBottom(),
-                    child: const Icon(Icons.keyboard_arrow_down),
-                  ),
+                  ],
                 ),
-            ],
+                if (_showScrollDown)
+                  Positioned(
+                    right: 16,
+                    bottom: canSend && !isBlocked ? 80 : 16,
+                    child: FloatingActionButton.small(
+                      onPressed: () => _scrollToBottom(),
+                      child: const Icon(Icons.keyboard_arrow_down),
+                    ),
+                  ),
+              ],
             ),
           ),
         );
@@ -1297,15 +1310,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Desktop-only vertical navigation (chats / groups / channels / profile).
+  /// Desktop-only vertical navigation (board / chats / profile).
   Widget _buildDesktopNavRail(BuildContext context) {
     final strings = context.strings;
     final theme = Theme.of(context);
-    final selected = switch (_conversation.type) {
-      ConversationType.direct => 0,
-      ConversationType.group => 1,
-      ConversationType.channel => 2,
-    };
 
     void go(int index) {
       mainTabIndex.value = index;
@@ -1319,25 +1327,18 @@ class _ChatScreenState extends State<ChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _RailItem(
+            icon: Icons.grid_view_outlined,
+            selectedIcon: Icons.grid_view_rounded,
+            label: strings.listingsTab,
+            isSelected: false,
+            onTap: () => go(MainTabs.board),
+          ),
+          _RailItem(
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
-            label: strings.chats,
-            isSelected: selected == 0,
-            onTap: () => go(0),
-          ),
-          _RailItem(
-            icon: Icons.group_outlined,
-            selectedIcon: Icons.group,
-            label: strings.groups,
-            isSelected: selected == 1,
-            onTap: () => go(1),
-          ),
-          _RailItem(
-            icon: Icons.campaign_outlined,
-            selectedIcon: Icons.campaign,
-            label: strings.channels,
-            isSelected: selected == 2,
-            onTap: () => go(2),
+            label: strings.messagesTab,
+            isSelected: true,
+            onTap: () => go(MainTabs.chats),
           ),
           const SizedBox(height: 10),
           Divider(height: 1, color: Colors.grey.shade300),
@@ -1347,7 +1348,7 @@ class _ChatScreenState extends State<ChatScreen> {
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () => go(3),
+              onTap: () => go(MainTabs.profile),
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1499,18 +1500,35 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
-            _AttachTile(icon: Icons.mic, label: strings.voice, type: MessageType.voice),
+            _AttachTile(
+                icon: Icons.mic, label: strings.voice, type: MessageType.voice),
             _AttachActionTile(
               icon: Icons.motion_photos_on_outlined,
               label: 'Кружок',
               onTap: () => Navigator.pop(context, 'circle'),
             ),
-            _AttachTile(icon: Icons.videocam, label: strings.video, type: MessageType.video),
-            _AttachTile(icon: Icons.image, label: strings.image, type: MessageType.image),
-            _AttachTile(icon: Icons.music_note, label: strings.music, type: MessageType.music),
-            _AttachTile(icon: Icons.emoji_emotions, label: strings.sticker, type: MessageType.sticker),
-            _AttachTile(icon: Icons.gif_box, label: strings.gif, type: MessageType.gif),
-            _AttachTile(icon: Icons.attach_file, label: strings.file, type: MessageType.file),
+            _AttachTile(
+                icon: Icons.videocam,
+                label: strings.video,
+                type: MessageType.video),
+            _AttachTile(
+                icon: Icons.image,
+                label: strings.image,
+                type: MessageType.image),
+            _AttachTile(
+                icon: Icons.music_note,
+                label: strings.music,
+                type: MessageType.music),
+            _AttachTile(
+                icon: Icons.emoji_emotions,
+                label: strings.sticker,
+                type: MessageType.sticker),
+            _AttachTile(
+                icon: Icons.gif_box, label: strings.gif, type: MessageType.gif),
+            _AttachTile(
+                icon: Icons.attach_file,
+                label: strings.file,
+                type: MessageType.file),
           ],
         ),
       ),
@@ -1578,8 +1596,7 @@ class _RailItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color =
-        isSelected ? theme.colorScheme.primary : Colors.grey.shade700;
+    final color = isSelected ? theme.colorScheme.primary : Colors.grey.shade700;
 
     return Material(
       color: isSelected
@@ -1600,8 +1617,7 @@ class _RailItem extends StatelessWidget {
                   label,
                   style: TextStyle(
                     color: color,
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2047,8 +2063,8 @@ class _MessageBubble extends StatelessWidget {
                                   children: [
                                     Text(
                                       message.replyToSender ?? '',
-                                      style: theme.textTheme.labelSmall
-                                          ?.copyWith(
+                                      style:
+                                          theme.textTheme.labelSmall?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: isOwn
                                             ? theme.colorScheme.onPrimary
@@ -2062,8 +2078,8 @@ class _MessageBubble extends StatelessWidget {
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
                                         color: isOwn
                                             ? theme.colorScheme.onPrimary
                                                 .withValues(alpha: 0.9)
@@ -2140,8 +2156,8 @@ class _MessageBubble extends StatelessWidget {
                                     Flexible(
                                       child: Text(
                                         media.name,
-                                        style:
-                                            theme.textTheme.bodyMedium?.copyWith(
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
                                           color: isOwn
                                               ? theme.colorScheme.onPrimary
                                               : theme.colorScheme.onSurface,
@@ -2184,7 +2200,8 @@ class _MessageBubble extends StatelessWidget {
                                   Padding(
                                     padding: const EdgeInsets.only(right: 6),
                                     child: Text('изм.',
-                                        style: theme.textTheme.labelSmall?.copyWith(
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
                                           color: isOwn
                                               ? theme.colorScheme.onPrimary
                                                   .withOpacity(0.7)
@@ -2244,7 +2261,8 @@ class _MessageBubble extends StatelessWidget {
                                           : Colors.grey.shade600),
                                   const SizedBox(width: 2),
                                   Text('${message.viewCount}',
-                                      style: theme.textTheme.labelSmall?.copyWith(
+                                      style:
+                                          theme.textTheme.labelSmall?.copyWith(
                                         fontSize: 10,
                                         color: isOwn
                                             ? theme.colorScheme.onPrimary
@@ -2567,7 +2585,8 @@ class _DraftChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: theme.colorScheme.error,
                 shape: BoxShape.circle,
-                border: Border.all(color: theme.colorScheme.surface, width: 1.5),
+                border:
+                    Border.all(color: theme.colorScheme.surface, width: 1.5),
               ),
               child: Icon(
                 Icons.close,
