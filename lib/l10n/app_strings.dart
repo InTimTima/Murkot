@@ -50,6 +50,34 @@ class AppStrings {
   String get logoutMessage =>
       isRu ? 'Вы будете перенаправлены на экран входа.' : 'You will be redirected to the login screen.';
   String get cancel => isRu ? 'Отмена' : 'Cancel';
+  String get reportTitle => isRu ? 'Пожаловаться' : 'Report';
+  String get reportSubmit => isRu ? 'Отправить жалобу' : 'Submit report';
+  String get reportThanks =>
+      isRu ? 'Жалоба отправлена. Спасибо.' : 'Report sent. Thank you.';
+  String get reportFailed =>
+      isRu ? 'Не удалось отправить жалобу' : 'Could not send the report';
+  String get reportReasonSpam => isRu ? 'Спам' : 'Spam';
+  String get reportReasonAbuse => isRu ? 'Оскорбления / токсичность' : 'Abuse';
+  String get reportReasonFake =>
+      isRu ? 'Фейк / ввод в заблуждение' : 'Fake / misleading';
+  String get reportReasonOther => isRu ? 'Другое' : 'Other';
+  String get hideListing => isRu ? 'Скрыть у себя' : 'Hide for me';
+  String get hideListingDone =>
+      isRu ? 'Объявление скрыто' : 'Listing hidden';
+  String get inviteCreate =>
+      isRu ? 'Создать инвайт-ссылку' : 'Create invite link';
+  String get inviteCreated =>
+      isRu ? 'Ссылка скопирована' : 'Invite link copied';
+  String get inviteRedeem =>
+      isRu ? 'Вступить по инвайту' : 'Join with invite';
+  String get inviteRedeemHint =>
+      isRu ? 'Вставьте токен инвайта' : 'Paste invite token';
+  String get inviteRedeemFailed =>
+      isRu ? 'Не удалось вступить по инвайту' : 'Could not redeem invite';
+  String get inviteMakePublic =>
+      isRu ? 'Сделать публичной' : 'Make public';
+  String get inviteMakePrivate =>
+      isRu ? 'Сделать приватной' : 'Make private';
   String get yes => isRu ? 'Да' : 'Yes';
   String get save => isRu ? 'Сохранить' : 'Save';
   String get confirmLogout => isRu ? 'Выйти' : 'Log out';
@@ -95,9 +123,15 @@ class AppStrings {
       ? 'Не удалось загрузить данные'
       : 'Could not load your data';
   String get sessionBootFailedSubtitle => isRu
-      ? 'Нет связи с сервером. Можно продолжить и повторить позже.'
-      : 'No connection to the server. You can continue and retry later.';
-  String get openWorkspace => isRu ? 'Продолжить' : 'Continue';
+      ? 'Нет связи с сервером. Можно открыть приложение и повторить позже.'
+      : 'No connection to the server. You can open the app and retry later.';
+  String get sessionBootSlowTitle => isRu
+      ? 'Сервер отвечает долго'
+      : 'Server is taking a while';
+  String get sessionBootSlowSubtitle => isRu
+      ? 'Можно открыть приложение сейчас — данные подтянутся, когда сеть оживёт.'
+      : 'Open the app now — data will catch up when the network recovers.';
+  String get continueAnyway => isRu ? 'Открыть приложение' : 'Open app';
   String get onboardingEyebrow =>
       isRu ? 'СТАРТ — КАРТОЧКА' : 'START — YOUR CARD';
   String get onboardingNeedMinimum => isRu
@@ -189,14 +223,25 @@ class AppStrings {
   String get cmdOpenProfileSub => isRu
       ? 'Заметка и карточка разработчика'
       : 'Note and developer card';
-  String get airdropEyebrow => isRu ? 'ОТКЛИК' : 'RESPONSE';
-  String get airdropTitle =>
+  String get respondEyebrow => isRu ? 'ОТКЛИК' : 'RESPONSE';
+  String get respondTitle =>
       isRu ? 'Отправить отклик?' : 'Send a response?';
-  String airdropSubtitle(String login, String subject) => isRu
-      ? 'Откроется чат с @$login по поводу «$subject».'
-      : 'This opens a chat with @$login about “$subject”.';
-  String get airdropSend =>
+  String respondSubtitle(String login, String subject) => isRu
+      ? 'Откроется чат с @$login по поводу «$subject», текст отклика уйдёт сразу.'
+      : 'Opens a chat with @$login about “$subject” and sends your response right away.';
+  String get respondSend =>
       isRu ? 'Отправить отклик' : 'Send response';
+  // Legacy aliases (UI copy used to say AirDrop).
+  String get airdropEyebrow => respondEyebrow;
+  String get airdropTitle => respondTitle;
+  String airdropSubtitle(String login, String subject) =>
+      respondSubtitle(login, subject);
+  String get airdropSend => respondSend;
+  String get projectsShowcaseLabel =>
+      isRu ? 'ПРОЕКТЫ' : 'PROJECTS';
+  String get projectsShowcaseHeading => isRu ? 'Витрина' : 'Showcase';
+  String get projectsFinderLabel => projectsShowcaseLabel;
+  String get projectsFinderHeading => projectsShowcaseHeading;
   String get matchNeedCardTitle => isRu
       ? 'Сначала заполните карточку'
       : 'Complete your card first';
@@ -267,12 +312,21 @@ class AppStrings {
       isRu ? 'Редактировать объявление' : 'Edit listing';
   String get listingEditAction => isRu ? 'Изменить' : 'Edit';
   String get listingsEmpty => isRu
-      ? 'Пока нет объявлений.\nРазместите первое!'
-      : 'No listings yet.\nPost the first one!';
+      ? 'Пока нет объявлений.\nРазместите первое — так вас быстрее найдут.'
+      : 'No listings yet.\nPost the first one so people can find you.';
+  String get listingsEmptyAction =>
+      isRu ? 'Разместить объявление' : 'Post a listing';
   String get listingsFilterEmpty => isRu
       ? 'Нет объявлений по выбранным фильтрам'
       : 'No listings match these filters';
   String get clearFilters => isRu ? 'Сбросить фильтры' : 'Clear filters';
+  String get boardWelcomeTitle =>
+      isRu ? 'Вы на доске' : 'You’re on the board';
+  String get boardWelcomeBody => isRu
+      ? 'Смотрите объявления, проекты и матч — или разместите своё.'
+      : 'Browse listings, projects and Match — or post your own.';
+  String get boardWelcomeAction =>
+      isRu ? 'Понятно' : 'Got it';
   String get syncDevStatusTitle => isRu
       ? 'Обновить статус в профиле?'
       : 'Update your profile status?';
@@ -296,9 +350,6 @@ class AppStrings {
   String get deleteAction => isRu ? 'Удалить' : 'Delete';
   String get boardListingsTab => isRu ? 'Объявления' : 'Listings';
   String get boardProjectsTab => isRu ? 'Проекты' : 'Projects';
-  String get projectsFinderLabel =>
-      isRu ? 'ПРОЕКТЫ' : 'PROJECTS';
-  String get projectsFinderHeading => isRu ? 'Витрина' : 'Showcase';
   String projectsObjectsCount(int count) {
     if (!isRu) {
       return count == 1 ? '1 project' : '$count projects';
@@ -339,8 +390,10 @@ class AppStrings {
       isRu ? 'Проект обновлён' : 'Project updated';
   String get projectEdit => isRu ? 'Редактировать проект' : 'Edit project';
   String get projectsEmpty => isRu
-      ? 'Пока нет проектов.\nПокажите свой первым!'
-      : 'No projects yet.\nShow yours first!';
+      ? 'Витрина пуста.\nДобавьте проект — или найдите команду в объявлениях.'
+      : 'Showcase is empty.\nAdd a project — or find a team in listings.';
+  String get projectsEmptyAction =>
+      isRu ? 'Добавить проект' : 'Add project';
   String get projectsFilterEmpty => isRu
       ? 'Нет проектов по выбранному стеку'
       : 'No projects match this stack filter';
@@ -389,11 +442,17 @@ class AppStrings {
   String get matchKeepSwiping =>
       isRu ? 'Продолжить' : 'Keep swiping';
   String get matchEmptyFeed => isRu
-      ? 'Пока никого нет.\nЗаполните карточку разработчика в профиле — так вас тоже найдут.'
-      : 'No one left for now.\nFill your developer card in the profile so others can find you.';
+      ? 'Пока никого нет в ленте.\nЗагляните в объявления или дополните карточку в профиле.'
+      : 'No one left in the feed.\nBrowse listings or complete your card in Profile.';
+  String get matchEmptyFeedListings =>
+      isRu ? 'К объявлениям' : 'Browse listings';
+  String get matchEmptyFeedProfile =>
+      isRu ? 'Открыть профиль' : 'Open profile';
   String get matchEmptyMatches => isRu
       ? 'Пока нет взаимных матчей.\nЛайкайте тех, с кем хотите работать.'
       : 'No mutual matches yet.\nLike people you want to work with.';
+  String get matchEmptyMatchesAction =>
+      isRu ? 'К ленте матча' : 'Back to feed';
   String get matchLoadFailed => isRu
       ? 'Не удалось загрузить ленту матчинга'
       : 'Could not load the match feed';

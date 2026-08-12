@@ -1,0 +1,2 @@
+[functions.push-on-event]
+verify_jwt = false

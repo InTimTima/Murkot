@@ -1,4 +1,4 @@
-name: tujh_messenger
+name: murkot
 description: Мессенджер с авторизацией и профилем пользователя.
 publish_to: 'none'
 version: 1.0.0+1

@@ -115,6 +115,44 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     }
   }
 
+  Future<void> _redeemInvite() async {
+    final strings = context.strings;
+    final controller = TextEditingController();
+    final token = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(strings.inviteRedeem),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(hintText: strings.inviteRedeemHint),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(strings.inviteRedeem),
+          ),
+        ],
+      ),
+    );
+    if (token == null || token.isEmpty || !mounted) return;
+    try {
+      final conversation =
+          await widget.chatService.redeemConversationInvite(token);
+      if (!mounted) return;
+      if (conversation != null) _openChat(conversation);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.inviteRedeemFailed)),
+      );
+    }
+  }
+
   int get _sectionIndex => switch (widget.type) {
         ConversationType.direct => 0,
         ConversationType.group => 1,
@@ -324,7 +362,12 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                 ],
               ),
             ),
-            if (widget.type != ConversationType.direct)
+            if (widget.type != ConversationType.direct) ...[
+              _StickyActionButton(
+                icon: Icons.vpn_key_outlined,
+                label: strings.inviteRedeem,
+                onPressed: _redeemInvite,
+              ),
               _StickyActionButton(
                 icon: Icons.search,
                 label: widget.type == ConversationType.channel
@@ -332,6 +375,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                     : strings.findGroup,
                 onPressed: _findPublic,
               ),
+            ],
             _StickyCreateButton(
               label: createLabelForSection(strings, _sectionIndex),
               onPressed: _createNew,

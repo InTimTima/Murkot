@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:tujh_messenger/config/supabase_config.dart';
+import 'package:murkot/config/supabase_config.dart';
 
 Future<Map<String, dynamic>> httpJson(
   String method,

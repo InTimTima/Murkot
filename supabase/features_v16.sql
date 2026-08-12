@@ -1,5 +1,14 @@
 -- Features v16: security hardening from code review.
--- Apply in Supabase SQL editor after features_v15.
+-- REQUIRED before any public / friend soft-launch.
+-- Apply in Supabase SQL editor AFTER features_v15 (and earlier v10–v14 if missing).
+--
+-- Checklist after apply:
+--   [ ] edit another user's message → denied
+--   [ ] search/join private group → denied
+--   [ ] select match_swipes as target → only own swipes as swiper
+--   [ ] select profiles.email of another user → missing / denied
+--   [ ] non-admin conversation rename → denied
+--
 -- Fixes: messages UPDATE, is_public groups, match_swipes leak,
 -- profiles email exposure, conversation UPDATE scope.
 
@@ -189,6 +198,7 @@ create policy "Admins can add members"
 
 -- ─── 3. Conversation UPDATE: admins only (not every member) ──
 drop policy if exists "Members can update conversations" on public.conversations;
+drop policy if exists "Admins can update conversations" on public.conversations;
 create policy "Admins can update conversations"
   on public.conversations for update to authenticated
   using (public.is_conversation_admin(id))

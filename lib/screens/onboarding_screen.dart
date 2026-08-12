@@ -5,10 +5,14 @@ import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../utils/board_tab_bus.dart';
+import '../utils/main_tab_bus.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/murkot_decor.dart';
 
 String onboardingPrefsKey(String userId) => 'onboarding_completed_$userId';
+
+String boardWelcomePrefsKey(String userId) => 'board_welcome_pending_$userId';
 
 /// Minimum viable developer card for Match / discovery.
 bool hasMinimumDevCard(User user) =>
@@ -17,6 +21,15 @@ bool hasMinimumDevCard(User user) =>
 bool needsOnboarding(User user, SharedPreferences prefs) {
   if (prefs.getBool(onboardingPrefsKey(user.id)) ?? false) return false;
   return !hasMinimumDevCard(user);
+}
+
+Future<void> enterBoardAfterOnboarding(
+  SharedPreferences prefs,
+  String userId,
+) async {
+  resetMainTabBus();
+  requestBoardTab(0);
+  await prefs.setBool(boardWelcomePrefsKey(userId), true);
 }
 
 /// Five-step first-run wizard (goal → skills → level → city → links).
@@ -141,6 +154,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // Skip: close the gate without writing a default lookingForTeam card.
     if (force) {
       await widget.prefs.setBool(onboardingPrefsKey(user.id), true);
+      await enterBoardAfterOnboarding(widget.prefs, user.id);
       if (!mounted) return;
       setState(() => _saving = false);
       widget.authService.pingListeners();
@@ -164,6 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // mark done without overwriting.
     if (hasMinimumDevCard(user)) {
       await widget.prefs.setBool(onboardingPrefsKey(user.id), true);
+      await enterBoardAfterOnboarding(widget.prefs, user.id);
       if (!mounted) return;
       setState(() => _saving = false);
       widget.authService.pingListeners();
@@ -195,6 +210,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     await widget.prefs.setBool(onboardingPrefsKey(user.id), true);
+    await enterBoardAfterOnboarding(widget.prefs, user.id);
     if (!mounted) return;
     setState(() => _saving = false);
     widget.authService.pingListeners();

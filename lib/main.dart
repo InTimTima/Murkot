@@ -201,4 +201,4 @@ class _MurkotRootHome extends StatelessWidget {
   }
 }
 
-typedef TujhMessengerApp = MurkotApp;
+typedef TujhMessengerApp = MurkotApp; // legacy alias

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:tujh_messenger/config/supabase_config.dart';
+import 'package:murkot/config/supabase_config.dart';
 
 Future<void> main() async {
   final base = SupabaseConfig.url;

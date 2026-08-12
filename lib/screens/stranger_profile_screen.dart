@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,6 +17,7 @@ import '../widgets/avatar_display.dart' hide pickRandomEmoji;
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/murkot_decor.dart';
+import '../widgets/report_sheet.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'media_viewer_screen.dart';
 import 'user_search_sheet.dart';
@@ -75,6 +77,55 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
   bool get _isGroup => _conversation.type == ConversationType.group;
   bool get _isBlocked =>
       _isDirect && widget.blacklistService.isBlocked(_conversation.name);
+
+  Future<void> _reportProfile() async {
+    await showReportSheet(
+      context: context,
+      targetType: 'profile',
+      targetId: _conversation.name,
+      targetLabel: '@${_conversation.name}',
+    );
+  }
+
+  Future<void> _createInvite() async {
+    final strings = context.strings;
+    try {
+      final token =
+          await widget.chatService.createConversationInvite(_conversation.id);
+      await Clipboard.setData(ClipboardData(text: token));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.inviteCreated}: $token')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
+
+  Future<void> _togglePublic(bool makePublic) async {
+    try {
+      await widget.chatService
+          .setConversationPublic(_conversation.id, makePublic);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            makePublic
+                ? context.strings.inviteMakePublic
+                : context.strings.inviteMakePrivate,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
 
   Future<void> _blockUser() async {
     final strings = context.strings;
@@ -448,6 +499,12 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
                 actions: [
                   if (_isDirect)
                     _ProfileAction(
+                      icon: Icons.flag_outlined,
+                      label: strings.reportTitle,
+                      onPressed: _reportProfile,
+                    ),
+                  if (_isDirect)
+                    _ProfileAction(
                       icon: _isBlocked ? Icons.lock_open : Icons.block,
                       label: _isBlocked
                           ? strings.unblockUser
@@ -456,6 +513,21 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
                       isDestructive: !_isBlocked,
                     ),
                   if (_conversation.isAdmin && !_isDirect) ...[
+                    _ProfileAction(
+                      icon: Icons.link,
+                      label: strings.inviteCreate,
+                      onPressed: _createInvite,
+                    ),
+                    _ProfileAction(
+                      icon: Icons.public,
+                      label: strings.inviteMakePublic,
+                      onPressed: () => _togglePublic(true),
+                    ),
+                    _ProfileAction(
+                      icon: Icons.lock_outline,
+                      label: strings.inviteMakePrivate,
+                      onPressed: () => _togglePublic(false),
+                    ),
                     _ProfileAction(
                       icon: Icons.photo_camera_outlined,
                       label: strings.changeAvatar,

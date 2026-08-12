@@ -7,6 +7,7 @@ import '../models/user.dart';
 import '../utils/board_tab_bus.dart';
 import '../utils/helpers.dart';
 import '../utils/main_tab_bus.dart';
+import 'analytics_service.dart';
 import 'avatar_service.dart';
 
 class AuthService extends ChangeNotifier {
@@ -238,6 +239,7 @@ class AuthService extends ChangeNotifier {
         if (_currentUser == null) {
           return 'Аккаунт создан, но профиль не загрузился. Войдите снова.';
         }
+        await AnalyticsService.instance.track('register');
         return null;
       }
 
@@ -456,6 +458,10 @@ class AuthService extends ChangeNotifier {
         portfolioUrl: portfolioUrl ?? '',
         city: city ?? '',
       ));
+      await AnalyticsService.instance.track('dev_card_save', {
+        'status': devStatus.dbValue,
+        'skills': skills.length,
+      });
       return null;
     } catch (e) {
       debugPrint('updateDeveloperCard failed: $e');

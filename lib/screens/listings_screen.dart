@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/listing.dart';
+import '../models/message.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
@@ -15,6 +16,8 @@ import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/murkot_decor.dart';
+import '../widgets/report_sheet.dart';
+import '../services/analytics_service.dart';
 import 'chat_screen.dart';
 
 class ListingsScreen extends StatefulWidget {
@@ -77,6 +80,14 @@ class _ListingsScreenState extends State<ListingsScreen> {
     try {
       final conversation =
           await widget.chatService.openDirectChat(listing.author);
+      await widget.chatService.sendMessage(
+        conversationId: conversation.id,
+        type: MessageType.text,
+        content: preview,
+      );
+      await AnalyticsService.instance.track('listing_respond', {
+        'listing_id': listing.id,
+      });
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -87,7 +98,6 @@ class _ListingsScreenState extends State<ListingsScreen> {
             presenceService: widget.presenceService,
             currentUserLogin: widget.currentUserLogin,
             settingsService: widget.settingsService,
-            initialComposerText: preview,
           ),
         ),
       );
@@ -97,6 +107,25 @@ class _ListingsScreenState extends State<ListingsScreen> {
         SnackBar(content: Text(strings.openChatFailed)),
       );
     }
+  }
+
+  Future<void> _hide(Listing listing) async {
+    final error = await widget.listingsService.hideListing(listing.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? context.strings.hideListingDone),
+      ),
+    );
+  }
+
+  Future<void> _report(Listing listing) async {
+    await showReportSheet(
+      context: context,
+      targetType: 'listing',
+      targetId: listing.id,
+      targetLabel: listing.title,
+    );
   }
 
   Future<void> _delete(Listing listing) async {
@@ -221,10 +250,10 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                   : strings.listingsEmpty,
                               actionLabel: service.hasActiveFilters
                                   ? strings.clearFilters
-                                  : null,
+                                  : strings.listingsEmptyAction,
                               onAction: service.hasActiveFilters
                                   ? service.clearFilters
-                                  : null,
+                                  : _create,
                             )
                           : RefreshIndicator(
                               onRefresh: service.refresh,
@@ -242,6 +271,8 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                     onRespond: () => _respond(listing),
                                     onEdit: () => _edit(listing),
                                     onDelete: () => _delete(listing),
+                                    onHide: () => _hide(listing),
+                                    onReport: () => _report(listing),
                                   );
                                 },
                               ),
@@ -484,6 +515,8 @@ class _ListingCard extends StatelessWidget {
     required this.onRespond,
     required this.onEdit,
     required this.onDelete,
+    required this.onHide,
+    required this.onReport,
   });
 
   final Listing listing;
@@ -491,6 +524,8 @@ class _ListingCard extends StatelessWidget {
   final VoidCallback onRespond;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onHide;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -534,24 +569,54 @@ class _ListingCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isMine)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      strings.listingMineBadge,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'hide':
+                        onHide();
+                      case 'report':
+                        onReport();
+                      case 'edit':
+                        onEdit();
+                      case 'delete':
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (!isMine) ...[
+                      PopupMenuItem(
+                        value: 'hide',
+                        child: Text(strings.hideListing),
                       ),
-                    ),
-                  ),
+                      PopupMenuItem(
+                        value: 'report',
+                        child: Text(strings.reportTitle),
+                      ),
+                    ],
+                    if (isMine) ...[
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text(strings.listingEditAction),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(strings.deleteAction),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
+            if (isMine) ...[
+              const SizedBox(height: 6),
+              Text(
+                strings.listingMineBadge,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,

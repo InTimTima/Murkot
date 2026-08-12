@@ -58,8 +58,10 @@ class _MainScreenState extends State<MainScreen> {
   bool _loadingData = false;
   bool _showBoot = true;
   bool _bootFailed = false;
+  bool _bootSlow = false;
   bool _retriedInit = false;
   DateTime? _bootStartedAt;
+  Timer? _bootSlowTimer;
 
   @override
   void initState() {
@@ -88,6 +90,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _disposeSessionServices() {
+    _bootSlowTimer?.cancel();
+    _bootSlowTimer = null;
     _chatService?.dispose();
     _presenceService?.dispose();
     _listingsService?.dispose();
@@ -163,7 +167,14 @@ class _MainScreenState extends State<MainScreen> {
       _loadingData = true;
       _showBoot = true;
       _bootFailed = false;
+      _bootSlow = false;
       _bootStartedAt = DateTime.now();
+    });
+
+    _bootSlowTimer?.cancel();
+    _bootSlowTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || !_showBoot || _bootFailed) return;
+      setState(() => _bootSlow = true);
     });
 
     unawaited(_notificationService.initialize());
@@ -180,22 +191,27 @@ class _MainScreenState extends State<MainScreen> {
       await Future<void>.delayed(minShow - elapsed);
     }
     if (!mounted) return;
+    _bootSlowTimer?.cancel();
     setState(() {
       if (failed) {
         _bootFailed = true;
+        _bootSlow = false;
         _showBoot = true;
       } else {
         _bootFailed = false;
+        _bootSlow = false;
         _showBoot = false;
       }
     });
   }
 
-  void _openWorkspaceAnyway() {
+  void _continueAnyway() {
     if (!mounted) return;
+    _bootSlowTimer?.cancel();
     setState(() {
       _showBoot = false;
       _bootFailed = false;
+      _bootSlow = false;
       _loadingData = false;
     });
   }
@@ -305,7 +321,8 @@ class _MainScreenState extends State<MainScreen> {
       return Scaffold(
         body: SessionBootOverlay(
           failed: _bootFailed,
-          onOpenWorkspace: _bootFailed ? _openWorkspaceAnyway : null,
+          allowContinueWhileLoading: _bootSlow,
+          onContinue: (_bootFailed || _bootSlow) ? _continueAnyway : null,
           onRetry: _bootFailed ? _retryBoot : null,
         ),
       );
@@ -439,7 +456,8 @@ class _MainScreenState extends State<MainScreen> {
             duration: const Duration(milliseconds: 320),
             child: SessionBootOverlay(
               failed: _bootFailed,
-              onOpenWorkspace: _bootFailed ? _openWorkspaceAnyway : null,
+              allowContinueWhileLoading: _bootSlow,
+              onContinue: (_bootFailed || _bootSlow) ? _continueAnyway : null,
               onRetry: _bootFailed ? _retryBoot : null,
             ),
           ),

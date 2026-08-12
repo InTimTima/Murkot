@@ -9,12 +9,16 @@ class SessionBootOverlay extends StatefulWidget {
   const SessionBootOverlay({
     super.key,
     this.failed = false,
-    this.onOpenWorkspace,
+    this.allowContinueWhileLoading = false,
+    this.onContinue,
     this.onRetry,
   });
 
   final bool failed;
-  final VoidCallback? onOpenWorkspace;
+
+  /// After a soft timeout the parent may offer "open app anyway".
+  final bool allowContinueWhileLoading;
+  final VoidCallback? onContinue;
   final VoidCallback? onRetry;
 
   @override
@@ -45,6 +49,18 @@ class _SessionBootOverlayState extends State<SessionBootOverlay>
     final strings = context.strings;
     final theme = Theme.of(context);
     final failed = widget.failed;
+    final slow = !failed && widget.allowContinueWhileLoading;
+
+    final title = failed
+        ? strings.sessionBootFailedTitle
+        : slow
+            ? strings.sessionBootSlowTitle
+            : strings.sessionBootTitle;
+    final subtitle = failed
+        ? strings.sessionBootFailedSubtitle
+        : slow
+            ? strings.sessionBootSlowSubtitle
+            : strings.sessionBootSubtitle;
 
     return Material(
       color: theme.brightness == Brightness.light
@@ -92,9 +108,7 @@ class _SessionBootOverlayState extends State<SessionBootOverlay>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  failed
-                      ? strings.sessionBootFailedTitle
-                      : strings.sessionBootTitle,
+                  title,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
@@ -102,16 +116,14 @@ class _SessionBootOverlayState extends State<SessionBootOverlay>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  failed
-                      ? strings.sessionBootFailedSubtitle
-                      : strings.sessionBootSubtitle,
+                  subtitle,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
                 ),
                 const SizedBox(height: 28),
-                if (!failed)
+                if (!failed && !slow)
                   SizedBox(
                     width: 160,
                     child: ClipRRect(
@@ -125,13 +137,14 @@ class _SessionBootOverlayState extends State<SessionBootOverlay>
                     ),
                   )
                 else ...[
-                  FilledButton(
-                    onPressed: widget.onOpenWorkspace,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(220, 48),
+                  if (widget.onContinue != null)
+                    FilledButton(
+                      onPressed: widget.onContinue,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(220, 48),
+                      ),
+                      child: Text(strings.continueAnyway),
                     ),
-                    child: Text(strings.openWorkspace),
-                  ),
                   if (widget.onRetry != null) ...[
                     const SizedBox(height: 10),
                     TextButton(

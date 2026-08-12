@@ -5,7 +5,7 @@ import '../l10n/app_strings.dart';
 import '../models/user_preview.dart';
 import 'avatar_display.dart';
 
-/// AirDrop-style confirmation before opening a DM with a prefilled request.
+/// Confirmation before sending a listing/project response as the first DM.
 Future<bool> showAirdropContactSheet({
   required BuildContext context,
   required UserPreview recipient,
@@ -49,7 +49,7 @@ class _AirdropContactSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              strings.airdropEyebrow,
+              strings.respondEyebrow,
               style: theme.textTheme.labelSmall?.copyWith(
                 letterSpacing: 1.1,
                 fontWeight: FontWeight.w800,
@@ -58,7 +58,7 @@ class _AirdropContactSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              strings.airdropTitle,
+              strings.respondTitle,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
@@ -66,7 +66,7 @@ class _AirdropContactSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              strings.airdropSubtitle(recipient.login, subjectTitle),
+              strings.respondSubtitle(recipient.login, subjectTitle),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline,
@@ -144,7 +144,7 @@ class _AirdropContactSheet extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () => Navigator.pop(context, true),
                     icon: const Icon(Icons.send_rounded, size: 18),
-                    label: Text(strings.airdropSend),
+                    label: Text(strings.respondSend),
                   ),
                 ),
               ],

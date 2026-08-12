@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/match_candidate.dart';
+import 'analytics_service.dart';
 
 /// Swipe-based team-building matching.
 class MatchService extends ChangeNotifier {
@@ -92,6 +93,14 @@ class MatchService extends ChangeNotifier {
           _feed.where((c) => c.user.id != candidate.user.id).toList(growable: false);
       if (isMatch) {
         await refreshMatches();
+        await AnalyticsService.instance.track('match_mutual', {
+          'target': candidate.user.login,
+        });
+      } else {
+        await AnalyticsService.instance.track(
+          liked ? 'match_like' : 'match_pass',
+          {'target': candidate.user.login},
+        );
       }
       return isMatch;
     } catch (e) {

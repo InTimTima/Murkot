@@ -1,4 +1,4 @@
-package com.tujh.tujh_messenger
+package com.murkot.app
 
 import io.flutter.embedding.android.FlutterActivity
 

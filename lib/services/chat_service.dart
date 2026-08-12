@@ -481,6 +481,35 @@ class ChatService extends ChangeNotifier {
     return conversation;
   }
 
+  /// Admin-only invite token for private groups/channels.
+  Future<String> createConversationInvite(String conversationId) async {
+    final token = await _client.rpc(
+      'create_conversation_invite',
+      params: {'p_conversation_id': conversationId, 'p_days': 7},
+    );
+    return token as String;
+  }
+
+  Future<Conversation?> redeemConversationInvite(String token) async {
+    final id = await _client.rpc(
+      'redeem_conversation_invite',
+      params: {'p_token': token.trim()},
+    );
+    await _loadAll(preserveMessages: true);
+    notifyListeners();
+    return getConversation(id as String);
+  }
+
+  Future<void> setConversationPublic(String conversationId, bool isPublic) async {
+    await _client.rpc(
+      'set_conversation_public',
+      params: {
+        'p_conversation_id': conversationId,
+        'p_is_public': isPublic,
+      },
+    );
+  }
+
   /// Search text messages across all my conversations of [type].
   Future<List<MessageSearchHit>> searchMessagesGlobal(
     String query,

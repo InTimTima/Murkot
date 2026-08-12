@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
+import '../models/message.dart';
 import '../models/project.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
@@ -89,6 +90,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     try {
       final conversation =
           await widget.chatService.openDirectChat(project.author);
+      await widget.chatService.sendMessage(
+        conversationId: conversation.id,
+        type: MessageType.text,
+        content: preview,
+      );
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -99,7 +105,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             presenceService: widget.presenceService,
             currentUserLogin: widget.currentUserLogin,
             settingsService: widget.settingsService,
-            initialComposerText: preview,
           ),
         ),
       );
@@ -281,10 +286,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                   : strings.projectsEmpty,
                               actionLabel: service.hasActiveFilters
                                   ? strings.clearFilters
-                                  : null,
+                                  : strings.projectsEmptyAction,
                               onAction: service.hasActiveFilters
                                   ? service.clearFilters
-                                  : null,
+                                  : _create,
                             )
                           : RefreshIndicator(
                               onRefresh: service.refresh,

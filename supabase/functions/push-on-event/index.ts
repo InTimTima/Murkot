@@ -1,9 +1,7 @@
-// Deno Edge Function: send Web Push (and optional FCM) on new messages.
-// Deploy: npx supabase functions deploy push-on-message --no-verify-jwt
-// Secrets:
-//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
-//   Optional: FCM_SERVER_KEY (legacy HTTP)
-// Trigger via Database Webhook on public.messages INSERT (see features_v7.sql).
+// Deno Edge Function: send Web Push for generic push_events rows.
+// Deploy: npx supabase functions deploy push-on-event --no-verify-jwt
+// Secrets: same VAPID_* as push-on-message
+// Trigger: Database Webhook on public.push_events INSERT (see features_v17.sql).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import webpush from 'npm:web-push@3.6.7'
@@ -13,11 +11,10 @@ type WebhookPayload = {
   table: string
   record: {
     id: string
-    conversation_id: string
-    sender_id: string
-    type: string
-    content: string
-    is_deleted_for_all?: boolean
+    user_id: string
+    title: string
+    body: string
+    data?: Record<string, unknown>
   }
 }
 
@@ -25,19 +22,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
-}
-
-function previewBody(type: string, content: string): string {
-  if (type === 'text') {
-    return content.length > 140 ? `${content.slice(0, 137)}...` : content
-  }
-  try {
-    const parsed = JSON.parse(content)
-    if (parsed?.name) return String(parsed.name)
-  } catch (_) {
-    // ignore
-  }
-  return type || 'сообщение'
 }
 
 Deno.serve(async (req) => {
@@ -48,13 +32,8 @@ Deno.serve(async (req) => {
   try {
     const payload = (await req.json()) as WebhookPayload
     const record = payload.record
-    if (!record?.conversation_id || !record?.sender_id) {
+    if (!record?.user_id || !record?.title) {
       return new Response(JSON.stringify({ ok: true, skipped: 'no record' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    if (record.is_deleted_for_all) {
-      return new Response(JSON.stringify({ ok: true, skipped: 'deleted' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -65,57 +44,23 @@ Deno.serve(async (req) => {
 
     const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY')
     const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY')
-    const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:support@murkot.app'
+    const vapidSubject =
+      Deno.env.get('VAPID_SUBJECT') ?? 'mailto:support@murkot.app'
     if (vapidPublic && vapidPrivate) {
       webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate)
-    }
-
-    const [{ data: members }, { data: conversation }, { data: sender }] =
-      await Promise.all([
-        admin
-          .from('conversation_members')
-          .select('user_id')
-          .eq('conversation_id', record.conversation_id),
-        admin
-          .from('conversations')
-          .select('id, name, type')
-          .eq('id', record.conversation_id)
-          .maybeSingle(),
-        admin
-          .from('profiles')
-          .select('id, login')
-          .eq('id', record.sender_id)
-          .maybeSingle(),
-      ])
-
-    const recipientIds = (members ?? [])
-      .map((m) => m.user_id as string)
-      .filter((id) => id !== record.sender_id)
-
-    if (recipientIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
     }
 
     const { data: tokens } = await admin
       .from('device_tokens')
       .select('id, token, platform, user_id')
-      .in('user_id', recipientIds)
+      .eq('user_id', record.user_id)
 
-    const title =
-      conversation?.name?.trim() ||
-      sender?.login ||
-      'Murkot'
-    const body = `${sender?.login ?? 'Кто-то'}: ${previewBody(
-      record.type,
-      record.content,
-    )}`
+    const title = record.title.trim() || 'Murkot'
+    const body = record.body ?? ''
     const pushPayload = JSON.stringify({
       title,
       body,
-      conversationId: record.conversation_id,
-      messageId: record.id,
+      ...(record.data ?? {}),
     })
 
     let sent = 0
@@ -140,10 +85,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               to: token,
               notification: { title, body },
-              data: {
-                conversationId: record.conversation_id,
-                messageId: record.id,
-              },
+              data: record.data ?? {},
             }),
           })
           if (res.ok) sent++

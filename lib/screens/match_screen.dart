@@ -12,11 +12,13 @@ import '../services/chat_service.dart';
 import '../services/match_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
+import '../utils/board_tab_bus.dart';
 import '../utils/main_tab_bus.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
 import '../widgets/murkot_decor.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 import 'chat_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -270,6 +272,7 @@ class _MatchScreenState extends State<MatchScreen> {
                       blacklistService: widget.blacklistService,
                       onOpenChat: _openChat,
                       onRetry: service.refreshMatches,
+                      onBackToFeed: () => setState(() => _showMatches = false),
                     )
                   : _FeedPane(
                       service: service,
@@ -277,6 +280,13 @@ class _MatchScreenState extends State<MatchScreen> {
                       onLike: () => _swipe(true),
                       onPass: () => _swipe(false),
                       onRetry: _loadFeed,
+                      onOpenListings: () {
+                        mainTabIndex.value = MainTabs.board;
+                        requestBoardTab(0);
+                      },
+                      onOpenProfile: () {
+                        mainTabIndex.value = MainTabs.profile;
+                      },
                     ),
             ),
           ],
@@ -293,6 +303,8 @@ class _FeedPane extends StatelessWidget {
     required this.onLike,
     required this.onPass,
     required this.onRetry,
+    required this.onOpenListings,
+    required this.onOpenProfile,
   });
 
   final MatchService service;
@@ -300,6 +312,8 @@ class _FeedPane extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onPass;
   final Future<void> Function() onRetry;
+  final VoidCallback onOpenListings;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +324,7 @@ class _FeedPane extends StatelessWidget {
       return _ErrorState(text: strings.matchLoadFailed, onRetry: onRetry);
     }
     if (service.isLoadingFeed && service.feed.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: MurkotLoader(size: 40));
     }
 
     final shown = candidate;
@@ -322,7 +336,13 @@ class _FeedPane extends StatelessWidget {
           children: [
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.45,
-              child: _EmptyState(text: strings.matchEmptyFeed),
+              child: _EmptyState(
+                text: strings.matchEmptyFeed,
+                primaryLabel: strings.matchEmptyFeedListings,
+                onPrimary: onOpenListings,
+                secondaryLabel: strings.matchEmptyFeedProfile,
+                onSecondary: onOpenProfile,
+              ),
             ),
           ],
         ),
@@ -391,12 +411,14 @@ class _MatchesList extends StatelessWidget {
     required this.blacklistService,
     required this.onOpenChat,
     required this.onRetry,
+    required this.onBackToFeed,
   });
 
   final MatchService service;
   final BlacklistService blacklistService;
   final ValueChanged<MatchCandidate> onOpenChat;
   final Future<void> Function() onRetry;
+  final VoidCallback onBackToFeed;
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +441,11 @@ class _MatchesList extends StatelessWidget {
           children: [
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.45,
-              child: _EmptyState(text: strings.matchEmptyMatches),
+              child: _EmptyState(
+                text: strings.matchEmptyMatches,
+                primaryLabel: strings.matchEmptyMatchesAction,
+                onPrimary: onBackToFeed,
+              ),
             ),
           ],
         ),
@@ -634,9 +660,19 @@ class _MatchCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.text});
+  const _EmptyState({
+    required this.text,
+    this.primaryLabel,
+    this.onPrimary,
+    this.secondaryLabel,
+    this.onSecondary,
+  });
 
   final String text;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -659,6 +695,20 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600),
             ),
+            if (primaryLabel != null && onPrimary != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: onPrimary,
+                child: Text(primaryLabel!),
+              ),
+            ],
+            if (secondaryLabel != null && onSecondary != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onSecondary,
+                child: Text(secondaryLabel!),
+              ),
+            ],
           ],
         ),
       ),

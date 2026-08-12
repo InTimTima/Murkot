@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/listing.dart';
+import 'analytics_service.dart';
 
 /// Loads and mutates the listings board ("looking for team" ads).
 class ListingsService extends ChangeNotifier {
@@ -14,6 +15,7 @@ class ListingsService extends ChangeNotifier {
       '*, author:profiles(id, login, status, avatar_emoji, avatar_url, is_bot)';
 
   List<Listing> _listings = const [];
+  final Set<String> _hiddenIds = {};
   bool _loading = false;
   String? _error;
   ListingType? _typeFilter;
@@ -24,14 +26,15 @@ class ListingsService extends ChangeNotifier {
   ListingType? get typeFilter => _typeFilter;
   String? get skillFilter => _skillFilter;
 
-  /// Listings matching the current filters, newest first.
+  /// Listings matching the current filters, newest first (minus hidden).
   List<Listing> get listings {
     final skill = _skillFilter;
-    if (skill == null) return _listings;
-    return _listings
-        .where((l) =>
-            l.skills.any((s) => s.toLowerCase() == skill.toLowerCase()))
-        .toList();
+    Iterable<Listing> base = _listings.where((l) => !_hiddenIds.contains(l.id));
+    if (skill != null) {
+      base = base.where((l) =>
+          l.skills.any((s) => s.toLowerCase() == skill.toLowerCase()));
+    }
+    return base.toList();
   }
 
   /// All distinct skill tags across loaded listings (for filter chips).
@@ -89,6 +92,20 @@ class ListingsService extends ChangeNotifier {
       _listings = (rows as List)
           .map((row) => Listing.fromRow(Map<String, dynamic>.from(row as Map)))
           .toList();
+
+      try {
+        final hidden = await _client
+            .from('hidden_listings')
+            .select('listing_id')
+            .eq('user_id', _userId);
+        _hiddenIds
+          ..clear()
+          ..addAll(
+            (hidden as List).map((r) => (r as Map)['listing_id'] as String),
+          );
+      } catch (e) {
+        debugPrint('Hidden listings load failed: $e');
+      }
     } catch (e) {
       debugPrint('Listings refresh failed: $e');
       _error = e.toString();
@@ -114,6 +131,9 @@ class ListingsService extends ChangeNotifier {
         'description': description,
         'skills': skills,
         'compensation': compensation?.dbValue,
+      });
+      await AnalyticsService.instance.track('listing_create', {
+        'type': type.dbValue,
       });
       await refresh();
       return null;
@@ -145,6 +165,22 @@ class ListingsService extends ChangeNotifier {
       return null;
     } catch (e) {
       debugPrint('Update listing failed: $e');
+      return e.toString();
+    }
+  }
+
+  /// Hide a listing for the current user only.
+  Future<String?> hideListing(String id) async {
+    try {
+      await _client.from('hidden_listings').upsert({
+        'user_id': _userId,
+        'listing_id': id,
+      });
+      _hiddenIds.add(id);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('Hide listing failed: $e');
       return e.toString();
     }
   }

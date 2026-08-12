@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tujh_messenger/main.dart';
-import 'package:tujh_messenger/services/auth_service.dart';
-import 'package:tujh_messenger/services/settings_service.dart';
+import 'package:murkot/main.dart';
+import 'package:murkot/services/auth_service.dart';
+import 'package:murkot/services/settings_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

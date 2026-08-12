@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
@@ -10,9 +11,11 @@ import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
+import '../widgets/murkot_decor.dart';
 import 'communities_screen.dart';
 import 'listings_screen.dart';
 import 'match_screen.dart';
+import 'onboarding_screen.dart';
 import 'projects_screen.dart';
 
 /// The "Board" tab: listings, projects, matching and community channels.
@@ -48,6 +51,7 @@ class _BoardScreenState extends State<BoardScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   late final Set<int> _builtTabs;
+  bool _showWelcome = false;
 
   @override
   void initState() {
@@ -61,6 +65,24 @@ class _BoardScreenState extends State<BoardScreen>
     );
     _tabs.addListener(_onTabChanged);
     boardTabIndex.addListener(_onExternalTab);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWelcome());
+  }
+
+  Future<void> _loadWelcome() async {
+    final user = widget.authService.currentUser;
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final pending = prefs.getBool(boardWelcomePrefsKey(user.id)) ?? false;
+    if (!mounted || !pending) return;
+    setState(() => _showWelcome = true);
+  }
+
+  Future<void> _dismissWelcome() async {
+    final user = widget.authService.currentUser;
+    setState(() => _showWelcome = false);
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(boardWelcomePrefsKey(user.id), false);
   }
 
   void _onTabChanged() {
@@ -106,6 +128,40 @@ class _BoardScreenState extends State<BoardScreen>
 
     return Column(
       children: [
+        if (_showWelcome)
+          Material(
+            color: theme.colorScheme.secondaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          strings.boardWelcomeTitle,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          strings.boardWelcomeBody,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _dismissWelcome,
+                    child: Text(strings.boardWelcomeAction),
+                  ),
+                ],
+              ),
+            ),
+          ),
         Material(
           color: theme.colorScheme.surface,
           child: TabBar(
@@ -121,9 +177,10 @@ class _BoardScreenState extends State<BoardScreen>
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            children: [
+          child: MurkotAtmosphere(
+            child: TabBarView(
+              controller: _tabs,
+              children: [
               _lazy(
                 0,
                 ListingsScreen(
@@ -170,6 +227,7 @@ class _BoardScreenState extends State<BoardScreen>
                 ),
               ),
             ],
+            ),
           ),
         ),
       ],
