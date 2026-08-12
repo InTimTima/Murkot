@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../l10n/app_strings.dart';
@@ -10,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/settings_service.dart';
 import '../utils/helpers.dart';
+import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
@@ -212,6 +214,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     _statusController.text = widget.authService.currentUser?.status ?? '';
     if (showSnackBar) _showMessage(context.strings.statusSaved);
+  }
+
+  Future<void> _copyProfileLink() async {
+    final login = widget.authService.currentUser?.login;
+    if (login == null) return;
+    final url = buildPublicProfileUrl(login);
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    _showMessage(context.strings.profileLinkCopied);
   }
 
   Future<void> _changeLogin() async {
@@ -453,14 +464,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: MurkotFloatingTooltip(
-                                    message: strings.settingsTitle,
-                                    child: IconButton(
-                                      icon: const Icon(
-                                          Icons.settings_outlined),
-                                      tooltip: '',
-                                      onPressed: _openSettings,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      MurkotFloatingTooltip(
+                                        message: strings.copyProfileLink,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.link),
+                                          tooltip: '',
+                                          onPressed: _copyProfileLink,
+                                        ),
+                                      ),
+                                      MurkotFloatingTooltip(
+                                        message: strings.settingsTitle,
+                                        child: IconButton(
+                                          icon: const Icon(
+                                              Icons.settings_outlined),
+                                          tooltip: '',
+                                          onPressed: _openSettings,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 _AvatarSection(

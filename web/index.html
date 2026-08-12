@@ -33,6 +33,17 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    (function () {
+      var redirect = sessionStorage.getItem('murkot_redirect');
+      if (redirect) {
+        sessionStorage.removeItem('murkot_redirect');
+        if (redirect !== location.href) {
+          history.replaceState(null, '', redirect);
+        }
+      }
+    })();
+  </script>
   <div id="murkot-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:linear-gradient(160deg,#FFF6E8,#FFD27A 55%,#F1891E);color:#5A3010;z-index:9999;">
     <div style="text-align:center">
       <img src="boot-cat.png" alt="Murkot" width="200" height="200" style="display:block;margin:0 auto 22px;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(90,48,16,.18))"/>

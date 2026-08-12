@@ -19,6 +19,7 @@ import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
 import '../utils/main_tab_bus.dart';
+import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/command_palette.dart';
 import '../widgets/murkot_decor.dart';
@@ -28,6 +29,7 @@ import 'about_murkot_screen.dart';
 import 'board_screen.dart';
 import 'messages_hub_screen.dart';
 import 'profile_screen.dart';
+import 'public_profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({
@@ -206,7 +208,37 @@ class _MainScreenState extends State<MainScreen> {
     });
     if (!failed) {
       unawaited(_maybePromptNotifications());
+      unawaited(_openPendingProfileDeepLink());
     }
+  }
+
+  Future<void> _openPendingProfileDeepLink() async {
+    final login = consumePendingProfileLogin();
+    if (login == null) return;
+    final chat = _chatService;
+    final blacklist = _blacklistService;
+    final presence = _presenceService;
+    final user = widget.authService.currentUser;
+    if (chat == null || blacklist == null || presence == null || user == null) {
+      return;
+    }
+    if (login.toLowerCase() == user.login.toLowerCase()) {
+      mainTabIndex.value = MainTabs.profile;
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => PublicProfileScreen(
+          login: login,
+          chatService: chat,
+          blacklistService: blacklist,
+          presenceService: presence,
+          currentUserLogin: user.login,
+          settingsService: widget.settingsService,
+        ),
+      ),
+    );
   }
 
   Future<void> _maybePromptNotifications() async {
@@ -255,6 +287,7 @@ class _MainScreenState extends State<MainScreen> {
       _loadingData = false;
     });
     unawaited(_maybePromptNotifications());
+    unawaited(_openPendingProfileDeepLink());
   }
 
   void _retryBoot() {

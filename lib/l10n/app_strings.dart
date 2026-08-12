@@ -331,6 +331,21 @@ class AppStrings {
   String get compensationPetProject => isRu ? 'Пет-проект' : 'Pet project';
   String get compensationNotSet => isRu ? 'Не указано' : 'Not set';
   String get listingRespond => isRu ? 'Откликнуться' : 'Respond';
+  String get listingResponded =>
+      isRu ? 'Вы откликнулись' : 'You responded';
+  String get listingOpenChat => isRu ? 'Открыть чат' : 'Open chat';
+  String listingResponsesCount(int n) => isRu
+      ? (n == 1 ? '1 отклик' : '$n откликов')
+      : (n == 1 ? '1 response' : '$n responses');
+  String get listingResponsesTitle =>
+      isRu ? 'Отклики на объявление' : 'Listing responses';
+  String get listingResponsesEmpty =>
+      isRu ? 'Пока нет откликов' : 'No responses yet';
+  String get listingResponseAccept => isRu ? 'Принять' : 'Accept';
+  String get listingResponseReject => isRu ? 'Отклонить' : 'Reject';
+  String get listingResponseAccepted => isRu ? 'Принят' : 'Accepted';
+  String get listingResponseRejected => isRu ? 'Отклонён' : 'Rejected';
+  String get listingResponseInChat => isRu ? 'В диалоге' : 'In chat';
   String listingRespondPrefill(String title) => isRu
       ? 'Привет! Откликаюсь на объявление «$title».'
       : 'Hi! Responding to your listing "$title".';
@@ -496,6 +511,28 @@ class AppStrings {
   String get matchItsAMatchBody => isRu
       ? 'Вы оба заинтересованы. Откройте чат и познакомьтесь.'
       : 'You both are interested. Open a chat and say hi.';
+  String matchItsAMatchBodyWithSkills(int shared) => isRu
+      ? 'Вы оба заинтересованы. Общий стек: $shared. Откройте чат и познакомьтесь.'
+      : 'You both are interested. Shared stack: $shared. Open a chat and say hi.';
+  String matchChatOpener({
+    required String peerLogin,
+    int sharedSkills = 0,
+    List<String> peerSkills = const [],
+  }) {
+    final skillBit = sharedSkills > 0
+        ? (isRu
+            ? ' У нас $sharedSkills в общем стеке.'
+            : ' We share $sharedSkills skills.')
+        : (peerSkills.isEmpty
+            ? ''
+            : (isRu
+                ? ' Видел(а) твой стек: ${peerSkills.join(', ')}.'
+                : ' Noticed your stack: ${peerSkills.join(', ')}.'));
+    return isRu
+        ? 'Привет, @$peerLogin! Мы сматчились.$skillBit Давай познакомимся.'
+        : 'Hey @$peerLogin! We matched.$skillBit Nice to meet you.';
+  }
+
   String get matchOpenChat => isRu ? 'Написать' : 'Message';
   String get matchKeepSwiping =>
       isRu ? 'Продолжить' : 'Keep swiping';
@@ -519,6 +556,10 @@ class AppStrings {
       : 'Could not save your choice';
   String get matchSharedSkills =>
       isRu ? 'Общий стек' : 'Shared stack';
+  String get copyProfileLink =>
+      isRu ? 'Скопировать ссылку на профиль' : 'Copy profile link';
+  String get profileLinkCopied =>
+      isRu ? 'Ссылка на профиль скопирована' : 'Profile link copied';
   String get matchHint => isRu
       ? 'Лайкайте подходящих людей — при взаимном интересе откроется чат'
       : 'Like people who fit — a mutual interest opens a chat';

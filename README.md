@@ -28,6 +28,12 @@ flutter run -d chrome --web-hostname 127.0.0.1 --web-port 8080
 5. **`features_v17.sql`** — push events (матч), жалобы, скрытие объявлений, аналитика, инвайты в группы
 
 5. **`features_v18.sql`** — очередь жалоб (модераторы, resolve/dismiss, снятие объявления)
+6. **`features_v19.sql`** — отклики на объявления (`listing_responses`)
+
+### Публичный профиль
+
+- Ссылка вида `https://quannxxii.github.io/Murkot/@login` (кнопка «ссылка» в своём профиле)
+- Deep link открывает карточку после входа; для GitHub Pages нужен `web/404.html` в деплое
 
 ### Модерация (после v18)
 

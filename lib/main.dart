@@ -14,12 +14,16 @@ import 'screens/main_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/settings_service.dart';
+import 'utils/configure_web.dart';
+import 'utils/profile_deep_link.dart';
 import 'widgets/murkot_decor.dart';
 import 'widgets/unlumen/murkot_fx.dart';
 import 'widgets/unlumen/murkot_theme_transition.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureWebApp();
+  captureInitialProfileDeepLink();
 
   await Supabase.initialize(
     url: SupabaseConfig.url,

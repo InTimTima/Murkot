@@ -19,6 +19,8 @@ class ListingsService extends ChangeNotifier {
 
   List<Listing> _listings = const [];
   final Set<String> _hiddenIds = {};
+  final Map<String, ListingResponse> _myResponsesByListing = {};
+  final Map<String, List<ListingResponse>> _incomingByListing = {};
   bool _loading = false;
   String? _error;
   ListingType? _typeFilter;
@@ -130,6 +132,15 @@ class ListingsService extends ChangeNotifier {
 
   bool isMine(Listing listing) => listing.authorId == _userId;
 
+  ListingResponse? myResponseFor(String listingId) =>
+      _myResponsesByListing[listingId];
+
+  int incomingResponseCount(String listingId) =>
+      _incomingByListing[listingId]?.length ?? 0;
+
+  List<ListingResponse> incomingResponses(String listingId) =>
+      List.unmodifiable(_incomingByListing[listingId] ?? const []);
+
   void setTypeFilter(ListingType? type) {
     if (_typeFilter == type) return;
     _typeFilter = type;
@@ -236,12 +247,112 @@ class ListingsService extends ChangeNotifier {
       } catch (e) {
         debugPrint('Hidden listings load failed: $e');
       }
+
+      await _loadResponses();
     } catch (e) {
       debugPrint('Listings refresh failed: $e');
       _error = e.toString();
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadResponses() async {
+    _myResponsesByListing.clear();
+    _incomingByListing.clear();
+    try {
+      final mine = await _client
+          .from('listing_responses')
+          .select(
+            'id, listing_id, responder_id, status, conversation_id, note, created_at',
+          )
+          .eq('responder_id', _userId);
+      for (final row in (mine as List)) {
+        final response =
+            ListingResponse.fromRow(Map<String, dynamic>.from(row as Map));
+        _myResponsesByListing[response.listingId] = response;
+      }
+    } catch (e) {
+      debugPrint('My listing responses load failed: $e');
+    }
+
+    final myListingIds = _listings
+        .where((l) => l.authorId == _userId)
+        .map((l) => l.id)
+        .toList();
+    if (myListingIds.isEmpty) return;
+
+    try {
+      final incoming = await _client
+          .from('listing_responses')
+          .select(
+            'id, listing_id, responder_id, status, conversation_id, note, created_at, '
+            'responder:profiles!listing_responses_responder_id_fkey(login, avatar_emoji)',
+          )
+          .inFilter('listing_id', myListingIds)
+          .order('created_at', ascending: false);
+      for (final row in (incoming as List)) {
+        final response =
+            ListingResponse.fromRow(Map<String, dynamic>.from(row as Map));
+        _incomingByListing
+            .putIfAbsent(response.listingId, () => <ListingResponse>[])
+            .add(response);
+      }
+    } catch (e) {
+      debugPrint('Incoming listing responses load failed: $e');
+    }
+  }
+
+  /// Records a response after opening a chat. Returns error or null.
+  Future<String?> recordResponse({
+    required String listingId,
+    String? conversationId,
+    String note = '',
+  }) async {
+    try {
+      final row = await _client.rpc(
+        'respond_to_listing',
+        params: {
+          'p_listing_id': listingId,
+          'p_conversation_id': conversationId,
+          'p_note': note,
+        },
+      );
+      if (row is Map) {
+        final response =
+            ListingResponse.fromRow(Map<String, dynamic>.from(row));
+        _myResponsesByListing[listingId] = response;
+        notifyListeners();
+      } else {
+        await _loadResponses();
+        notifyListeners();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('recordResponse failed: $e');
+      return e.toString();
+    }
+  }
+
+  Future<String?> setResponseStatus({
+    required String responseId,
+    required ListingResponseStatus status,
+  }) async {
+    try {
+      await _client.rpc(
+        'set_listing_response_status',
+        params: {
+          'p_response_id': responseId,
+          'p_status': status.dbValue,
+        },
+      );
+      await _loadResponses();
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('setResponseStatus failed: $e');
+      return e.toString();
     }
   }
 

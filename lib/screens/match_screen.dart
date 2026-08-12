@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/match_candidate.dart';
+import '../models/message.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
@@ -14,6 +15,7 @@ import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
 import '../utils/main_tab_bus.dart';
+import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
@@ -74,11 +76,41 @@ class _MatchScreenState extends State<MatchScreen> {
         .skipBlockedLogins(widget.blacklistService.blockedUsers);
   }
 
-  Future<void> _openChat(MatchCandidate candidate) async {
+  Future<void> _openChat(
+    MatchCandidate candidate, {
+    bool alreadyConfirmed = false,
+  }) async {
     final strings = context.strings;
+    final opener = strings.matchChatOpener(
+      peerLogin: candidate.user.login,
+      sharedSkills: candidate.sharedSkills,
+      peerSkills: candidate.user.skills.take(3).toList(),
+    );
+
+    if (!alreadyConfirmed) {
+      final confirmed = await showAirdropContactSheet(
+        context: context,
+        recipient: candidate.preview,
+        subjectTitle: strings.matchItsAMatch,
+        previewText: opener,
+      );
+      if (!confirmed || !mounted) return;
+    }
+
     try {
       final conversation =
           await widget.chatService.openDirectChat(candidate.preview);
+      await widget.chatService.ensureMessagesLoaded(conversation.id);
+      final hasText = widget.chatService
+          .getMessages(conversation.id)
+          .any((m) => m.type == MessageType.text);
+      if (!hasText) {
+        await widget.chatService.sendMessage(
+          conversationId: conversation.id,
+          type: MessageType.text,
+          content: opener,
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -102,6 +134,9 @@ class _MatchScreenState extends State<MatchScreen> {
 
   Future<void> _showMatchDialog(MatchCandidate candidate) async {
     final strings = context.strings;
+    final body = candidate.sharedSkills > 0
+        ? strings.matchItsAMatchBodyWithSkills(candidate.sharedSkills)
+        : strings.matchItsAMatchBody;
     final openChat = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -124,7 +159,7 @@ class _MatchScreenState extends State<MatchScreen> {
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            Text(strings.matchItsAMatchBody, textAlign: TextAlign.center),
+            Text(body, textAlign: TextAlign.center),
           ],
         ),
         actions: [
@@ -140,7 +175,7 @@ class _MatchScreenState extends State<MatchScreen> {
       ),
     );
     if (openChat == true && mounted) {
-      await _openChat(candidate);
+      await _openChat(candidate, alreadyConfirmed: true);
     }
   }
 

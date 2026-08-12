@@ -231,6 +231,12 @@ class _ListingsScreenState extends State<ListingsScreen> {
 
   Future<void> _respond(Listing listing) async {
     final strings = context.strings;
+    final existing = widget.listingsService.myResponseFor(listing.id);
+    if (existing != null) {
+      await _openResponseChat(listing);
+      return;
+    }
+
     final preview = strings.listingRespondPrefill(listing.title);
     final confirmed = await showAirdropContactSheet(
       context: context,
@@ -247,6 +253,11 @@ class _ListingsScreenState extends State<ListingsScreen> {
         conversationId: conversation.id,
         type: MessageType.text,
         content: preview,
+      );
+      await widget.listingsService.recordResponse(
+        listingId: listing.id,
+        conversationId: conversation.id,
+        note: preview,
       );
       await AnalyticsService.instance.track('listing_respond', {
         'listing_id': listing.id,
@@ -270,6 +281,129 @@ class _ListingsScreenState extends State<ListingsScreen> {
         SnackBar(content: Text(strings.openChatFailed)),
       );
     }
+  }
+
+  Future<void> _openResponseChat(Listing listing) async {
+    final strings = context.strings;
+    try {
+      final conversation =
+          await widget.chatService.openDirectChat(listing.author);
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => ChatScreen(
+            conversation: conversation,
+            chatService: widget.chatService,
+            blacklistService: widget.blacklistService,
+            presenceService: widget.presenceService,
+            currentUserLogin: widget.currentUserLogin,
+            settingsService: widget.settingsService,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.openChatFailed)),
+      );
+    }
+  }
+
+  Future<void> _showIncomingResponses(Listing listing) async {
+    final service = widget.listingsService;
+    final strings = context.strings;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return ListenableBuilder(
+          listenable: service,
+          builder: (context, _) {
+            final responses = service.incomingResponses(listing.id);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      strings.listingResponsesTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (responses.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          strings.listingResponsesEmpty,
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: responses.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final r = responses[index];
+                            return ListTile(
+                              leading: Text(
+                                r.responderEmoji ?? '👤',
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              title: Text(r.responderLogin ?? '?'),
+                              subtitle: Text(_responseStatusLabel(strings, r.status)),
+                              trailing: r.status == ListingResponseStatus.inChat ||
+                                      r.status == ListingResponseStatus.pending
+                                  ? Wrap(
+                                      spacing: 4,
+                                      children: [
+                                        IconButton(
+                                          tooltip: strings.listingResponseAccept,
+                                          onPressed: () async {
+                                            await service.setResponseStatus(
+                                              responseId: r.id,
+                                              status:
+                                                  ListingResponseStatus.accepted,
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.check_circle_outline,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: strings.listingResponseReject,
+                                          onPressed: () async {
+                                            await service.setResponseStatus(
+                                              responseId: r.id,
+                                              status:
+                                                  ListingResponseStatus.rejected,
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.cancel_outlined,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _hide(Listing listing) async {
@@ -431,10 +565,17 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                 itemCount: listings.length,
                                 itemBuilder: (context, index) {
                                   final listing = listings[index];
+                                  final mine = service.isMine(listing);
                                   return _ListingCard(
                                     listing: listing,
-                                    isMine: service.isMine(listing),
+                                    isMine: mine,
+                                    myResponse: service.myResponseFor(listing.id),
+                                    incomingCount:
+                                        service.incomingResponseCount(listing.id),
                                     onRespond: () => _respond(listing),
+                                    onOpenResponses: mine
+                                        ? () => _showIncomingResponses(listing)
+                                        : null,
                                     onEdit: () => _edit(listing),
                                     onDelete: () => _delete(listing),
                                     onHide: () => _hide(listing),
@@ -492,6 +633,17 @@ String listingTypeLabel(AppStrings strings, ListingType type) {
     case ListingType.lookingForMembers:
       return strings.devStatusLookingForMembers;
   }
+}
+
+String _responseStatusLabel(AppStrings strings, ListingResponseStatus status) {
+  return switch (status) {
+    ListingResponseStatus.accepted => strings.listingResponseAccepted,
+    ListingResponseStatus.rejected => strings.listingResponseRejected,
+    ListingResponseStatus.withdrawn => strings.listingResponded,
+    ListingResponseStatus.pending ||
+    ListingResponseStatus.inChat =>
+      strings.listingResponseInChat,
+  };
 }
 
 String compensationLabel(AppStrings strings, ListingCompensation compensation) {
@@ -729,20 +881,26 @@ class _ListingCard extends StatelessWidget {
   const _ListingCard({
     required this.listing,
     required this.isMine,
+    required this.myResponse,
+    required this.incomingCount,
     required this.onRespond,
     required this.onEdit,
     required this.onDelete,
     required this.onHide,
     required this.onReport,
+    this.onOpenResponses,
   });
 
   final Listing listing;
   final bool isMine;
+  final ListingResponse? myResponse;
+  final int incomingCount;
   final VoidCallback onRespond;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onHide;
   final VoidCallback onReport;
+  final VoidCallback? onOpenResponses;
 
   @override
   Widget build(BuildContext context) {
@@ -839,6 +997,24 @@ class _ListingCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (!isMine && myResponse != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${strings.listingResponded} · ${_responseStatusLabel(strings, myResponse!.status)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (isMine && incomingCount > 0) ...[
+              const SizedBox(height: 6),
+              ActionChip(
+                avatar: const Icon(Icons.inbox_outlined, size: 16),
+                label: Text(strings.listingResponsesCount(incomingCount)),
+                onPressed: onOpenResponses,
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
@@ -915,6 +1091,14 @@ class _ListingCard extends StatelessWidget {
                   ? Wrap(
                       spacing: 4,
                       children: [
+                        if (incomingCount > 0)
+                          TextButton.icon(
+                            onPressed: onOpenResponses,
+                            icon: const Icon(Icons.inbox_outlined, size: 18),
+                            label: Text(
+                              strings.listingResponsesCount(incomingCount),
+                            ),
+                          ),
                         TextButton.icon(
                           onPressed: onEdit,
                           icon: const Icon(Icons.edit_outlined, size: 18),
@@ -932,8 +1116,17 @@ class _ListingCard extends StatelessWidget {
                     )
                   : FilledButton.tonalIcon(
                       onPressed: onRespond,
-                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                      label: Text(strings.listingRespond),
+                      icon: Icon(
+                        myResponse == null
+                            ? Icons.chat_bubble_outline
+                            : Icons.forum_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        myResponse == null
+                            ? strings.listingRespond
+                            : strings.listingOpenChat,
+                      ),
                     ),
             ),
           ],
