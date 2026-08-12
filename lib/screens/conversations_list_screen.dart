@@ -9,6 +9,7 @@ import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
+import '../utils/invite_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/conversation_list_tile.dart';
@@ -140,9 +141,16 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
       ),
     );
     if (token == null || token.isEmpty || !mounted) return;
+    final normalized = normalizeInviteInput(token);
+    if (normalized == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.inviteRedeemFailed)),
+      );
+      return;
+    }
     try {
       final conversation =
-          await widget.chatService.redeemConversationInvite(token);
+          await widget.chatService.redeemConversationInvite(normalized);
       if (!mounted) return;
       if (conversation != null) _openChat(conversation);
     } catch (e) {

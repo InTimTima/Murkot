@@ -19,6 +19,7 @@ import '../services/people_service.dart';
 import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
+import '../utils/invite_deep_link.dart';
 import '../utils/main_tab_bus.dart';
 import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
@@ -28,6 +29,7 @@ import '../widgets/session_boot.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'about_murkot_screen.dart';
 import 'board_screen.dart';
+import 'chat_screen.dart';
 import 'messages_hub_screen.dart';
 import 'profile_screen.dart';
 import 'public_profile_screen.dart';
@@ -213,7 +215,46 @@ class _MainScreenState extends State<MainScreen> {
     });
     if (!failed) {
       unawaited(_maybePromptNotifications());
-      unawaited(_openPendingProfileDeepLink());
+      unawaited(_openPendingDeepLinks());
+    }
+  }
+
+  Future<void> _openPendingDeepLinks() async {
+    await _openPendingInviteDeepLink();
+    await _openPendingProfileDeepLink();
+  }
+
+  Future<void> _openPendingInviteDeepLink() async {
+    final token = consumePendingInviteToken();
+    if (token == null) return;
+    final chat = _chatService;
+    final blacklist = _blacklistService;
+    final presence = _presenceService;
+    final user = widget.authService.currentUser;
+    if (chat == null || blacklist == null || presence == null || user == null) {
+      return;
+    }
+    try {
+      final conversation = await chat.redeemConversationInvite(token);
+      if (!mounted || conversation == null) return;
+      mainTabIndex.value = MainTabs.chats;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => ChatScreen(
+            conversation: conversation,
+            chatService: chat,
+            blacklistService: blacklist,
+            presenceService: presence,
+            currentUserLogin: user.login,
+            settingsService: widget.settingsService,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.strings.inviteRedeemFailed)),
+      );
     }
   }
 
@@ -292,7 +333,7 @@ class _MainScreenState extends State<MainScreen> {
       _loadingData = false;
     });
     unawaited(_maybePromptNotifications());
-    unawaited(_openPendingProfileDeepLink());
+    unawaited(_openPendingDeepLinks());
   }
 
   void _retryBoot() {

@@ -42,12 +42,16 @@
           history.replaceState(null, '', redirect);
         }
       }
-      // Persist /@login before Flutter path strategy rewrites the URL to "/".
+      // Persist deep links before Flutter path strategy rewrites the URL to "/".
       try {
         var path = location.pathname || '';
-        var m = path.match(/@([A-Za-z0-9_]{2,32})/);
-        if (m) {
-          sessionStorage.setItem('murkot_profile_login', m[1]);
+        var profile = path.match(/@([A-Za-z0-9_]{2,32})/);
+        if (profile) {
+          sessionStorage.setItem('murkot_profile_login', profile[1]);
+        }
+        var invite = path.match(/\/(?:i|join)\/([a-fA-F0-9]{32,128})(?:\/|$)/);
+        if (invite) {
+          sessionStorage.setItem('murkot_invite_token', invite[1]);
         }
       } catch (_) {}
     })();

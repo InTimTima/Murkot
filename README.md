@@ -45,6 +45,7 @@ dart run tool/backend_smoke_test.dart  # signup → chat → cleanup
 
 - Ссылка вида `https://…/@login` (кнопка «ссылка» в своём профиле; на web берётся текущий origin)
 - Deep link открывает карточку после входа
+- **Инвайты в группы/каналы:** `https://…/i/<token>` — «Создать инвайт-ссылку» копирует URL; после входа ссылка сразу вступает
 - **Vercel (рекомендуется):** см. [`docs/vercel.md`](docs/vercel.md) — `base-href /`, SPA rewrites
 - GitHub Pages: `https://quannxxii.github.io/Murkot/` + `web/404.html`
 

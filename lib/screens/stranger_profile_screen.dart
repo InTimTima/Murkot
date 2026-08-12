@@ -13,6 +13,7 @@ import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../services/settings_service.dart';
 import '../utils/helpers.dart';
+import '../utils/invite_deep_link.dart';
 import '../widgets/avatar_display.dart' hide pickRandomEmoji;
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
@@ -92,10 +93,11 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     try {
       final token =
           await widget.chatService.createConversationInvite(_conversation.id);
-      await Clipboard.setData(ClipboardData(text: token));
+      final url = buildPublicInviteUrl(token);
+      await Clipboard.setData(ClipboardData(text: url));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.inviteCreated}: $token')),
+        SnackBar(content: Text(strings.inviteCreated)),
       );
     } catch (e) {
       if (!mounted) return;

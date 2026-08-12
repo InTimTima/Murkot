@@ -100,8 +100,9 @@ class AppStrings {
       isRu ? 'Ссылка скопирована' : 'Invite link copied';
   String get inviteRedeem =>
       isRu ? 'Вступить по инвайту' : 'Join with invite';
-  String get inviteRedeemHint =>
-      isRu ? 'Вставьте токен инвайта' : 'Paste invite token';
+  String get inviteRedeemHint => isRu
+      ? 'Вставьте ссылку или токен инвайта'
+      : 'Paste invite link or token';
   String get inviteRedeemFailed =>
       isRu ? 'Не удалось вступить по инвайту' : 'Could not redeem invite';
   String get inviteMakePublic =>

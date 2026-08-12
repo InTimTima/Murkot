@@ -15,6 +15,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/settings_service.dart';
 import 'utils/configure_web.dart';
+import 'utils/invite_deep_link.dart';
 import 'utils/profile_deep_link.dart';
 import 'widgets/murkot_decor.dart';
 import 'widgets/unlumen/murkot_fx.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configureWebApp();
   captureInitialProfileDeepLink();
+  captureInitialInviteDeepLink();
 
   await Supabase.initialize(
     url: SupabaseConfig.url,
