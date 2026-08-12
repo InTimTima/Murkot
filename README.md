@@ -31,6 +31,16 @@ flutter run -d chrome --web-hostname 127.0.0.1 --web-port 8080
 6. **`features_v19.sql`** — отклики на объявления (`listing_responses`)
 7. **`features_v20.sql`** — поиск людей (`search_people`)
 
+### Smoke / CI
+
+Локально:
+```bash
+dart run tool/soft_launch_smoke.dart   # demo login + listings/people/match
+dart run tool/backend_smoke_test.dart  # signup → chat → cleanup
+```
+
+На GitHub: workflow `.github/workflows/smoke.yml` (push/PR в `main`).
+
 ### Публичный профиль
 
 - Ссылка вида `https://quannxxii.github.io/Murkot/@login` (кнопка «ссылка» в своём профиле)
