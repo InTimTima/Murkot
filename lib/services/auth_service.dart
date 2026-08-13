@@ -29,6 +29,9 @@ class AuthService extends ChangeNotifier {
   /// Skips auth-listener hydrate during same-user password re-check.
   bool _suppressAuthHydrate = false;
 
+  /// Set when the profile row has `is_disabled` so login() can explain why.
+  bool _accountDisabled = false;
+
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get needsEmailVerification => _awaitingEmailConfirmation;
@@ -165,6 +168,15 @@ class AuthService extends ChangeNotifier {
         if (row == null) return;
       }
 
+      if (row['is_disabled'] == true) {
+        _accountDisabled = true;
+        _currentUser = null;
+        _hydrateGeneration++;
+        notifyListeners();
+        unawaited(_client.auth.signOut());
+        return;
+      }
+
       final parsed = User.fromProfileRow(row);
       final sessionEmail = _client.auth.currentUser?.email ?? '';
       _currentUser = parsed.email.isEmpty && sessionEmail.isNotEmpty
@@ -289,6 +301,11 @@ class AuthService extends ChangeNotifier {
       }
 
       await _hydrateSession(session);
+
+      if (_accountDisabled) {
+        _accountDisabled = false;
+        return 'Этот аккаунт заблокирован';
+      }
 
       final current = _currentUser;
       if (current == null) {

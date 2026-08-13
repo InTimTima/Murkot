@@ -10,6 +10,7 @@ import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/settings_service.dart';
+import '../utils/admin.dart';
 import '../utils/helpers.dart';
 import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
@@ -17,6 +18,7 @@ import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
 import '../widgets/unlumen/murkot_fx.dart';
+import 'admin_panel_screen.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -394,6 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context) => SettingsScreen(
           settingsService: widget.settingsService,
           blacklistService: widget.blacklistService,
+          authService: widget.authService,
         ),
       ),
     );
@@ -470,6 +473,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           onPressed: _copyProfileLink,
                                         ),
                                       ),
+                                      if (isMurkotAdminLogin(current.login))
+                                        MurkotFloatingTooltip(
+                                          message: strings.adminTitle,
+                                          child: IconButton(
+                                            icon: const Icon(Icons
+                                                .admin_panel_settings_outlined),
+                                            tooltip: '',
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute<void>(
+                                                  builder: (_) =>
+                                                      AdminPanelScreen(
+                                                    currentLogin:
+                                                        current.login,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                       MurkotFloatingTooltip(
                                         message: strings.settingsTitle,
                                         child: IconButton(

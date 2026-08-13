@@ -30,6 +30,7 @@ flutter run -d chrome --web-hostname 127.0.0.1 --web-port 8080
 5. **`features_v18.sql`** — очередь жалоб (модераторы, resolve/dismiss, снятие объявления)
 6. **`features_v19.sql`** — отклики на объявления (`listing_responses`)
 7. **`features_v20.sql`** — поиск людей (`search_people`)
+8. **`features_v21.sql`** — панель админа (`tima` / `hex`): статистика, бан, снятие объявлений
 
 ### Smoke / CI
 

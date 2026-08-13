@@ -91,6 +91,76 @@ class AppStrings {
       : 'The listing will stop showing on the board.';
   String get moderationListingDeactivated =>
       isRu ? 'Объявление снято' : 'Listing deactivated';
+  String get adminTitle => isRu ? 'Панель админа' : 'Admin panel';
+  String get adminDenied => isRu
+      ? 'Эта панель только для tima и hex.'
+      : 'This panel is only for tima and hex.';
+  String get adminLoadFailed => isRu
+      ? 'Не удалось загрузить статистику'
+      : 'Could not load stats';
+  String get adminNeedsMigration => isRu
+      ? 'Нужно применить supabase/features_v21.sql в SQL Editor.'
+      : 'Apply supabase/features_v21.sql in the SQL Editor.';
+  String get adminOnlineNow => isRu ? 'Сейчас онлайн' : 'Online now';
+  String get adminUsersTotal => isRu ? 'Всего пользователей' : 'Total users';
+  String get adminUsersToday => isRu ? 'Новые сегодня' : 'New today';
+  String get adminUsersWeek => isRu ? 'Новые за неделю' : 'New this week';
+  String get adminListingsActive =>
+      isRu ? 'Активные объявления' : 'Active listings';
+  String adminListingsHint(int total) =>
+      isRu ? 'из $total всего' : 'of $total total';
+  String get adminProjects => isRu ? 'Проекты' : 'Projects';
+  String get adminChats => isRu ? 'Чаты' : 'Chats';
+  String get adminDirect => isRu ? 'личных' : 'direct';
+  String get adminGroups => isRu ? 'групп' : 'groups';
+  String get adminChannels => isRu ? 'каналов' : 'channels';
+  String get adminMessagesToday =>
+      isRu ? 'Сообщения сегодня' : 'Messages today';
+  String adminMessagesHint(int total) =>
+      isRu ? 'всего $total' : '$total total';
+  String get adminReportsOpen => isRu ? 'Открытые жалобы' : 'Open reports';
+  String adminReportsHint(int count) => isRu
+      ? 'В очереди: $count'
+      : 'In queue: $count';
+  String get adminSwipesToday =>
+      isRu ? 'Свайпы сегодня' : 'Swipes today';
+  String get adminDisabledCount =>
+      isRu ? 'Заблокированы' : 'Disabled';
+  String get adminUsers => isRu ? 'Пользователи' : 'Users';
+  String get adminSearchHint =>
+      isRu ? 'Поиск по логину или городу' : 'Search by login or city';
+  String get adminOnlineOnly =>
+      isRu ? 'Только кто сейчас онлайн' : 'Online only';
+  String get adminUsersEmpty =>
+      isRu ? 'Никого не нашлось' : 'No users found';
+  String get adminBadge => 'admin';
+  String get adminDisabledBadge => isRu ? 'бан' : 'banned';
+  String adminUserListings(int active, int total) => isRu
+      ? 'объявл. $active/$total'
+      : 'ads $active/$total';
+  String get adminDisable => isRu ? 'Заблокировать' : 'Disable';
+  String get adminEnable => isRu ? 'Разблокировать' : 'Enable';
+  String get adminDisableTitle =>
+      isRu ? 'Заблокировать аккаунт?' : 'Disable this account?';
+  String get adminEnableTitle =>
+      isRu ? 'Разблокировать аккаунт?' : 'Enable this account?';
+  String adminDisableConfirm(String login) => isRu
+      ? '$login не сможет войти, пока бан не снимут.'
+      : '$login will not be able to sign in until the ban is lifted.';
+  String adminEnableConfirm(String login) => isRu
+      ? 'Снять блокировку с $login?'
+      : 'Lift the ban on $login?';
+  String adminDisableDone(String login) =>
+      isRu ? '$login заблокирован' : '$login is disabled';
+  String adminEnableDone(String login) =>
+      isRu ? '$login разблокирован' : '$login is enabled';
+  String get adminDeactivateListings =>
+      isRu ? 'Снять все объявления' : 'Take down all listings';
+  String adminDeactivateListingsConfirm(String login) => isRu
+      ? 'Все объявления $login исчезнут с доски.'
+      : 'All listings by $login will leave the board.';
+  String get adminDeactivateListingsDone =>
+      isRu ? 'Объявления сняты' : 'Listings taken down';
   String get hideListing => isRu ? 'Скрыть у себя' : 'Hide for me';
   String get hideListingDone =>
       isRu ? 'Объявление скрыто' : 'Listing hidden';

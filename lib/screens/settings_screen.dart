@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../services/admin_service.dart';
+import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
 import '../services/moderation_service.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../utils/admin.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/unlumen/murkot_fx.dart';
+import 'admin_panel_screen.dart';
 import 'moderation_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -14,10 +18,12 @@ class SettingsScreen extends StatefulWidget {
     super.key,
     required this.settingsService,
     required this.blacklistService,
+    this.authService,
   });
 
   final SettingsService settingsService;
   final BlacklistService blacklistService;
+  final AuthService? authService;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -29,13 +35,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _interfaceExpanded = false;
   final _labelControllers = <String, TextEditingController>{};
   final _moderationService = ModerationService();
+  final _adminService = AdminService();
   bool _moderatorChecked = false;
+  bool _adminChecked = false;
 
   @override
   void initState() {
     super.initState();
+    final login = widget.authService?.currentUser?.login;
     _moderationService.checkModerator().then((_) {
       if (mounted) setState(() => _moderatorChecked = true);
+    });
+    _adminService.checkAdmin(login: login).then((_) {
+      if (mounted) setState(() => _adminChecked = true);
     });
   }
 
@@ -45,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       c.dispose();
     }
     _moderationService.dispose();
+    _adminService.dispose();
     super.dispose();
   }
 
@@ -143,6 +156,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
+              if (_adminChecked &&
+                  (_adminService.isAdmin == true ||
+                      isMurkotAdminLogin(
+                          widget.authService?.currentUser?.login))) ...[
+                const SizedBox(height: 20),
+                _SectionTitle(title: strings.adminTitle),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.admin_panel_settings_outlined,
+                        color: theme.colorScheme.primary),
+                    title: Text(strings.adminTitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => AdminPanelScreen(
+                            currentLogin:
+                                widget.authService?.currentUser?.login,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               if (_moderatorChecked &&
                   _moderationService.isModerator == true) ...[
                 const SizedBox(height: 20),
