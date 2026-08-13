@@ -1,1 +1,3 @@
 void configureWebApp() {}
+
+void hideMurkotHtmlBoot() {}

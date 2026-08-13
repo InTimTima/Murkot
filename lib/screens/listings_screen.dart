@@ -15,6 +15,7 @@ import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
+import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/report_sheet.dart';
 import '../services/analytics_service.dart';
@@ -519,7 +520,6 @@ class _ListingsScreenState extends State<ListingsScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
-    final theme = Theme.of(context);
     final service = widget.listingsService;
 
     return ListenableBuilder(
@@ -585,39 +585,14 @@ class _ListingsScreenState extends State<ListingsScreen> {
                               ),
                             ),
             ),
-            Material(
-              elevation: 4,
-              color: theme.colorScheme.surface,
-              child: SafeArea(
-                top: false,
-                child: InkWell(
-                  onTap: _create,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border:
-                          Border(top: BorderSide(color: Colors.grey.shade300)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle_outline,
-                            color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          strings.listingCreate,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            MurkotActionPillsRow(
+              pills: [
+                MurkotActionPill(
+                  icon: Icons.add,
+                  label: strings.listingCreate,
+                  onPressed: _create,
                 ),
-              ),
+              ],
             ),
           ],
         );

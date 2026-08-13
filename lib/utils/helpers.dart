@@ -1,4 +1,20 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
 const kMessageCharLimit = 4096;
+
+/// Local filesystem check that is safe on web (`dart:io` File throws there).
+bool localPathExists(String? path) {
+  if (path == null || path.isEmpty) return false;
+  if (kIsWeb) return false;
+  if (path.startsWith('http://') || path.startsWith('https://')) return false;
+  try {
+    return File(path).existsSync();
+  } catch (_) {
+    return false;
+  }
+}
 
 const kRandomAvatarEmojis = [
   '😀', '🦊', '🐱', '🐶', '🌟', '🎮', '🎨', '🔥',

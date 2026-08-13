@@ -15,6 +15,7 @@ import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
+import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
 import 'chat_screen.dart';
 
@@ -429,41 +430,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               ),
                             ),
             ),
-            Material(
-              color: theme.colorScheme.surface,
-              child: SafeArea(
-                top: false,
-                child: InkWell(
-                  onTap: _create,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: isLight ? Colors.black12 : Colors.white12,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle_outline,
-                            color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          strings.projectCreate,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            MurkotActionPillsRow(
+              pills: [
+                MurkotActionPill(
+                  icon: Icons.add,
+                  label: strings.projectCreate,
+                  onPressed: _create,
                 ),
-              ),
+              ],
             ),
           ],
         );

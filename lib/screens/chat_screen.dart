@@ -715,7 +715,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (trimmed.isEmpty) return;
     if (trimmed.toLowerCase() == widget.currentUserLogin.toLowerCase()) {
       // Own profile lives on the main Profile tab.
-      mainTabIndex.value = 3;
+      mainTabIndex.value = MainTabs.profile;
       if (Navigator.of(context).canPop()) Navigator.of(context).pop();
       return;
     }
@@ -1575,18 +1575,29 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Desktop-only vertical navigation (chats / groups / channels / profile).
+  /// Desktop-only vertical navigation (board / messenger filters / profile).
   Widget _buildDesktopNavRail(BuildContext context) {
     final strings = context.strings;
     final theme = Theme.of(context);
-    final selected = switch (_conversation.type) {
+    final selectedFilter = switch (_conversation.type) {
       ConversationType.direct => 0,
       ConversationType.group => 1,
       ConversationType.channel => 2,
     };
 
-    void go(int index) {
-      mainTabIndex.value = index;
+    void goBoard() {
+      mainTabIndex.value = MainTabs.board;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
+    void goMessenger(ConversationType type) {
+      messengerFilter.value = type;
+      mainTabIndex.value = MainTabs.chats;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
+    void goProfile() {
+      mainTabIndex.value = MainTabs.profile;
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
 
@@ -1596,89 +1607,101 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _RailSeparatedBlock(
+            onTap: goBoard,
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.grid_view_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    strings.listingsTab,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
           _RailItem(
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
             label: strings.chats,
-            isSelected: selected == 0,
-            onTap: () => go(0),
+            isSelected: selectedFilter == 0,
+            onTap: () => goMessenger(ConversationType.direct),
           ),
           _RailItem(
             icon: Icons.group_outlined,
             selectedIcon: Icons.group,
             label: strings.groups,
-            isSelected: selected == 1,
-            onTap: () => go(1),
+            isSelected: selectedFilter == 1,
+            onTap: () => goMessenger(ConversationType.group),
           ),
           _RailItem(
             icon: Icons.campaign_outlined,
             selectedIcon: Icons.campaign,
             label: strings.channels,
-            isSelected: selected == 2,
-            onTap: () => go(2),
+            isSelected: selectedFilter == 2,
+            onTap: () => goMessenger(ConversationType.channel),
           ),
-          const SizedBox(height: 10),
-          Divider(height: 1, color: Colors.grey.shade300),
-          const SizedBox(height: 10),
-          Material(
-            color: selected == 3
-                ? theme.colorScheme.primary.withValues(alpha: 0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => go(3),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                child: Row(
-                  children: [
-                    AvatarDisplay(
-                      name: widget.currentUserLogin,
-                      avatarPath: widget.chatService
-                          .avatarUrlForLogin(widget.currentUserLogin),
-                      avatarEmoji: widget.chatService
-                          .emojiForLogin(widget.currentUserLogin),
-                      radius: 26,
-                      fontSize: 18,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            strings.profile,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: selected == 3
-                                  ? theme.colorScheme.primary
-                                  : Colors.grey.shade600,
-                              fontWeight: selected == 3
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            widget.currentUserLogin,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: selected == 3
-                                  ? theme.colorScheme.primary
-                                  : null,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          _RailSeparatedBlock(
+            onTap: goProfile,
+            child: Row(
+              children: [
+                AvatarDisplay(
+                  name: widget.currentUserLogin,
+                  avatarPath: widget.chatService
+                      .avatarUrlForLogin(widget.currentUserLogin),
+                  avatarEmoji: widget.chatService
+                      .emojiForLogin(widget.currentUserLogin),
+                  radius: 26,
+                  fontSize: 18,
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        strings.profile,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                        ),
+                      ),
+                      Text(
+                        widget.currentUserLogin,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade300),
           Expanded(
             child: Center(
               child: InkWell(
@@ -1878,6 +1901,40 @@ class _DesktopChatLayout extends StatelessWidget {
         Expanded(flex: 2, child: child),
         Container(width: 1, color: dividerColor),
         Expanded(flex: 1, child: sidePanel ?? const SizedBox.shrink()),
+      ],
+    );
+  }
+}
+
+/// Vertical navigation item for the desktop rail.
+class _RailSeparatedBlock extends StatelessWidget {
+  const _RailSeparatedBlock({
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Divider(height: 1, color: Colors.grey.shade300),
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              child: child,
+            ),
+          ),
+        ),
+        Divider(height: 1, color: Colors.grey.shade300),
       ],
     );
   }

@@ -6,6 +6,7 @@ import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
+import '../utils/main_tab_bus.dart';
 import 'conversations_list_screen.dart';
 
 /// Single Chats tab with filters: DMs / groups / channels.
@@ -40,6 +41,22 @@ class _MessagesHubScreenState extends State<MessagesHubScreen> {
     super.initState();
     _filter = widget.initialFilter;
     _builtFilters.add(_filter);
+    messengerFilter.addListener(_onExternalFilter);
+  }
+
+  @override
+  void dispose() {
+    messengerFilter.removeListener(_onExternalFilter);
+    super.dispose();
+  }
+
+  void _onExternalFilter() {
+    final next = messengerFilter.value;
+    if (next == _filter || !mounted) return;
+    setState(() {
+      _filter = next;
+      _builtFilters.add(_filter);
+    });
   }
 
   int get _index => switch (_filter) {
@@ -83,10 +100,14 @@ class _MessagesHubScreenState extends State<MessagesHubScreen> {
             ],
             selected: {_filter},
             onSelectionChanged: (next) {
+              final value = next.first;
               setState(() {
-                _filter = next.first;
+                _filter = value;
                 _builtFilters.add(_filter);
               });
+              if (messengerFilter.value != value) {
+                messengerFilter.value = value;
+              }
             },
           ),
         ),

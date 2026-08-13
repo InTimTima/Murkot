@@ -32,7 +32,7 @@
   <title>Murkot</title>
   <link rel="manifest" href="manifest.json">
 </head>
-<body>
+<body style="margin:0;background:#FFFBF0;">
   <script>
     (function () {
       var redirect = sessionStorage.getItem('murkot_redirect');
@@ -56,7 +56,7 @@
       } catch (_) {}
     })();
   </script>
-  <div id="murkot-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:linear-gradient(160deg,#FFF6E8,#FFD27A 55%,#F1891E);color:#5A3010;z-index:9999;">
+  <div id="murkot-boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;background:radial-gradient(circle at 50% 48%,#FFFBF0 0%,#FFF4D4 18%,#FFE08A 42%,#FFC14D 62%,#F5A43A 82%,#F1891E 100%);color:#E07010;z-index:9999;">
     <div style="text-align:center">
       <img src="boot-cat.png" alt="Murkot" width="200" height="200" style="display:block;margin:0 auto 22px;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(90,48,16,.18))"/>
       <!-- Match MurkotLoader: soft track + spinning arc + 3 orbiting citrus dots -->
@@ -71,7 +71,7 @@
         <div class="murkot-loader-dot d4"></div>
         <div class="murkot-loader-core"></div>
       </div>
-      <div style="margin-top:16px;font-size:14px;opacity:.9;font-weight:600;letter-spacing:.08em">Loading Murkot…</div>
+      <div style="margin-top:16px;font-size:14px;font-weight:600;letter-spacing:.04em;color:#E07010">Загрузка Murkot…</div>
     </div>
   </div>
   <style>
@@ -139,13 +139,14 @@
     }
   </style>
   <script>
-    window.addEventListener('flutter-first-frame', function () {
+    window.murkotHideBoot = function () {
       var el = document.getElementById('murkot-boot');
-      if (!el) return;
+      if (!el || el.dataset.hiding) return;
+      el.dataset.hiding = '1';
       el.style.transition = 'opacity .35s ease';
       el.style.opacity = '0';
       setTimeout(function () { el.remove(); }, 380);
-    });
+    };
   </script>
   <script>
     // Voice note recorder (MediaRecorder → base64).

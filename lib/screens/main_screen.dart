@@ -19,11 +19,13 @@ import '../services/people_service.dart';
 import '../services/presence_service.dart';
 import '../services/projects_service.dart';
 import '../services/settings_service.dart';
+import '../utils/configure_web.dart';
 import '../utils/invite_deep_link.dart';
 import '../utils/main_tab_bus.dart';
 import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/command_palette.dart';
+import '../widgets/murkot_boot_screen.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/session_boot.dart';
 import '../widgets/unlumen/murkot_fx.dart';
@@ -185,6 +187,7 @@ class _MainScreenState extends State<MainScreen> {
     _bootSlowTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted || !_showBoot || _bootFailed) return;
       setState(() => _bootSlow = true);
+      hideMurkotHtmlBoot();
     });
 
     unawaited(_notificationService.initialize());
@@ -213,6 +216,9 @@ class _MainScreenState extends State<MainScreen> {
         _showBoot = false;
       }
     });
+    if (failed || !_showBoot) {
+      hideMurkotHtmlBoot();
+    }
     if (!failed) {
       unawaited(_maybePromptNotifications());
       unawaited(_openPendingDeepLinks());
@@ -332,6 +338,7 @@ class _MainScreenState extends State<MainScreen> {
       _bootSlow = false;
       _loadingData = false;
     });
+    hideMurkotHtmlBoot();
     unawaited(_maybePromptNotifications());
     unawaited(_openPendingDeepLinks());
   }
@@ -422,7 +429,7 @@ class _MainScreenState extends State<MainScreen> {
     // During a forced re-login the auth screen replaces this widget on the
     // next frame; render a placeholder instead of crashing on null.
     if (currentUser == null) {
-      return const Scaffold(body: Center(child: MurkotLoader(size: 48)));
+      return const Scaffold(body: MurkotBootScreen());
     }
     final login = currentUser.login;
     final chatService = _chatService;
@@ -540,6 +547,7 @@ class _MainScreenState extends State<MainScreen> {
                         presenceService: presenceService,
                         currentUserLogin: login,
                         settingsService: widget.settingsService,
+                        initialFilter: messengerFilter.value,
                       )
                     : const SizedBox.shrink(),
                 _builtTabs.contains(MainTabs.profile)

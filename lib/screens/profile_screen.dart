@@ -47,19 +47,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _statusController.text = widget.authService.currentUser?.status ?? '';
-    _statusFocusNode.addListener(_onStatusFocusChange);
   }
 
   @override
   void dispose() {
-    _statusFocusNode.removeListener(_onStatusFocusChange);
     _statusFocusNode.dispose();
     _statusController.dispose();
     super.dispose();
-  }
-
-  void _onStatusFocusChange() {
-    if (!_statusFocusNode.hasFocus) _saveStatus(showSnackBar: false);
   }
 
   void _showMessage(String text) {
@@ -274,7 +268,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       locale: widget.settingsService.locale,
     );
     if (picked != null) {
-      await widget.authService.updateBirthday(picked);
+      final error = await widget.authService.updateBirthday(picked);
+      if (!mounted) return;
+      if (error != null) _showMessage(error);
     }
   }
 
@@ -419,8 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final isNetworkWallpaper = customPath != null &&
             (customPath.startsWith('http://') ||
                 customPath.startsWith('https://'));
-        final hasFileWallpaper =
-            customPath != null && !isNetworkWallpaper && File(customPath).existsSync();
+        final hasFileWallpaper = localPathExists(customPath);
         final hasCustomWallpaper = isNetworkWallpaper || hasFileWallpaper;
 
         final screenHeight = MediaQuery.of(context).size.height;
@@ -434,15 +429,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               left: 0,
               right: 0,
               height: wallpaperHeight,
-              child: hasCustomWallpaper
-                  ? (isNetworkWallpaper
-                      ? Image.network(customPath, fit: BoxFit.cover)
-                      : Image.file(File(customPath), fit: BoxFit.cover))
-                  : ProfileWallpaperSurface(
+              child: customPath == null || !hasCustomWallpaper
+                  ? ProfileWallpaperSurface(
                       wallpaper: wallpaper,
                       ornamentSize: 220,
                       ornamentOpacity: 0.28,
-                    ),
+                    )
+                  : (isNetworkWallpaper
+                      ? Image.network(customPath, fit: BoxFit.cover)
+                      : Image.file(File(customPath), fit: BoxFit.cover)),
             ),
             SafeArea(
               bottom: false,
@@ -491,7 +486,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   avatarPath: current.avatarPath,
                                   avatarEmoji: current.avatarEmoji,
                                   login: current.login,
-                                  status: current.status,
                                   devStatus: current.devStatus,
                                   isLoading: _isUpdatingAvatar,
                                   hint: strings.changeAvatarHint,
@@ -606,7 +600,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: OutlinedButton.styleFrom(
                                     minimumSize: const Size(double.infinity, 52),
                                     side: BorderSide(
-                                        color: theme.colorScheme.error.withOpacity(0.5)),
+                                        color: theme.colorScheme.error.withValues(alpha: 0.5)),
                                   ),
                                 ),
                                 const SizedBox(height: 12),
@@ -618,7 +612,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: OutlinedButton.styleFrom(
                                     minimumSize: const Size(double.infinity, 52),
                                     side: BorderSide(
-                                        color: theme.colorScheme.error.withOpacity(0.5)),
+                                        color: theme.colorScheme.error.withValues(alpha: 0.5)),
                                   ),
                                 ),
                               ],
@@ -655,7 +649,6 @@ class _AvatarSection extends StatelessWidget {
     required this.avatarPath,
     required this.avatarEmoji,
     required this.login,
-    required this.status,
     required this.devStatus,
     required this.isLoading,
     required this.hint,
@@ -666,7 +659,6 @@ class _AvatarSection extends StatelessWidget {
   final String? avatarPath;
   final String? avatarEmoji;
   final String login;
-  final String status;
   final DevStatus devStatus;
   final bool isLoading;
   final String hint;
@@ -722,45 +714,6 @@ class _AvatarSection extends StatelessWidget {
             ],
           ),
         ),
-        if (status.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.dividerColor),
-              color: theme.colorScheme.surface.withValues(alpha: 0.65),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.push_pin_outlined,
-                        size: 14, color: theme.colorScheme.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      context.strings.pinnedNoteLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        letterSpacing: 1.0,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  status,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
         if (devStatus != DevStatus.none) ...[
           const SizedBox(height: 10),
           DevStatusBadge(status: devStatus, large: true),

@@ -13,6 +13,7 @@ import '../utils/invite_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/conversation_list_tile.dart';
+import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/section_search_bar.dart';
 import '../widgets/unlumen/murkot_fx.dart';
@@ -370,119 +371,32 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                 ],
               ),
             ),
-            if (widget.type != ConversationType.direct) ...[
-              _StickyActionButton(
-                icon: Icons.vpn_key_outlined,
-                label: strings.inviteRedeem,
-                onPressed: _redeemInvite,
-              ),
-              _StickyActionButton(
-                icon: Icons.search,
-                label: widget.type == ConversationType.channel
-                    ? strings.findChannel
-                    : strings.findGroup,
-                onPressed: _findPublic,
-              ),
-            ],
-            _StickyCreateButton(
-              label: createLabelForSection(strings, _sectionIndex),
-              onPressed: _createNew,
+            MurkotActionPillsRow(
+              pills: [
+                if (widget.type != ConversationType.direct)
+                  MurkotActionPill(
+                    icon: Icons.vpn_key_outlined,
+                    label: strings.inviteRedeem,
+                    onPressed: _redeemInvite,
+                  ),
+                if (widget.type != ConversationType.direct)
+                  MurkotActionPill(
+                    icon: Icons.search,
+                    label: widget.type == ConversationType.channel
+                        ? strings.findChannel
+                        : strings.findGroup,
+                    onPressed: _findPublic,
+                  ),
+                MurkotActionPill(
+                  icon: Icons.add,
+                  label: createLabelForSection(strings, _sectionIndex),
+                  onPressed: _createNew,
+                ),
+              ],
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class _StickyActionButton extends StatelessWidget {
-  const _StickyActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: theme.colorScheme.surface,
-      child: InkWell(
-        onTap: onPressed,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: Colors.grey.shade300)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 20, color: theme.colorScheme.secondary),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StickyCreateButton extends StatelessWidget {
-  const _StickyCreateButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      elevation: 4,
-      color: theme.colorScheme.surface,
-      child: SafeArea(
-        top: false,
-        child: InkWell(
-          onTap: onPressed,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

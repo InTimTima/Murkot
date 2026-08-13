@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../models/conversation.dart';
+import '../utils/helpers.dart';
 
 class AvatarDisplay extends StatelessWidget {
   const AvatarDisplay({
@@ -26,13 +27,12 @@ class AvatarDisplay extends StatelessWidget {
     final path = avatarPath;
     final isNetwork = path != null &&
         (path.startsWith('http://') || path.startsWith('https://'));
-    final hasFile =
-        path != null && !isNetwork && File(path).existsSync();
+    final hasFile = localPathExists(path);
 
     ImageProvider? image;
     if (isNetwork) {
       image = NetworkImage(path);
-    } else if (hasFile) {
+    } else if (hasFile && path != null) {
       image = FileImage(File(path));
     }
 

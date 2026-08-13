@@ -391,12 +391,26 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> updateProfile(User updated) async {
-    await _client.from('profiles').update(updated.toProfileUpdate()).eq(
-          'id',
-          updated.id,
-        );
-    _currentUser = updated;
-    notifyListeners();
+    try {
+      await _patchProfile(updated.toProfileUpdate());
+      _currentUser = updated;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('updateProfile failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _patchProfile(Map<String, dynamic> fields) async {
+    final user = _currentUser;
+    if (user == null) {
+      throw StateError('not signed in');
+    }
+    await _client
+        .from('profiles')
+        .update(fields)
+        .eq('id', user.id)
+        .timeout(const Duration(seconds: 12));
   }
 
   Future<String?> changeLogin(String newLogin) async {
@@ -457,15 +471,27 @@ class AuthService extends ChangeNotifier {
     if (user == null) return 'Пользователь не авторизован';
 
     try {
-      await updateProfile(user.copyWith(
+      final github = _blankToNull(githubUrl);
+      final portfolio = _blankToNull(portfolioUrl);
+      final cityValue = _blankToNull(city);
+      await _client.from('profiles').update({
+        'dev_status': devStatus.dbValue,
+        'skills': skills,
+        'experience_level': experienceLevel?.dbValue,
+        'github_url': github,
+        'portfolio_url': portfolio,
+        'city': cityValue,
+      }).eq('id', user.id).timeout(const Duration(seconds: 12));
+      _currentUser = user.copyWith(
         devStatus: devStatus,
         skills: skills,
         experienceLevel: experienceLevel,
         clearExperienceLevel: experienceLevel == null,
-        githubUrl: githubUrl ?? '',
-        portfolioUrl: portfolioUrl ?? '',
-        city: city ?? '',
-      ));
+        githubUrl: github ?? '',
+        portfolioUrl: portfolio ?? '',
+        city: cityValue ?? '',
+      );
+      notifyListeners();
       await AnalyticsService.instance.track('dev_card_save', {
         'status': devStatus.dbValue,
         'skills': skills.length,
@@ -477,14 +503,22 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> updateBirthday(DateTime? birthday) async {
+  Future<String?> updateBirthday(DateTime? birthday) async {
     final user = _currentUser;
-    if (user == null) return;
-    await updateProfile(
-      birthday == null
+    if (user == null) return 'Пользователь не авторизован';
+    try {
+      await _patchProfile({
+        'birthday': birthday?.toIso8601String().split('T').first,
+      });
+      _currentUser = birthday == null
           ? user.copyWith(clearBirthday: true)
-          : user.copyWith(birthday: birthday),
-    );
+          : user.copyWith(birthday: birthday);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('updateBirthday failed: $e');
+      return 'Не удалось сохранить дату рождения';
+    }
   }
 
   Future<String?> updateAvatarBytes(Uint8List bytes) async {
@@ -496,7 +530,9 @@ class AuthService extends ChangeNotifier {
         login: user.login,
         bytes: bytes,
       );
-      await updateProfile(user.copyWith(avatarPath: savedPath));
+      await _patchProfile({'avatar_url': savedPath});
+      _currentUser = user.copyWith(avatarPath: savedPath);
+      notifyListeners();
       return null;
     } catch (e) {
       debugPrint('updateAvatarBytes failed: $e');
@@ -508,7 +544,9 @@ class AuthService extends ChangeNotifier {
     final user = _currentUser;
     if (user == null) return;
     await AvatarService.deleteAvatar(user.login);
-    await updateProfile(user.copyWith(clearAvatar: true));
+    await _patchProfile({'avatar_url': null});
+    _currentUser = user.copyWith(clearAvatar: true);
+    notifyListeners();
   }
 
   /// Sets an emoji as the avatar (removes the uploaded photo, if any).
@@ -520,7 +558,12 @@ class AuthService extends ChangeNotifier {
       try {
         await AvatarService.deleteAvatar(user.login);
       } catch (_) {}
-      await updateProfile(user.copyWith(avatarEmoji: emoji, clearAvatar: true));
+      await _patchProfile({
+        'avatar_emoji': emoji,
+        'avatar_url': null,
+      });
+      _currentUser = user.copyWith(avatarEmoji: emoji, clearAvatar: true);
+      notifyListeners();
       return null;
     } catch (e) {
       debugPrint('updateAvatarEmoji failed: $e');
@@ -538,7 +581,9 @@ class AuthService extends ChangeNotifier {
         bytes: bytes,
         suffix: 'wallpaper',
       );
-      await updateProfile(user.copyWith(customWallpaperPath: savedPath));
+      await _patchProfile({'custom_wallpaper_url': savedPath});
+      _currentUser = user.copyWith(customWallpaperPath: savedPath);
+      notifyListeners();
       return null;
     } catch (e) {
       debugPrint('updateCustomWallpaperBytes failed: $e');
@@ -556,16 +601,27 @@ class AuthService extends ChangeNotifier {
     }
     if (trimmed == user.status) return null;
 
-    await updateProfile(user.copyWith(status: trimmed));
-    return null;
+    try {
+      await _patchProfile({'status': trimmed});
+      _currentUser = user.copyWith(status: trimmed);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('updateStatus failed: $e');
+      return 'Не удалось сохранить статус';
+    }
   }
 
   Future<void> updateWallpaper(String wallpaperId) async {
     final user = _currentUser;
     if (user == null) return;
-    await updateProfile(
-      user.copyWith(profileWallpaperId: wallpaperId, clearCustomWallpaper: true),
-    );
+    await _patchProfile({
+      'profile_wallpaper_id': wallpaperId,
+      'custom_wallpaper_url': null,
+    });
+    _currentUser =
+        user.copyWith(profileWallpaperId: wallpaperId, clearCustomWallpaper: true);
+    notifyListeners();
   }
 
   String _mapAuthError(AuthException e) {
@@ -586,5 +642,11 @@ class AuthService extends ChangeNotifier {
       return 'Неверный или просроченный код';
     }
     return e.message;
+  }
+
+  String? _blankToNull(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
   }
 }

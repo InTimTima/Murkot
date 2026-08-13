@@ -17,7 +17,7 @@ class AppStrings {
   String get appTagline => isRu
       ? 'Найти команду и проект в IT'
       : 'Find a team and a project in IT';
-  String get messagesTab => isRu ? 'Чаты' : 'Chats';
+  String get messagesTab => isRu ? 'Мессенджер' : 'Messenger';
   String get chatsLoadFailed => isRu
       ? 'Не удалось загрузить чаты. Проверьте сеть и нажмите «Повторить».'
       : 'Could not load chats. Check your network and tap Retry.';
@@ -42,7 +42,7 @@ class AppStrings {
   String get groups => _l(PersonalizationKeys.groups, 'Группы', 'Groups');
   String get channels => _l(PersonalizationKeys.channels, 'Каналы', 'Channels');
   String get settingsTitle => _l(PersonalizationKeys.settings, 'Настройки', 'Settings');
-  String get status => isRu ? 'Заметка' : 'Note';
+  String get status => isRu ? 'Статус' : 'Status';
   String get email => isRu ? 'Почта' : 'Email';
   String get login => isRu ? 'Логин' : 'Login';
   String get logout => isRu ? 'Выйти из аккаунта' : 'Log out';
@@ -122,7 +122,7 @@ class AppStrings {
   String get removeAvatar => isRu ? 'Удалить аватар' : 'Remove avatar';
   String get avatarUpdated => isRu ? 'Аватар обновлён' : 'Avatar updated';
   String get avatarRemoved => isRu ? 'Аватар удалён' : 'Avatar removed';
-  String get statusSaved => isRu ? 'Заметка сохранена' : 'Note saved';
+  String get statusSaved => isRu ? 'Статус сохранён' : 'Status saved';
   String get pinnedNoteLabel => isRu ? 'ЗАКРЕПЛЕНО' : 'PINNED';
   String get devCardTitle =>
       isRu ? 'Карточка разработчика' : 'Developer card';

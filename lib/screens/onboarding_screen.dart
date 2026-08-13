@@ -5,10 +5,12 @@ import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
 import '../utils/main_tab_bus.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/murkot_decor.dart';
+import '../widgets/unlumen/murkot_fx.dart';
 
 String onboardingPrefsKey(String userId) => 'onboarding_completed_$userId';
 
@@ -37,10 +39,12 @@ class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({
     super.key,
     required this.authService,
+    required this.settingsService,
     required this.prefs,
   });
 
   final AuthService authService;
+  final SettingsService settingsService;
   final SharedPreferences prefs;
 
   @override
@@ -268,18 +272,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Row(
                   children: [
-                    Text(
-                      strings.onboardingEyebrow,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.outline,
+                    Expanded(
+                      child: Text(
+                        strings.onboardingEyebrow,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.72),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    TextButton(
+                    _OnboardingChipButton(
+                      label: strings.onboardingSkip,
                       onPressed: _saving ? null : _onSkip,
-                      child: Text(strings.onboardingSkip),
+                    ),
+                    const SizedBox(width: 8),
+                    MurkotThemeSwitch(
+                      settings: widget.settingsService,
                     ),
                   ],
                 ),
@@ -413,29 +423,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Row(
                   children: [
                     if (_step > 0)
-                      OutlinedButton(
+                      _OnboardingChipButton(
+                        label: strings.onboardingBack,
                         onPressed: _saving ? null : () => _goTo(_step - 1),
-                        child: Text(strings.onboardingBack),
-                      )
-                    else
-                      const SizedBox(width: 88),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: _saving ? null : _onPrimary,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(160, 48),
                       ),
-                      child: _saving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(
-                              _step == _stepCount - 1
-                                  ? strings.onboardingFinish
-                                  : strings.onboardingNext,
-                            ),
+                    const Spacer(),
+                    _OnboardingChipButton(
+                      label: _step == _stepCount - 1
+                          ? strings.onboardingFinish
+                          : strings.onboardingNext,
+                      onPressed: _saving ? null : _onPrimary,
+                      large: true,
+                      busy: _saving,
                     ),
                   ],
                 ),
@@ -667,6 +666,55 @@ class _OptionTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingChipButton extends StatelessWidget {
+  const _OnboardingChipButton({
+    required this.label,
+    required this.onPressed,
+    this.large = false,
+    this.busy = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool large;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.white,
+      elevation: large ? 4 : 2,
+      shadowColor: Colors.black38,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: busy ? null : onPressed,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: large ? 28 : 16,
+            vertical: large ? 14 : 8,
+          ),
+          child: busy
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: const Color(0xFF3A1C08),
+                    fontWeight: FontWeight.w800,
+                    fontSize: large ? 16 : null,
+                  ),
+                ),
         ),
       ),
     );

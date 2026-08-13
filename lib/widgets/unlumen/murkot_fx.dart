@@ -804,57 +804,65 @@ class _MurkotFloatingTooltipState extends State<MurkotFloatingTooltip>
     _hide(immediate: true);
     _pos = global;
     _entry = OverlayEntry(
-      builder: (context) {
-        return Positioned(
-          left: _pos.dx + 14,
-          top: _pos.dy + 14,
+      opaque: false,
+      builder: (overlayContext) {
+        final overlayBox =
+            Overlay.of(context).context.findRenderObject() as RenderBox?;
+        final overlaySize = overlayBox?.size ?? MediaQuery.sizeOf(context);
+        return Positioned.fill(
           child: IgnorePointer(
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: _fade,
-                curve: Curves.easeOutCubic,
+            child: CustomSingleChildLayout(
+              delegate: _TooltipClampDelegate(
+                cursor: _pos,
+                overlaySize: overlaySize,
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 220),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: MurkotColors.brandGradient,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.message,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (widget.description != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.description!,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 11,
-                            height: 1.25,
-                          ),
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _fade,
+                  curve: Curves.easeOutCubic,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: MurkotColors.brandGradient,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
                         ),
                       ],
-                    ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.message,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (widget.description != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.description!,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 11,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -876,20 +884,23 @@ class _MurkotFloatingTooltipState extends State<MurkotFloatingTooltip>
   Future<void> _hide({bool immediate = false}) async {
     final entry = _entry;
     if (entry == null) return;
+    _entry = null;
     if (!immediate) {
-      await _fade.reverse();
+      try {
+        await _fade.reverse();
+      } catch (_) {}
     } else {
+      _fade.stop();
       _fade.value = 0;
     }
     entry.remove();
-    if (identical(_entry, entry)) _entry = null;
   }
 
   @override
   void dispose() {
-    _fade.dispose();
     _entry?.remove();
     _entry = null;
+    _fade.dispose();
     super.dispose();
   }
 
@@ -906,8 +917,60 @@ class _MurkotFloatingTooltipState extends State<MurkotFloatingTooltip>
       onEnter: (e) => _show(e.position),
       onHover: (e) => _move(e.position),
       onExit: (_) => _hide(),
-      child: widget.child,
+      child: Listener(
+        onPointerDown: (_) => _hide(immediate: true),
+        child: widget.child,
+      ),
     );
+  }
+}
+
+class _TooltipClampDelegate extends SingleChildLayoutDelegate {
+  _TooltipClampDelegate({
+    required this.cursor,
+    required this.overlaySize,
+  });
+
+  final Offset cursor;
+  final Size overlaySize;
+
+  @override
+  Size getSize(BoxConstraints constraints) => overlaySize;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    return BoxConstraints(
+      maxWidth: overlaySize.width - 16,
+      maxHeight: overlaySize.height - 16,
+    );
+  }
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    const gap = 14.0;
+    const margin = 8.0;
+    var x = cursor.dx + gap;
+    var y = cursor.dy + gap;
+    if (x + childSize.width > size.width - margin) {
+      x = cursor.dx - childSize.width - gap;
+    }
+    if (x < margin) x = margin;
+    if (x + childSize.width > size.width - margin) {
+      x = size.width - childSize.width - margin;
+    }
+    if (y + childSize.height > size.height - margin) {
+      y = cursor.dy - childSize.height - gap;
+    }
+    if (y < margin) y = margin;
+    if (y + childSize.height > size.height - margin) {
+      y = size.height - childSize.height - margin;
+    }
+    return Offset(x, y);
+  }
+
+  @override
+  bool shouldRelayout(covariant _TooltipClampDelegate oldDelegate) {
+    return cursor != oldDelegate.cursor || overlaySize != oldDelegate.overlaySize;
   }
 }
 

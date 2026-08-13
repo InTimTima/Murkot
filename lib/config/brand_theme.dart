@@ -26,6 +26,21 @@ abstract final class MurkotColors {
     colors: [cream, pulp, Color(0xFFFFD27A)],
   );
 
+  /// Boot splash — radial cream center → golden orange edges (reference shot).
+  static const bootGradient = RadialGradient(
+    center: Alignment.center,
+    radius: 1.05,
+    colors: [
+      Color(0xFFFFFBF0),
+      Color(0xFFFFF4D4),
+      Color(0xFFFFE08A),
+      Color(0xFFFFC14D),
+      Color(0xFFF5A43A),
+      Color(0xFFF1891E),
+    ],
+    stops: [0.0, 0.18, 0.42, 0.62, 0.82, 1.0],
+  );
+
   /// Auth backdrop — multi-stop radial feel via sweep/linear combo.
   static const authGradientLight = RadialGradient(
     center: Alignment(-0.35, -0.55),

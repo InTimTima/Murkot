@@ -17,8 +17,7 @@ import 'services/settings_service.dart';
 import 'utils/configure_web.dart';
 import 'utils/invite_deep_link.dart';
 import 'utils/profile_deep_link.dart';
-import 'widgets/murkot_decor.dart';
-import 'widgets/unlumen/murkot_fx.dart';
+import 'widgets/murkot_boot_screen.dart';
 import 'widgets/unlumen/murkot_theme_transition.dart';
 
 Future<void> main() async {
@@ -151,41 +150,16 @@ class _MurkotRootHome extends StatelessWidget {
     return ListenableBuilder(
       listenable: authService,
       builder: (context, _) {
-        final strings = context.strings;
-
         if (!authService.isReady) {
-          return Scaffold(
-            body: Container(
-              decoration: const BoxDecoration(
-                gradient: MurkotColors.authGradientLight,
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const StretchCatSilhouette(width: 200),
-                    const SizedBox(height: 24),
-                    const MurkotLoader(size: 52),
-                    const SizedBox(height: 14),
-                    MurkotShimmerText(
-                      strings.loadingMurkot,
-                      style: const TextStyle(
-                        letterSpacing: 0.8,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
+          return const Scaffold(body: MurkotBootScreen());
         }
         if (authService.isAuthenticated) {
           final user = authService.currentUser!;
           if (needsOnboarding(user, prefs)) {
+            hideMurkotHtmlBoot();
             return OnboardingScreen(
               authService: authService,
+              settingsService: settingsService,
               prefs: prefs,
             );
           }
@@ -195,6 +169,7 @@ class _MurkotRootHome extends StatelessWidget {
             prefs: prefs,
           );
         }
+        hideMurkotHtmlBoot();
         if (authService.needsEmailVerification) {
           return EmailVerificationScreen(authService: authService);
         }

@@ -181,7 +181,6 @@ class User {
 
   Map<String, dynamic> toProfileUpdate() => {
         'login': login,
-        'email': email,
         'status': status,
         'avatar_emoji': avatarEmoji,
         'avatar_url': avatarPath,
@@ -191,9 +190,9 @@ class User {
         'dev_status': devStatus.dbValue,
         'skills': skills,
         'experience_level': experienceLevel?.dbValue,
-        'github_url': githubUrl,
-        'portfolio_url': portfolioUrl,
-        'city': city,
+        'github_url': _blankToNull(githubUrl),
+        'portfolio_url': _blankToNull(portfolioUrl),
+        'city': _blankToNull(city),
       };
 
   static List<String> _parseSkills(dynamic raw) {
@@ -201,5 +200,11 @@ class User {
       return raw.map((e) => e.toString()).toList();
     }
     return const [];
+  }
+
+  static String? _blankToNull(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
   }
 }
