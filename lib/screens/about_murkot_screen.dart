@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
@@ -12,12 +13,14 @@ class AboutMurkotScreen extends StatelessWidget {
 
   final SettingsService? settingsService;
 
+  static const _nikitaSite = 'https://nikita-dodiev.vercel.app/en';
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final strings = context.strings;
     final bodyStyle = theme.textTheme.bodyLarge?.copyWith(
-      height: 1.5,
+      height: 1.55,
       color: theme.colorScheme.onSurface.withValues(alpha: 0.82),
     );
 
@@ -91,17 +94,42 @@ class AboutMurkotScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 16),
-          _CreatorCard(
-            name: 'Тима',
-            role: strings.aboutCreator1Role,
-            caption: strings.aboutPhotoSoon,
-          ),
           const SizedBox(height: 20),
-          _CreatorCard(
-            name: strings.isRu ? 'Друг' : 'Friend',
-            role: strings.aboutCreator2Role,
-            caption: strings.aboutPhotoSoon,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final sideBySide = constraints.maxWidth >= 520;
+              final cards = [
+                _CreatorCard(
+                  name: 'Nikita',
+                  role: strings.aboutCreator1Role,
+                  photoAsset: 'assets/about/nikita.png',
+                  onNameTap: () => _openUrl(_nikitaSite),
+                ),
+                _CreatorCard(
+                  name: 'Tima',
+                  role: strings.aboutCreator2Role,
+                  photoAsset: 'assets/about/tima.png',
+                  onNameTap: () => _showSoon(context, strings.aboutTimaSoon),
+                ),
+              ];
+              if (sideBySide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: cards[0]),
+                    const SizedBox(width: 16),
+                    Expanded(child: cards[1]),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  cards[0],
+                  const SizedBox(height: 24),
+                  cards[1],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 28),
           MurkotTextReveal(
@@ -130,18 +158,76 @@ class AboutMurkotScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _showSoon(BuildContext context, String message) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) {
+        return IgnorePointer(
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 72),
+                child: Material(
+                  color: Colors.transparent,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: MurkotColors.brandGradient,
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(entry);
+    Future<void>.delayed(const Duration(milliseconds: 2200), entry.remove);
+  }
 }
 
 class _CreatorCard extends StatelessWidget {
   const _CreatorCard({
     required this.name,
     required this.role,
-    required this.caption,
+    required this.photoAsset,
+    required this.onNameTap,
   });
 
   final String name;
   final String role;
-  final String caption;
+  final String photoAsset;
+  final VoidCallback onNameTap;
 
   @override
   Widget build(BuildContext context) {
@@ -149,46 +235,39 @@ class _CreatorCard extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: 180,
-          height: 180,
-          decoration: BoxDecoration(
-            color: MurkotColors.pulp.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: MurkotColors.orange.withValues(alpha: 0.35),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            photoAsset,
+            width: 200,
+            height: 240,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: onNameTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: Text(
+              name,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.primary,
+                decoration: TextDecoration.underline,
+                decorationColor: theme.colorScheme.primary.withValues(alpha: 0.45),
+              ),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 64,
-                color: MurkotColors.orange.withValues(alpha: 0.7),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                caption,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          name,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           role,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.35,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
           ),
         ),

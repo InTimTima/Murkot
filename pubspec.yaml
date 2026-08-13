@@ -54,6 +54,7 @@ flutter:
     - assets/branding/svg/drops.svg
     - assets/branding/v2/png/
     - assets/branding/v2/svg/
+    - assets/about/
   fonts:
     - family: ArialRoundedMTBold
       fonts:

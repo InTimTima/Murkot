@@ -870,66 +870,77 @@ class AppStrings {
   String get resendCode =>
       isRu ? 'Отправить код ещё раз' : 'Resend code';
   String get aboutTagline => isRu
-      ? 'Мессенджер со вкусом свежего сока'
-      : 'A messenger with a fresh juice taste';
+      ? 'Найти своих в IT и сразу написать'
+      : 'Find your people in IT — then talk to them';
   String get aboutBody1 => isRu
-      ? 'Murkot — это мессенджер, который мы делаем как свой продукт: '
-          'чаты, группы, каналы, медиаальбомы, голосовые, кружки, '
-          'стикеры и всё остальное, что нужно для живого общения. '
-          'Визуальный язык — тёплый апельсиновый, с котом-маскотом, '
-          'который тянется, сидит и выглядывает из каждого свободного '
-          'угла интерфейса.'
-      : 'Murkot is a messenger we build as our own product: chats, groups, '
-          'channels, media albums, voice notes, circles, stickers, and '
-          'everything else for lively conversations. The visual language is '
-          'warm orange, with a cat mascot that stretches, sits, and peeks '
-          'from every free corner of the UI.';
+      ? 'Murkot — это не «ещё один чат» и не доска объявлений, которая '
+          'умирает после отклика. Мы собирали место, где можно найти '
+          'команду, пет-проект или людей в стартап — и сразу перейти в '
+          'разговор. На Доске висят объявления, проекты, матч и люди. '
+          'Увидел своё — открыл чат. Без «напишите мне в Telegram», '
+          'без десяти вкладок и без ощущения, что ты на hh.ru в 2014.'
+      : 'Murkot is not just another chat, and not a job board that dies '
+          'after you hit apply. We wanted a place to find a team, a pet '
+          'project, or people for a startup — and talk right away. The '
+          'Board has listings, projects, match and people. If it clicks, '
+          'you open a chat. No “message me on Telegram”, no ten tabs, no '
+          '2014 job-site vibes.';
   String get aboutBody2 => isRu
-      ? 'Под капотом — Flutter-клиент и Supabase: авторизация, профили, '
-          'realtime-сообщения, вложения, присутствие «в сети». Проект '
-          'вырос из простой идеи: сделать мессенджер «под себя», а не '
-          'очередной клон чужого интерфейса. Отсюда и название, и кот, '
-          'и сок — всё, что хотелось видеть на экране каждый день.'
-      : 'Under the hood — a Flutter client and Supabase: auth, profiles, '
-          'realtime messages, attachments, and online presence. The project '
-          'grew from a simple idea: make a messenger for ourselves, not just '
-          'another clone. Hence the name, the cat, and the juice — everything '
-          'we wanted to see on screen every day.';
+      ? 'Мессенджер здесь настоящий: лички, группы, каналы, голосовые, '
+          'кружки, файлы, закреплённые сообщения. В профиле — карточка '
+          'разработчика: стек, уровень, город, куда смотришь. Это сигнал '
+          'для матча и объявлений, а не декоративная строчка «open to work». '
+          'Под капотом — Flutter и Supabase: аккаунты, realtime, вложения, '
+          'кто сейчас в сети. Никита держит эту кухню. Тима собирает то, '
+          'что ты видишь и нажимаешь.'
+      : 'The messenger is real: DMs, groups, channels, voice notes, circles, '
+          'files, pinned messages. Profiles have a developer card — stack, '
+          'level, city, what you are looking for. That is the signal for '
+          'match and listings, not a decorative “open to work” line. Under '
+          'the hood: Flutter and Supabase — accounts, realtime, media, who '
+          'is online. Nikita runs that kitchen. Tima builds what you see '
+          'and tap.';
   String get aboutBody3 => isRu
-      ? 'Мы собираем desktop-раскладку в три колонки, мобильную навигацию '
-          'с брендовым слотом «О приложении», системные сообщения, '
-          'закрепления, реакции и медиа-просмотрщик. Где-то уже гладко, '
-          'где-то кот ещё дотягивается лапой — так и живём в активной '
-          'разработке.'
-      : 'We are building a three-column desktop layout, mobile navigation '
-          'with a branded About slot, system messages, pins, reactions, and a '
-          'media viewer. Some parts are already smooth; elsewhere the cat is '
-          'still reaching with a paw — that is active development.';
-  String get aboutTeam => isRu ? 'Команда' : 'Team';
+      ? 'Внешне это тёплый апельсиновый кот, который тянется, сидит и '
+          'выглядывает из углов. Название, цвет и сок — не брендбук из '
+          'Figma, а то, что хотелось видеть на экране самим. Где-то уже '
+          'гладко, где-то лапа ещё не дотянулась. Так и живём: два человека, '
+          'пет-проект, который пытается стать нормальным продуктом для '
+          'тех, кто собирает команды руками, а не через «кто знает '
+          'фронтендера?» в общем чате.'
+      : 'On the outside it is a warm orange cat that stretches, sits and '
+          'peeks from the corners. The name, the color, the juice — not a '
+          'Figma brand book, just what we wanted on our own screens. Some '
+          'parts are already smooth; elsewhere a paw is still reaching. '
+          'Two people, a pet project trying to become a real product for '
+          'anyone who builds teams by hand instead of asking “anyone know '
+          'a frontend?” in a group chat.';
+  String get aboutTeam => isRu ? 'Кто это сделал' : 'Who made this';
   String get aboutPhotoSoon =>
       isRu ? 'Фото появится позже' : 'Photo coming soon';
+  String get aboutTimaSoon =>
+      isRu ? 'скоро тут что-то будет' : 'something will be here soon';
   String get aboutCreator1Role => isRu
-      ? 'Идея, продукт, дизайн и разработка клиента'
-      : 'Idea, product, design, and client development';
+      ? 'Бэкенд: аккаунты, база, realtime, вся кухня под капотом'
+      : 'Backend: accounts, database, realtime, the kitchen underneath';
   String get aboutCreator2Role => isRu
-      ? 'Соавтор, инфраструктура и бэкенд'
-      : 'Co-author, infrastructure, and backend';
+      ? 'Фронтенд: экраны, навигация, как это выглядит и нажимается'
+      : 'Frontend: screens, navigation, how it looks and feels';
   String get aboutBody4 => isRu
-      ? 'Эта страница — живая заглушка раздела «О проекте». Позже здесь '
-          'появятся настоящие фотографии, точные имена и более подробная '
-          'история: как выбирали цвета, почему кот тянется именно так, '
-          'и зачем в интерфейсе столько капель и долек цитруса.'
-      : 'This page is a living stub for the About section. Later it will get '
-          'real photos, exact names, and a fuller story: how we chose the '
-          'colors, why the cat stretches the way it does, and why the UI has '
-          'so many drops and citrus slices.';
+      ? 'Если ты уже внутри — пользуйся Доской как доской, чатами как '
+          'чатами. Можно просто болтать. Можно повесить объявление и ждать '
+          'отклик. Можно свайпнуть матч и написать первым. Мы сами так и '
+          'пользуемся, пока дописываем хвосты.'
+      : 'If you are already in — use the Board as a board and chats as '
+          'chats. You can just talk. You can post a listing and wait. You '
+          'can match and write first. That is how we use it while we finish '
+          'the tails.';
   String get aboutBody5 => isRu
-      ? 'Если ты читаешь это в ранней сборке — спасибо. Murkot ещё '
-          'растёт, и каждый экран, каждая анимация и каждый кот на фоне '
-          'появляются не просто так. Налей себе сока и оставайся с нами.'
-      : 'If you are reading this in an early build — thank you. Murkot is '
-          'still growing, and every screen, animation, and background cat '
-          'is there for a reason. Pour yourself some juice and stay with us.';
+      ? 'Ранняя сборка, кот ещё не везде дотянулся. Если что-то бесит или '
+          'наоборот зашло — напиши. Налей сока и оставайся, нам не жалко.'
+      : 'Early build, the cat has not reached every corner yet. If something '
+          'sucks or actually works — write us. Pour some juice and stay, '
+          'we do not mind.';
 }
 
 class AppStringsScope extends InheritedWidget {
