@@ -1,19 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
-import '../config/gif_config.dart';
 import '../data/sticker_packs.dart';
 import '../l10n/app_strings.dart';
-
-class GifHit {
-  const GifHit({required this.previewUrl, required this.url, required this.name});
-
-  final String previewUrl;
-  final String url;
-  final String name;
-}
+import '../services/gif_service.dart';
 
 Future<void> showEmojiPicker(
   BuildContext context, {
@@ -22,42 +11,50 @@ Future<void> showEmojiPicker(
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     builder: (context) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                context.strings.emojiPickerTitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+      return DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.5,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              child: Column(
+                children: [
+                  Text(
+                    context.strings.emojiPickerTitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: GridView.count(
+                      controller: scrollController,
+                      crossAxisCount: 8,
+                      children: [
+                        for (final emoji in kEmojiPalette)
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              onPick(emoji);
+                            },
+                            child: Center(
+                              child: Text(emoji, style: const TextStyle(fontSize: 28)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 280,
-                child: GridView.count(
-                  crossAxisCount: 8,
-                  children: [
-                    for (final emoji in kEmojiPalette)
-                      InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                          onPick(emoji);
-                        },
-                        child: Center(
-                          child: Text(emoji, style: const TextStyle(fontSize: 26)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     },
   );
@@ -73,58 +70,80 @@ Future<void> showStickerPicker(
     isScrollControlled: true,
     builder: (context) {
       final strings = context.strings;
-      return DefaultTabController(
-        length: kStickerPacks.length,
-        child: SafeArea(
-          child: SizedBox(
-            height: 420,
-            child: Column(
-              children: [
-                Text(
-                  strings.stickerPickerTitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                TabBar(
-                  isScrollable: true,
-                  tabs: [
-                    for (final pack in kStickerPacks)
-                      Tab(text: pack.title(strings.isRu)),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
+      return DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.72,
+        minChildSize: 0.45,
+        maxChildSize: 0.92,
+        builder: (context, scrollController) {
+          return DefaultTabController(
+            length: kStickerPacks.length,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 6),
+                    child: Text(
+                      strings.stickerPickerTitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  TabBar(
+                    isScrollable: true,
+                    tabs: [
                       for (final pack in kStickerPacks)
-                        GridView.count(
-                          crossAxisCount: 4,
-                          padding: const EdgeInsets.all(12),
-                          children: [
-                            for (final sticker in pack.stickers)
-                              InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  onPick(sticker);
-                                },
-                                child: Center(
-                                  child: Text(
-                                    sticker.glyph,
-                                    style: const TextStyle(fontSize: 42),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                        Tab(text: pack.title(strings.isRu)),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        for (final pack in kStickerPacks)
+                          GridView.count(
+                            controller: scrollController,
+                            crossAxisCount: 4,
+                            padding: const EdgeInsets.all(14),
+                            mainAxisSpacing: 6,
+                            crossAxisSpacing: 6,
+                            childAspectRatio: 1.05,
+                            children: [
+                              for (final sticker in pack.stickers)
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    onPick(sticker);
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        sticker.glyph,
+                                        style: const TextStyle(fontSize: 48),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
     },
   );
@@ -183,35 +202,7 @@ class _GifPickerSheetState extends State<_GifPickerSheet> {
       _error = null;
     });
     try {
-      final uri = Uri.parse(GifConfig.searchUrl).replace(queryParameters: {
-        'q': _query.text.trim().isEmpty ? 'cat' : _query.text.trim(),
-        'key': GifConfig.tenorKey,
-        'limit': '24',
-        'media_filter': 'minimal',
-      });
-      final response = await http.get(uri);
-      if (response.statusCode != 200) {
-        throw StateError('Tenor ${response.statusCode}');
-      }
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = (json['results'] as List?) ?? const [];
-      final hits = <GifHit>[];
-      for (final raw in results) {
-        final map = Map<String, dynamic>.from(raw as Map);
-        final media = map['media'] as List?;
-        if (media == null || media.isEmpty) continue;
-        final first = Map<String, dynamic>.from(media.first as Map);
-        final gif = first['gif'] as Map<String, dynamic>?;
-        final tiny = first['tinygif'] as Map<String, dynamic>?;
-        final url = gif?['url'] as String?;
-        final preview = tiny?['url'] as String? ?? url;
-        if (url == null) continue;
-        hits.add(GifHit(
-          previewUrl: preview ?? url,
-          url: url,
-          name: (map['content_description'] as String?) ?? 'gif',
-        ));
-      }
+      final hits = await searchGifs(_query.text);
       if (!mounted) return;
       setState(() {
         _hits = hits;
@@ -229,91 +220,125 @@ class _GifPickerSheetState extends State<_GifPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
-    return SafeArea(
-      child: SizedBox(
-        height: 480,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            children: [
-              Text(
-                strings.gifPickerTitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                strings.gifPickerHint,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _query,
-                      decoration: InputDecoration(
-                        hintText: strings.gifSearchHint,
-                        prefixIcon: const Icon(Icons.search),
-                      ),
-                      onSubmitted: (_) => _search(),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _search,
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ],
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await widget.onUploadOwn();
-                  },
-                  icon: const Icon(Icons.upload_file_outlined),
-                  label: Text(strings.gifUploadOwn),
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.78,
+      minChildSize: 0.45,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                Text(
+                  strings.gifPickerTitle,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? Center(child: Text(strings.gifLoadFailed))
-                        : GridView.builder(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 6,
-                              crossAxisSpacing: 6,
-                            ),
-                            itemCount: _hits.length,
-                            itemBuilder: (context, index) {
-                              final hit = _hits[index];
-                              return InkWell(
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  widget.onPick(hit);
-                                },
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(
-                                    hit.previewUrl,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              );
-                            },
+                const SizedBox(height: 8),
+                Text(
+                  strings.gifPickerHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _query,
+                        decoration: InputDecoration(
+                          hintText: strings.gifSearchHint,
+                          prefixIcon: const Icon(Icons.search),
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-              ),
-            ],
+                        ),
+                        onSubmitted: (_) => _search(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: _search,
+                      child: const Icon(Icons.search, size: 20),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await widget.onUploadOwn();
+                    },
+                    icon: const Icon(Icons.upload_file_outlined),
+                    label: Text(strings.gifUploadOwn),
+                  ),
+                ),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error != null
+                          ? Center(child: Text(strings.gifLoadFailed))
+                          : _hits.isEmpty
+                              ? Center(child: Text(strings.gifLoadFailed))
+                              : GridView.builder(
+                                  controller: scrollController,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 8,
+                                    crossAxisSpacing: 8,
+                                    childAspectRatio: 1.15,
+                                  ),
+                                  itemCount: _hits.length,
+                                  itemBuilder: (context, index) {
+                                    final hit = _hits[index];
+                                    return InkWell(
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        widget.onPick(hit);
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          hit.previewUrl,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                          errorBuilder: (_, __, ___) => ColoredBox(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            child: Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.gif_box_outlined, size: 28),
+                                                  const SizedBox(height: 4),
+                                                  Text(hit.name,
+                                                      style: Theme.of(context).textTheme.labelSmall,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

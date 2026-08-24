@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/project.dart';
+import 'public_profile_lookup.dart';
 
 enum ProjectSort { newest, relevance }
 
@@ -207,15 +208,30 @@ class ProjectsService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final rows = await _client
-          .from('projects')
-          .select(_authorSelect)
-          .order('created_at', ascending: false)
-          .limit(100);
+      try {
+        final rows = await _client
+            .from('projects')
+            .select(_authorSelect)
+            .order('created_at', ascending: false)
+            .limit(100);
 
-      _projects = (rows as List)
-          .map((row) => Project.fromRow(Map<String, dynamic>.from(row as Map)))
-          .toList();
+        _projects = (rows as List)
+            .map((row) =>
+                Project.fromRow(Map<String, dynamic>.from(row as Map)))
+            .toList();
+      } catch (e) {
+        debugPrint('Projects embed failed: $e');
+        final rows = await _client
+            .from('projects')
+            .select()
+            .order('created_at', ascending: false)
+            .limit(100);
+        _projects = (rows as List)
+            .map((row) =>
+                Project.fromRow(Map<String, dynamic>.from(row as Map)))
+            .toList();
+      }
+      _projects = await _hydrateAuthors(_projects);
     } catch (e) {
       debugPrint('Projects refresh failed: $e');
       _error = e.toString();
@@ -288,5 +304,32 @@ class ProjectsService extends ChangeNotifier {
       debugPrint('Delete project failed: $e');
       return e.toString();
     }
+  }
+
+  Future<List<Project>> _hydrateAuthors(List<Project> projects) async {
+    final missing = projects
+        .where((p) => p.author.login == '?' || p.author.login.isEmpty)
+        .map((p) => p.authorId)
+        .toSet();
+    if (missing.isEmpty) return projects;
+    final previews = await loadPublicPreviews(missing);
+    if (previews.isEmpty) return projects;
+    return [
+      for (final project in projects)
+        previews.containsKey(project.authorId)
+            ? Project(
+                id: project.id,
+                authorId: project.authorId,
+                author: previews[project.authorId]!,
+                name: project.name,
+                description: project.description,
+                stack: project.stack,
+                lookingFor: project.lookingFor,
+                createdAt: project.createdAt,
+                demoUrl: project.demoUrl,
+                repoUrl: project.repoUrl,
+              )
+            : project,
+    ];
   }
 }

@@ -67,6 +67,7 @@ class AdminUserRow {
     required this.id,
     required this.login,
     this.avatarEmoji,
+    this.avatarUrl,
     this.city,
     this.createdAt,
     this.lastSeenAt,
@@ -80,6 +81,7 @@ class AdminUserRow {
   final String id;
   final String login;
   final String? avatarEmoji;
+  final String? avatarUrl;
   final String? city;
   final DateTime? createdAt;
   final DateTime? lastSeenAt;
@@ -94,6 +96,7 @@ class AdminUserRow {
       id: row['id'] as String,
       login: row['login'] as String? ?? '?',
       avatarEmoji: row['avatar_emoji'] as String?,
+      avatarUrl: row['avatar_url'] as String?,
       city: row['city'] as String?,
       createdAt: _asDate(row['created_at']),
       lastSeenAt: _asDate(row['last_seen_at']),

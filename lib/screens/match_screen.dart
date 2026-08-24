@@ -57,7 +57,9 @@ class _MatchScreenState extends State<MatchScreen> {
     super.initState();
     widget.blacklistService.addListener(_onBlacklistChanged);
     _loadFeed();
-    widget.matchService.refreshMatches();
+    if (!widget.settingsService.isGuest) {
+      widget.matchService.refreshMatches();
+    }
   }
 
   @override
@@ -223,8 +225,9 @@ class _MatchScreenState extends State<MatchScreen> {
     final theme = Theme.of(context);
     final service = widget.matchService;
     final me = widget.authService.currentUser;
+    final isGuest = widget.settingsService.isGuest;
 
-    if (me == null || !hasMinimumDevCard(me)) {
+    if (!isGuest && (me == null || !hasMinimumDevCard(me))) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(28),

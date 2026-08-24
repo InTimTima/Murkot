@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/match_candidate.dart';
+import '../models/user.dart';
 import 'analytics_service.dart';
 
 /// Swipe-based team-building matching.
@@ -40,11 +41,51 @@ class MatchService extends ChangeNotifier {
           .toList();
     } catch (e) {
       debugPrint('Match feed failed: $e');
-      _feedError = e.toString();
+      try {
+        await _refreshFeedFromProfiles();
+      } catch (fallback) {
+        debugPrint('Match fallback failed: $fallback');
+        _feedError = e.toString();
+      }
     } finally {
       _loadingFeed = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _refreshFeedFromProfiles() async {
+    dynamic rows;
+    try {
+      rows = await _client
+          .from('public_profiles')
+          .select()
+          .eq('is_bot', false)
+          .limit(40);
+    } catch (_) {
+      rows = await _client
+          .from('profiles')
+          .select(
+            'id, login, status, avatar_emoji, avatar_url, is_bot, '
+            'dev_status, skills, experience_level, github_url, '
+            'portfolio_url, city',
+          )
+          .eq('is_bot', false)
+          .limit(40);
+    }
+    final feed = <MatchCandidate>[];
+    if (rows is List) {
+      for (final raw in rows) {
+        final map = Map<String, dynamic>.from(raw as Map);
+        final candidate = MatchCandidate.fromRow(map);
+        if (candidate.user.devStatus == DevStatus.none &&
+            candidate.user.skills.isEmpty) {
+          continue;
+        }
+        feed.add(candidate);
+      }
+    }
+    _feed = feed;
+    _feedError = null;
   }
 
   Future<void> refreshMatches() async {
