@@ -1,5 +1,8 @@
 -- Features v24: admin avatars — expose avatar_url in admin_list_users
 -- Apply after features_v21.sql. Mirrors _UserRow model so admin panel shows real avatars.
+-- Postgres can't change RETURN type with CREATE OR REPLACE, so drop first.
+
+drop function if exists public.admin_list_users(text, boolean, int, int);
 
 create or replace function public.admin_list_users(
   p_query text default null,
