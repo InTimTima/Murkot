@@ -64,12 +64,12 @@ class AppStrings {
   String get stickerPickerTitle => isRu ? 'Стикеры Murkot' : 'Murkot stickers';
   String get gifPickerTitle => isRu ? 'Гифки' : 'GIFs';
   String get gifPickerHint => isRu
-      ? 'Поиск в открытой базе Tenor. Можно загрузить свою.'
-      : 'Search Tenor’s public library, or upload your own.';
-  String get gifSearchHint => isRu ? 'Например: cat, ship' : 'Try: cat, ship';
+      ? 'Коты, реакции и поиск. Можно загрузить свою.'
+      : 'Cats, reactions, and search. Or upload your own.';
+  String get gifSearchHint => isRu ? 'Например: cat, hug, yay' : 'Try: cat, hug, yay';
   String get gifUploadOwn => isRu ? 'Своя гифка' : 'Upload your GIF';
   String get gifLoadFailed =>
-      isRu ? 'Tenor сейчас не отвечает' : 'Tenor is unavailable';
+      isRu ? 'Гифки сейчас не загрузились' : 'GIFs failed to load';
   String get circleRecordTitle => isRu ? 'Кружок' : 'Circle';
   String get circleCameraFallback => isRu
       ? 'Камера в приложении не открылась. Можно снять кружок системной камерой.'
@@ -90,9 +90,11 @@ class AppStrings {
   String get mediaLinksEmpty =>
       isRu ? 'Ссылок в переписке пока нет' : 'No links in this chat yet';
   String get plusAttach => isRu ? 'Файл или медиа' : 'File or media';
-  String get composerStickers => isRu ? 'Стикеры' : 'Stickers';
-  String get composerGifs => isRu ? 'GIF' : 'GIF';
-  String get composerEmoji => isRu ? 'Эмодзи' : 'Emoji';
+  String get composerStickers => _l(PersonalizationKeys.stickers, 'Стикеры', 'Stickers');
+  String get composerGifs => _l(PersonalizationKeys.gif, 'GIF', 'GIF');
+  String get composerEmoji => _l(PersonalizationKeys.emoji, 'Эмодзи', 'Emoji');
+  String get circleVideo => _l(PersonalizationKeys.circleVideo, 'Кружок', 'Circle');
+  String get voiceNote => _l(PersonalizationKeys.voiceNote, 'Голосовое', 'Voice note');
   String get attachPanelExpress =>
       isRu ? 'Настроение' : 'Express';
   String get attachPanelExpressHint => isRu
@@ -957,8 +959,6 @@ class AppStrings {
       isRu ? 'Введите корректную почту' : 'Enter a valid email';
   String get minPassword =>
       isRu ? 'Минимум 6 символов' : 'At least 6 characters';
-  String get circleVideo => isRu ? 'Кружок' : 'Circle';
-  String get voiceNote => isRu ? 'Голосовое' : 'Voice';
   String get send => isRu ? 'Отправить' : 'Send';
   String get recording => isRu ? 'Запись…' : 'Recording…';
   String get loadFailed =>

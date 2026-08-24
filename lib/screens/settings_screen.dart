@@ -96,6 +96,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     (PersonalizationKeys.info, 'Информация / Info'),
     (PersonalizationKeys.profile, 'Профиль / Profile'),
     (PersonalizationKeys.settings, 'Настройки / Settings'),
+    (PersonalizationKeys.circleVideo, 'Кружок / Circle'),
+    (PersonalizationKeys.stickers, 'Стикеры / Stickers'),
+    (PersonalizationKeys.gif, 'GIF / GIF'),
+    (PersonalizationKeys.emoji, 'Эмодзи / Emoji'),
+    (PersonalizationKeys.voiceNote, 'Голосовое / Voice note'),
   ];
 
   @override

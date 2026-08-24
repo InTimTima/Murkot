@@ -487,10 +487,33 @@ class ChatService extends ChangeNotifier {
 
   /// Featured community channels for the Board catalog (features_v14.sql).
   Future<List<PublicConversationPreview>> listCommunityChannels() async {
-    final rows = await _client.rpc('list_community_channels');
+    try {
+      final rows = await _client.rpc('list_community_channels');
+      if (rows is! List) return const [];
+      return [
+        for (final raw in rows)
+          if (raw is Map)
+            PublicConversationPreview.fromRow(Map<String, dynamic>.from(raw)),
+      ];
+    } catch (e) {
+      debugPrint('list_community_channels failed: $e');
+      return _listFeaturedConversationsFallback();
+    }
+  }
+
+  Future<List<PublicConversationPreview>> _listFeaturedConversationsFallback() async {
+    final rows = await _client
+        .from('conversations')
+        .select(
+          'id, type, name, description, avatar_emoji, avatar_url, category',
+        )
+        .eq('is_featured', true)
+        .inFilter('type', ['group', 'channel'])
+        .order('name');
     return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(PublicConversationPreview.fromRow)
+        .map((row) => PublicConversationPreview.fromRow(
+              Map<String, dynamic>.from(row as Map),
+            ))
         .toList();
   }
 

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/listing.dart';
 import 'analytics_service.dart';
+import 'public_profile_lookup.dart';
 
 enum ListingSort { newest, relevance }
 
@@ -222,17 +223,35 @@ class ListingsService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      var query =
-          _client.from('listings').select(_authorSelect).eq('is_active', true);
-      final type = _typeFilter;
-      if (type != null) {
-        query = query.eq('type', type.dbValue);
-      }
-      final rows = await query.order('created_at', ascending: false).limit(100);
+      try {
+        var query =
+            _client.from('listings').select(_authorSelect).eq('is_active', true);
+        final type = _typeFilter;
+        if (type != null) {
+          query = query.eq('type', type.dbValue);
+        }
+        final rows =
+            await query.order('created_at', ascending: false).limit(100);
 
-      _listings = (rows as List)
-          .map((row) => Listing.fromRow(Map<String, dynamic>.from(row as Map)))
-          .toList();
+        _listings = (rows as List)
+            .map((row) =>
+                Listing.fromRow(Map<String, dynamic>.from(row as Map)))
+            .toList();
+      } catch (e) {
+        debugPrint('Listings embed failed: $e');
+        var query = _client.from('listings').select().eq('is_active', true);
+        final type = _typeFilter;
+        if (type != null) {
+          query = query.eq('type', type.dbValue);
+        }
+        final rows =
+            await query.order('created_at', ascending: false).limit(100);
+        _listings = (rows as List)
+            .map((row) =>
+                Listing.fromRow(Map<String, dynamic>.from(row as Map)))
+            .toList();
+      }
+      _listings = await _hydrateAuthors(_listings);
 
       try {
         final hidden = await _client
@@ -437,5 +456,32 @@ class ListingsService extends ChangeNotifier {
       debugPrint('Delete listing failed: $e');
       return e.toString();
     }
+  }
+
+  Future<List<Listing>> _hydrateAuthors(List<Listing> listings) async {
+    final missing = listings
+        .where((l) => l.author.login == '?' || l.author.login.isEmpty)
+        .map((l) => l.authorId)
+        .toSet();
+    if (missing.isEmpty) return listings;
+    final previews = await loadPublicPreviews(missing);
+    if (previews.isEmpty) return listings;
+    return [
+      for (final listing in listings)
+        previews.containsKey(listing.authorId)
+            ? Listing(
+                id: listing.id,
+                authorId: listing.authorId,
+                author: previews[listing.authorId]!,
+                type: listing.type,
+                title: listing.title,
+                description: listing.description,
+                skills: listing.skills,
+                compensation: listing.compensation,
+                isActive: listing.isActive,
+                createdAt: listing.createdAt,
+              )
+            : listing,
+    ];
   }
 }

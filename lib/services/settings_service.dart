@@ -23,6 +23,11 @@ class PersonalizationKeys {
   static const info = 'info';
   static const profile = 'profile';
   static const settings = 'settings';
+  static const circleVideo = 'circleVideo';
+  static const stickers = 'stickers';
+  static const gif = 'gif';
+  static const emoji = 'emoji';
+  static const voiceNote = 'voiceNote';
 }
 
 class SettingsService extends ChangeNotifier {

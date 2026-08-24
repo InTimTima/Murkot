@@ -172,12 +172,77 @@ class PeopleService extends ChangeNotifier {
       _error = null;
     } catch (e) {
       debugPrint('PeopleService.refresh failed: $e');
-      _error = e.toString();
-      _people = const [];
-      _sharedSkills.clear();
+      try {
+        await _refreshFromProfiles();
+      } catch (fallback) {
+        debugPrint('People fallback failed: $fallback');
+        _error = e.toString();
+        _people = const [];
+        _sharedSkills.clear();
+      }
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _refreshFromProfiles() async {
+    dynamic rows;
+    try {
+      rows = await _client
+          .from('public_profiles')
+          .select()
+          .eq('is_bot', false)
+          .order('login')
+          .limit(80);
+    } catch (_) {
+      rows = await _client
+          .from('profiles')
+          .select(
+            'id, login, status, avatar_emoji, avatar_url, is_bot, '
+            'dev_status, skills, experience_level, github_url, '
+            'portfolio_url, city, created_at',
+          )
+          .eq('is_bot', false)
+          .order('login')
+          .limit(80);
+    }
+
+    final q = _searchQuery.trim().toLowerCase();
+    final skill = _skillFilter?.toLowerCase();
+    final city = _cityFilter?.toLowerCase();
+    final status = _statusFilter?.dbValue;
+    final list = <User>[];
+    final shared = <String, int>{};
+
+    if (rows is List) {
+      for (final raw in rows) {
+        final map = Map<String, dynamic>.from(raw as Map);
+        final user = User.fromProfileRow(map);
+        if (status != null && user.devStatus.dbValue != status) continue;
+        if (city != null && (user.city ?? '').toLowerCase() != city) continue;
+        if (skill != null &&
+            !user.skills.any((s) => s.toLowerCase() == skill)) {
+          continue;
+        }
+        if (q.isNotEmpty) {
+          final haystack = [
+            user.login,
+            user.status,
+            user.city ?? '',
+            ...user.skills,
+          ].join(' ').toLowerCase();
+          if (!haystack.contains(q)) continue;
+        }
+        list.add(user);
+        shared[user.id] = 0;
+      }
+    }
+
+    _people = list;
+    _sharedSkills
+      ..clear()
+      ..addAll(shared);
+    _error = null;
   }
 }

@@ -171,6 +171,7 @@ class _MainScreenState extends State<MainScreen> {
     unawaited(_listingsService!.refresh());
     unawaited(_projectsService!.refresh());
     unawaited(_peopleService!.refresh());
+    unawaited(_matchService!.refreshFeed());
   }
 
   Future<void> _initServices() async {

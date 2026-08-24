@@ -1,7 +1,5 @@
-/// Tenor (Google) public search. Users can also upload their own GIFs.
-/// Replace [tenorKey] with a project key from https://developers.google.com/tenor
-/// if the shared demo key starts rate-limiting.
+/// GIF picker uses Cataas + OtakuGIFs (no Tenor key required).
+/// Optional Tenor v2 key can be added later from https://developers.google.com/tenor
 abstract final class GifConfig {
-  static const tenorKey = 'LIVDSRZULELA';
-  static const searchUrl = 'https://g.tenor.com/v1/search';
+  static const tenorKey = '';
 }

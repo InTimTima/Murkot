@@ -900,11 +900,30 @@ class _ListingCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                AvatarDisplay(
-                  name: listing.author.login,
-                  avatarPath: listing.author.avatarUrl,
-                  avatarEmoji: listing.author.avatarEmoji,
-                  radius: 18,
+                GestureDetector(
+                  onTap: listing.author.avatarUrl == null
+                      ? null
+                      : () {
+                          final url = listing.author.avatarUrl!;
+                          if (url.startsWith('http')) {
+                            // Show full avatar — profile navigation is via action buttons.
+                            showDialog<void>(
+                              context: context,
+                              builder: (_) => Dialog(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.network(url, fit: BoxFit.contain),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: AvatarDisplay(
+                    name: listing.author.login,
+                    avatarPath: listing.author.avatarUrl,
+                    avatarEmoji: listing.author.avatarEmoji,
+                    radius: 18,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

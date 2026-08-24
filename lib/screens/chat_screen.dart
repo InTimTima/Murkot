@@ -419,18 +419,53 @@ class _ChatScreenState extends State<ChatScreen> {
           ));
         }
       case MessageType.sticker:
-      case MessageType.gif:
-        final file = await ImagePicker().pickImage(
+        final stickerFile = await ImagePicker().pickImage(
           source: ImageSource.gallery,
           imageQuality: 85,
         );
-        if (file != null) {
+        if (stickerFile != null) {
           added.add(_DraftAttachment(
             type: type,
-            bytes: await file.readAsBytes(),
-            name: file.name,
+            bytes: await stickerFile.readAsBytes(),
+            name: stickerFile.name,
             contentType: 'image/jpeg',
           ));
+        }
+      case MessageType.gif:
+        final gifResult = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['gif', 'webp'],
+          allowMultiple: true,
+          withData: true,
+        );
+        // Fallback to ImagePicker if FilePicker yields nothing (e.g. iOS gallery).
+        if ((gifResult == null || gifResult.files.isEmpty)) {
+          final fallback = await ImagePicker().pickImage(
+            source: ImageSource.gallery,
+          );
+          if (fallback != null) {
+            added.add(_DraftAttachment(
+              type: type,
+              bytes: await fallback.readAsBytes(),
+              name: fallback.name,
+              contentType: 'image/gif',
+            ));
+          }
+        } else {
+          for (final file in gifResult.files) {
+            var bytes = file.bytes;
+            if (bytes == null && file.path != null) {
+              bytes = await XFile(file.path!).readAsBytes();
+            }
+            if (bytes == null) continue;
+            final isWebp = file.name.toLowerCase().endsWith('.webp');
+            added.add(_DraftAttachment(
+              type: type,
+              bytes: bytes,
+              name: file.name,
+              contentType: isWebp ? 'image/webp' : 'image/gif',
+            ));
+          }
         }
       case MessageType.video:
         final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
@@ -1576,9 +1611,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         onChanged: _onTextChanged,
                         onSend: _sendText,
                         onAttach: _showAttachMenu,
-                        onEmoji: _openEmojiPicker,
-                        onStickers: _openStickerPicker,
-                        onGifs: _openGifPicker,
+                        onCircle: _sendCircleVideo,
                         onVoiceStart: _startVoiceNote,
                         hintText: _drafts.isNotEmpty
                             ? strings.captionHint
@@ -1937,6 +1970,21 @@ class _ChatScreenState extends State<ChatScreen> {
               label: strings.circleVideo,
               onTap: () => Navigator.pop(context, 'circle'),
             ),
+            _AttachActionTile(
+              icon: Icons.emoji_emotions_outlined,
+              label: strings.composerEmoji,
+              onTap: () => Navigator.pop(context, 'emoji'),
+            ),
+            _AttachActionTile(
+              icon: Icons.auto_awesome_outlined,
+              label: strings.composerStickers,
+              onTap: () => Navigator.pop(context, 'sticker'),
+            ),
+            _AttachActionTile(
+              icon: Icons.gif_box_outlined,
+              label: strings.composerGifs,
+              onTap: () => Navigator.pop(context, 'gif'),
+            ),
             _AttachTile(icon: Icons.mic, label: strings.voice, type: MessageType.voice),
             _AttachTile(icon: Icons.music_note, label: strings.music, type: MessageType.music),
             _AttachTile(icon: Icons.attach_file, label: strings.file, type: MessageType.file),
@@ -1946,6 +1994,12 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (type == 'circle') {
       await _sendCircleVideo();
+    } else if (type == 'emoji') {
+      await _openEmojiPicker();
+    } else if (type == 'sticker') {
+      await _openStickerPicker();
+    } else if (type == 'gif') {
+      await _openGifPicker();
     } else if (type == MessageType.voice) {
       await _startVoiceNote();
     } else if (type is MessageType) {
@@ -2900,9 +2954,7 @@ class _MessageInputBar extends StatelessWidget {
     required this.onSend,
     required this.onVoiceStart,
     this.onAttach,
-    this.onEmoji,
-    this.onStickers,
-    this.onGifs,
+    this.onCircle,
     this.hintText,
     this.forceSendButton = false,
   });
@@ -2912,9 +2964,7 @@ class _MessageInputBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSend;
   final VoidCallback? onAttach;
-  final VoidCallback? onEmoji;
-  final VoidCallback? onStickers;
-  final VoidCallback? onGifs;
+  final VoidCallback? onCircle;
   final VoidCallback onVoiceStart;
   final String? hintText;
 
@@ -2986,25 +3036,17 @@ class _MessageInputBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (onEmoji != null)
-                    IconButton(
-                      tooltip: context.strings.composerEmoji,
-                      icon: const Icon(Icons.emoji_emotions_outlined),
-                      onPressed: onEmoji,
+                  if (onCircle != null)
+                    MurkotFloatingTooltip(
+                      message: context.strings.circleVideo,
+                      child: IconButton(
+                        tooltip: '',
+                        icon: const Icon(Icons.motion_photos_on_outlined),
+                        onPressed: onCircle,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  if (onStickers != null)
-                    IconButton(
-                      tooltip: context.strings.composerStickers,
-                      icon: const Icon(Icons.auto_awesome_outlined),
-                      onPressed: onStickers,
-                    ),
-                  if (onGifs != null)
-                    IconButton(
-                      tooltip: context.strings.composerGifs,
-                      icon: const Icon(Icons.gif_box_outlined),
-                      onPressed: onGifs,
-                    ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   if (hasText)
                     IconButton(
                       icon: const Icon(Icons.send),

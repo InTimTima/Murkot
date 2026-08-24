@@ -951,11 +951,29 @@ class _FinderProjectDetail extends StatelessWidget {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  AvatarDisplay(
-                    name: project.author.login,
-                    avatarPath: project.author.avatarUrl,
-                    avatarEmoji: project.author.avatarEmoji,
-                    radius: 16,
+                  GestureDetector(
+                    onTap: project.author.avatarUrl == null
+                        ? null
+                        : () {
+                            final url = project.author.avatarUrl!;
+                            if (url.startsWith('http')) {
+                              showDialog<void>(
+                                context: context,
+                                builder: (_) => Dialog(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.network(url, fit: BoxFit.contain),
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    child: AvatarDisplay(
+                      name: project.author.login,
+                      avatarPath: project.author.avatarUrl,
+                      avatarEmoji: project.author.avatarEmoji,
+                      radius: 16,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

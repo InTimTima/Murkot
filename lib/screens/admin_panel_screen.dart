@@ -7,8 +7,10 @@ import '../l10n/app_strings.dart';
 import '../services/admin_service.dart';
 import '../services/moderation_service.dart';
 import '../utils/helpers.dart';
+import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/unlumen/murkot_fx.dart';
+import 'media_viewer_screen.dart';
 import 'moderation_screen.dart';
 
 class AdminPanelScreen extends StatefulWidget {
@@ -483,15 +485,19 @@ class _UserCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: MurkotColors.pulp,
-              child: Text(
-                (user.avatarEmoji != null && user.avatarEmoji!.isNotEmpty)
-                    ? user.avatarEmoji!
-                    : (user.login.isEmpty
-                        ? '?'
-                        : user.login[0].toUpperCase()),
-                style: const TextStyle(fontSize: 18),
+            GestureDetector(
+              onTap: () {
+                final url = user.avatarUrl;
+                if (url != null && url.isNotEmpty) {
+                  MediaViewerScreen.open(context, urls: [url], initialIndex: 0);
+                }
+              },
+              child: AvatarDisplay(
+                name: user.login,
+                avatarPath: user.avatarUrl,
+                avatarEmoji: user.avatarEmoji,
+                radius: 22,
+                fontSize: 18,
               ),
             ),
             const SizedBox(width: 12),

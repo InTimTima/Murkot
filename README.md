@@ -32,6 +32,7 @@ flutter run -d chrome --web-hostname 127.0.0.1 --web-port 8080
 7. **`features_v20.sql`** — поиск людей (`search_people`)
 8. **`features_v21.sql`** — панель админа (`tima` / `hex`): статистика, бан, снятие объявлений
 9. **`features_v22.sql`** — гостевой просмотр доски (anon SELECT) и статус «не беспокоить»
+10. **`features_v23.sql`** — гости видят имена/аватарки, людей, матч и сообщества
 
 ### Smoke / CI
 
