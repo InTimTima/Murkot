@@ -13,6 +13,8 @@ class Project {
     required this.createdAt,
     this.demoUrl,
     this.repoUrl,
+    this.avatarUrl,
+    this.imageUrls = const [],
   });
 
   final String id;
@@ -26,6 +28,8 @@ class Project {
   final List<String> lookingFor;
   final String? demoUrl;
   final String? repoUrl;
+  final String? avatarUrl;
+  final List<String> imageUrls;
   final DateTime createdAt;
 
   /// Parses a row from `.from('projects').select('*, author:profiles(...)')`.
@@ -43,6 +47,8 @@ class Project {
       lookingFor: _parseTags(row['looking_for']),
       demoUrl: row['demo_url'] as String?,
       repoUrl: row['repo_url'] as String?,
+      avatarUrl: row['avatar_url'] as String?,
+      imageUrls: _parseTags(row['image_urls']),
       createdAt: DateTime.parse(row['created_at'] as String).toLocal(),
     );
   }

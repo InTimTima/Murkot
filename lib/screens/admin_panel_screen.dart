@@ -6,6 +6,7 @@ import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
 import '../services/admin_service.dart';
 import '../services/moderation_service.dart';
+import '../services/feedback_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
@@ -169,6 +170,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   reportsOpen: _admin.overview?.reportsOpen ?? 0,
                   onReports: _openReports,
                 ),
+                const _FeedbackSection(),
                 const SizedBox(height: 24),
                 Text(
                   strings.adminUsers,
@@ -579,6 +581,84 @@ class _UserCard extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FeedbackSection extends StatefulWidget {
+  const _FeedbackSection();
+
+  @override
+  State<_FeedbackSection> createState() => _FeedbackSectionState();
+}
+
+class _FeedbackSectionState extends State<_FeedbackSection> {
+  final _service = FeedbackService();
+  List<FeedbackLetter> _letters = const [];
+  bool _loading = true;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final list = await _service.listForAdmin();
+    if (!mounted) return;
+    setState(() {
+      _letters = list;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.mail_outline, color: theme.colorScheme.primary),
+            title: Text(strings.isRu ? 'Письма' : 'Letters'),
+            subtitle: Text(_loading ? '...' : '${_letters.length}'),
+            trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
+          if (_expanded) ...[
+            const Divider(height: 1),
+            if (_loading)
+              const Padding(padding: EdgeInsets.all(16), child: Center(child: MurkotLoader(size: 24)))
+            else if (_letters.isEmpty)
+              Padding(padding: const EdgeInsets.all(16), child: Text(strings.isRu ? 'Пока нет писем' : 'No letters yet', style: TextStyle(color: theme.colorScheme.outline)))
+            else
+              for (final l in _letters)
+                ListTile(
+                  leading: GestureDetector(
+                    onTap: l.avatarUrl == null ? null : () => MediaViewerScreen.open(context, urls: [l.avatarUrl!]),
+                    child: AvatarDisplay(name: l.authorLogin, avatarPath: l.avatarUrl, avatarEmoji: l.avatarEmoji, radius: 18),
+                  ),
+                  title: GestureDetector(
+                    onTap: () {},
+                    child: Text(l.authorLogin, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(l.text, maxLines: 4, overflow: TextOverflow.ellipsis),
+                    if (l.photoUrl != null) Padding(padding: const EdgeInsets.only(top: 6), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(l.photoUrl!, height: 120, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()))),
+                    Text(l.createdAt.toLocal().toString().split('.').first, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline, fontSize: 11)),
+                  ]),
+                  isThreeLine: true,
+                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: TextButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 16), label: Text(strings.retry)),
+            ),
+          ],
+        ],
       ),
     );
   }

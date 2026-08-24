@@ -1,8 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
+import '../services/auth_service.dart';
+import '../services/feedback_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/unlumen/murkot_fx.dart';
@@ -146,6 +151,28 @@ class AboutMurkotScreen extends StatelessWidget {
             duration: const Duration(milliseconds: 1300),
             style: bodyStyle,
           ),
+          const SizedBox(height: 28),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(strings.isRu ? 'Есть идея?' : 'Have an idea?',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(strings.isRu ? 'Напиши разрабам — предложи улучшение, прикрепи фото если нужно.' : 'Write to the devs — suggest improvements, attach a photo if needed.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () => _openFeedback(context),
+                    icon: const Icon(Icons.mail_outline, size: 18),
+                    label: Text(strings.isRu ? 'Предложить улучшение' : 'Suggest improvement'),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           Center(
             child: Text(
@@ -163,6 +190,54 @@ class AboutMurkotScreen extends StatelessWidget {
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openFeedback(BuildContext context) async {
+    final auth = AuthService();
+    final login = auth.currentUser?.login ?? 'anon';
+    final controller = TextEditingController();
+    Uint8List? photoBytes;
+    String? photoName;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setM) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, left: 20, right: 20, top: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(context.strings.isRu ? 'Письмо разрабам' : 'Message to devs', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                TextField(controller: controller, minLines: 3, maxLines: 6, maxLength: 2000, decoration: InputDecoration(hintText: context.strings.isRu ? 'Твоя идея...' : 'Your idea...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+                const SizedBox(height: 8),
+                Row(children: [
+                  OutlinedButton.icon(onPressed: () async {
+                    final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200);
+                    if (f != null) { photoBytes = await f.readAsBytes(); photoName = f.name; setM(() {}); }
+                  }, icon: const Icon(Icons.image_outlined, size: 18), label: Text(photoBytes == null ? (context.strings.isRu ? 'Фото' : 'Photo') : photoName ?? 'photo')),
+                  if (photoBytes != null) IconButton(onPressed: () => setM(() { photoBytes = null; photoName = null; }), icon: const Icon(Icons.close)),
+                ]),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(context.strings.isRu ? 'Отправить' : 'Send')),
+              ],
+            ),
+          );
+        });
+      },
+    );
+    controller.dispose();
+    if (picked == null || picked.isEmpty) return;
+    String? photoUrl;
+    if (photoBytes != null) {
+      photoUrl = await FeedbackService().uploadPhoto(login: login, bytes: photoBytes!);
+    }
+    final err = await FeedbackService().submit(text: picked, photoUrl: photoUrl);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err == null ? (context.strings.isRu ? 'Отправлено!' : 'Sent!') : 'Error: $err')));
   }
 
   void _showSoon(BuildContext context, String message) {

@@ -13,16 +13,22 @@ class MatchService extends ChangeNotifier {
 
   List<MatchCandidate> _feed = const [];
   List<MatchCandidate> _matches = const [];
+  List<MatchCandidate> _likedMe = const [];
+  List<MatchCandidate> _iLiked = const [];
   bool _loadingFeed = false;
   bool _loadingMatches = false;
+  bool _loadingLiked = false;
   bool _swiping = false;
   String? _feedError;
   String? _matchesError;
 
   List<MatchCandidate> get feed => _feed;
   List<MatchCandidate> get matches => _matches;
+  List<MatchCandidate> get likedMe => _likedMe;
+  List<MatchCandidate> get iLiked => _iLiked;
   bool get isLoadingFeed => _loadingFeed;
   bool get isLoadingMatches => _loadingMatches;
+  bool get isLoadingLiked => _loadingLiked;
   bool get isSwiping => _swiping;
   String? get feedError => _feedError;
   String? get matchesError => _matchesError;
@@ -104,6 +110,28 @@ class MatchService extends ChangeNotifier {
       _matchesError = e.toString();
     } finally {
       _loadingMatches = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshLiked() async {
+    _loadingLiked = true;
+    notifyListeners();
+    try {
+      final meRows = await _client.rpc('get_who_liked_me');
+      _likedMe = (meRows as List).map((r) => MatchCandidate.fromRow(Map<String, dynamic>.from(r as Map))).toList();
+    } catch (e) {
+      debugPrint('who liked me failed: $e');
+      _likedMe = const [];
+    }
+    try {
+      final iRows = await _client.rpc('get_whom_i_liked');
+      _iLiked = (iRows as List).map((r) => MatchCandidate.fromRow(Map<String, dynamic>.from(r as Map))).toList();
+    } catch (e) {
+      debugPrint('whom i liked failed: $e');
+      _iLiked = const [];
+    } finally {
+      _loadingLiked = false;
       notifyListeners();
     }
   }

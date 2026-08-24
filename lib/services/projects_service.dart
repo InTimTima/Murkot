@@ -248,6 +248,7 @@ class ProjectsService extends ChangeNotifier {
     required List<String> lookingFor,
     String? demoUrl,
     String? repoUrl,
+    String? avatarUrl,
   }) async {
     try {
       await _client.from('projects').insert({
@@ -258,6 +259,7 @@ class ProjectsService extends ChangeNotifier {
         'looking_for': lookingFor,
         'demo_url': (demoUrl != null && demoUrl.isNotEmpty) ? demoUrl : null,
         'repo_url': (repoUrl != null && repoUrl.isNotEmpty) ? repoUrl : null,
+        if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatar_url': avatarUrl,
       });
       await refresh();
       return null;
@@ -275,6 +277,7 @@ class ProjectsService extends ChangeNotifier {
     required List<String> lookingFor,
     String? demoUrl,
     String? repoUrl,
+    String? avatarUrl,
   }) async {
     try {
       await _client.from('projects').update({
@@ -284,6 +287,7 @@ class ProjectsService extends ChangeNotifier {
         'looking_for': lookingFor,
         'demo_url': (demoUrl != null && demoUrl.isNotEmpty) ? demoUrl : null,
         'repo_url': (repoUrl != null && repoUrl.isNotEmpty) ? repoUrl : null,
+        if (avatarUrl != null) 'avatar_url': avatarUrl.isEmpty ? null : avatarUrl,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', id);
       await refresh();
@@ -328,6 +332,8 @@ class ProjectsService extends ChangeNotifier {
                 createdAt: project.createdAt,
                 demoUrl: project.demoUrl,
                 repoUrl: project.repoUrl,
+                avatarUrl: project.avatarUrl,
+                imageUrls: project.imageUrls,
               )
             : project,
     ];

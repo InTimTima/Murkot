@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/brand_theme.dart';
@@ -1165,6 +1169,8 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
   final _roleController = TextEditingController();
   late final TextEditingController _demoController;
   late final TextEditingController _repoController;
+  String? _avatarUrl;
+  Uint8List? _avatarBytes;
   bool _saving = false;
   String? _nameError;
 
@@ -1181,6 +1187,7 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
         TextEditingController(text: existing?.description ?? '');
     _demoController = TextEditingController(text: existing?.demoUrl ?? '');
     _repoController = TextEditingController(text: existing?.repoUrl ?? '');
+    _avatarUrl = existing?.avatarUrl;
   }
 
   @override
@@ -1205,6 +1212,29 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
     controller.clear();
   }
 
+  Future<void> _pickAvatar() async {
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512, imageQuality: 85);
+    if (f == null) return;
+    final bytes = await f.readAsBytes();
+    setState(() {
+      _avatarBytes = bytes;
+      _avatarUrl = null;
+    });
+  }
+
+  Future<String?> _uploadAvatarIfNeeded() async {
+    final bytes = _avatarBytes;
+    if (bytes == null) return _avatarUrl;
+    final path = 'project_avatars/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    try {
+      await Supabase.instance.client.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true));
+      return Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
+    } catch (e) {
+      debugPrint('avatar upload failed: $e');
+      return null;
+    }
+  }
+
   Future<void> _publish() async {
     final strings = context.strings;
     final name = _nameController.text.trim();
@@ -1218,6 +1248,18 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
       _saving = true;
     });
 
+    String? avatarUrl;
+    if (_avatarBytes != null) {
+      avatarUrl = await _uploadAvatarIfNeeded();
+      if (avatarUrl == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(strings.isRu ? 'Не удалось загрузить аватар' : 'Avatar upload failed')));
+        setState(() => _saving = false);
+        return;
+      }
+    } else {
+      avatarUrl = _avatarUrl;
+    }
+
     final existing = widget.existing;
     final error = existing == null
         ? await widget.projectsService.createProject(
@@ -1227,6 +1269,7 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
             lookingFor: _lookingFor,
             demoUrl: _demoController.text.trim(),
             repoUrl: _repoController.text.trim(),
+            avatarUrl: avatarUrl,
           )
         : await widget.projectsService.updateProject(
             id: existing.id,
@@ -1236,6 +1279,7 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
             lookingFor: _lookingFor,
             demoUrl: _demoController.text.trim(),
             repoUrl: _repoController.text.trim(),
+            avatarUrl: avatarUrl ?? '',
           );
     if (!mounted) return;
     setState(() => _saving = false);
@@ -1382,6 +1426,28 @@ class _ProjectEditorSheetState extends State<_ProjectEditorSheet> {
                 controller: _roleController,
                 hint: strings.projectLookingForHint,
                 suggestions: kRoleSuggestions,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (_avatarBytes != null)
+                    ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(_avatarBytes!, width: 64, height: 64, fit: BoxFit.cover))
+                  else if (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                    ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_avatarUrl!, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.folder_rounded)))
+                  else
+                    Container(width: 64, height: 64, decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.folder_rounded)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(strings.isRu ? 'Аватар проекта' : 'Project avatar', style: theme.textTheme.labelLarge),
+                      const SizedBox(height: 6),
+                      Wrap(spacing: 8, children: [
+                        OutlinedButton.icon(onPressed: _pickAvatar, icon: const Icon(Icons.image_outlined, size: 16), label: Text(strings.isRu ? 'Выбрать' : 'Pick')),
+                        if (_avatarUrl != null || _avatarBytes != null) TextButton(onPressed: () => setState(() { _avatarUrl = null; _avatarBytes = null; }), child: Text(strings.isRu ? 'Убрать' : 'Remove')),
+                      ]),
+                    ]),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               TextField(
