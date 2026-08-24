@@ -243,13 +243,13 @@ class _ListingsScreenState extends State<ListingsScreen> {
     }
 
     final preview = strings.listingRespondPrefill(listing.title);
-    final confirmed = await showAirdropContactSheet(
+    final edited = await showAirdropContactSheet(
       context: context,
       recipient: listing.author,
       subjectTitle: listing.title,
       previewText: preview,
     );
-    if (!confirmed || !mounted) return;
+    if (edited == null || !mounted) return;
 
     try {
       final conversation =
@@ -257,12 +257,12 @@ class _ListingsScreenState extends State<ListingsScreen> {
       await widget.chatService.sendMessage(
         conversationId: conversation.id,
         type: MessageType.text,
-        content: preview,
+        content: edited,
       );
       await widget.listingsService.recordResponse(
         listingId: listing.id,
         conversationId: conversation.id,
-        note: preview,
+        note: edited,
       );
       await AnalyticsService.instance.track('listing_respond', {
         'listing_id': listing.id,

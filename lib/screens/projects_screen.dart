@@ -220,13 +220,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
     final strings = context.strings;
     final preview = strings.projectContactPrefill(project.name);
-    final confirmed = await showAirdropContactSheet(
+    final edited = await showAirdropContactSheet(
       context: context,
       recipient: project.author,
       subjectTitle: project.name,
       previewText: preview,
     );
-    if (!confirmed || !mounted) return;
+    if (edited == null || !mounted) return;
 
     try {
       final conversation =
@@ -234,7 +234,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       await widget.chatService.sendMessage(
         conversationId: conversation.id,
         type: MessageType.text,
-        content: preview,
+        content: edited,
       );
       if (!mounted) return;
       Navigator.of(context).push(

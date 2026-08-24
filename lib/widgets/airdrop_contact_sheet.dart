@@ -6,15 +6,17 @@ import '../models/user_preview.dart';
 import 'avatar_display.dart';
 
 /// Confirmation before sending a listing/project response as the first DM.
-Future<bool> showAirdropContactSheet({
+/// Returns edited message or null if cancelled.
+Future<String?> showAirdropContactSheet({
   required BuildContext context,
   required UserPreview recipient,
   required String subjectTitle,
   required String previewText,
 }) async {
-  final result = await showModalBottomSheet<bool>(
+  final result = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (context) => _AirdropContactSheet(
       recipient: recipient,
@@ -22,10 +24,10 @@ Future<bool> showAirdropContactSheet({
       previewText: previewText,
     ),
   );
-  return result == true;
+  return result;
 }
 
-class _AirdropContactSheet extends StatelessWidget {
+class _AirdropContactSheet extends StatefulWidget {
   const _AirdropContactSheet({
     required this.recipient,
     required this.subjectTitle,
@@ -37,6 +39,25 @@ class _AirdropContactSheet extends StatelessWidget {
   final String previewText;
 
   @override
+  State<_AirdropContactSheet> createState() => _AirdropContactSheetState();
+}
+
+class _AirdropContactSheetState extends State<_AirdropContactSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.previewText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final strings = context.strings;
     final theme = Theme.of(context);
@@ -44,7 +65,7 @@ class _AirdropContactSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        padding: EdgeInsets.fromLTRB(20, 4, 20, MediaQuery.of(context).viewInsets.bottom + 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -66,13 +87,13 @@ class _AirdropContactSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              strings.respondSubtitle(recipient.login, subjectTitle),
+              strings.respondSubtitle(widget.recipient.login, widget.subjectTitle),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
@@ -98,9 +119,9 @@ class _AirdropContactSheet extends StatelessWidget {
               child: Row(
                 children: [
                   AvatarDisplay(
-                    name: recipient.login,
-                    avatarPath: recipient.avatarUrl,
-                    avatarEmoji: recipient.avatarEmoji,
+                    name: widget.recipient.login,
+                    avatarPath: widget.recipient.avatarUrl,
+                    avatarEmoji: widget.recipient.avatarEmoji,
                     radius: 26,
                   ),
                   const SizedBox(width: 12),
@@ -109,19 +130,19 @@ class _AirdropContactSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          recipient.login,
+                          widget.recipient.login,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          previewText,
-                          maxLines: 3,
+                          widget.previewText,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.75),
+                                .withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -130,19 +151,38 @@ class _AirdropContactSheet extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: InputDecoration(
+                labelText: strings.isRu ? 'Твоё письмо' : 'Your message',
+                hintText: widget.previewText,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
+                    onPressed: () => Navigator.pop(context),
                     child: Text(strings.cancel),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () {
+                      final text = _controller.text.trim();
+                      if (text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(strings.isRu ? 'Напиши хоть что-то' : 'Write something')));
+                        return;
+                      }
+                      Navigator.pop(context, text);
+                    },
                     icon: const Icon(Icons.send_rounded, size: 18),
                     label: Text(strings.respondSend),
                   ),

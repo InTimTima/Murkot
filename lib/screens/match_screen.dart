@@ -92,15 +92,16 @@ class _MatchScreenState extends State<MatchScreen> {
       sharedSkills: candidate.sharedSkills,
       peerSkills: candidate.user.skills.take(3).toList(),
     );
-
+    var messageToSend = opener;
     if (!alreadyConfirmed) {
-      final confirmed = await showAirdropContactSheet(
+      final edited = await showAirdropContactSheet(
         context: context,
         recipient: candidate.preview,
         subjectTitle: strings.matchItsAMatch,
         previewText: opener,
       );
-      if (!confirmed || !mounted) return;
+      if (edited == null || !mounted) return;
+      messageToSend = edited;
     }
 
     try {
@@ -114,7 +115,7 @@ class _MatchScreenState extends State<MatchScreen> {
         await widget.chatService.sendMessage(
           conversationId: conversation.id,
           type: MessageType.text,
-          content: opener,
+          content: messageToSend,
         );
       }
       if (!mounted) return;
