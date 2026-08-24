@@ -776,7 +776,10 @@ class _FinderProjectTileState extends State<_FinderProjectTile>
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
                 child: Row(
                   children: [
-                    _FinderFolderIcon(accent: accent),
+                    if (widget.project.avatarUrl != null && widget.project.avatarUrl!.isNotEmpty)
+                      ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(widget.project.avatarUrl!, width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _FinderFolderIcon(accent: accent)))
+                    else
+                      _FinderFolderIcon(accent: accent),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -813,6 +816,14 @@ class _FinderProjectTileState extends State<_FinderProjectTile>
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              AvatarDisplay(name: widget.project.author.login, avatarPath: widget.project.author.avatarUrl, avatarEmoji: widget.project.author.avatarEmoji, radius: 10),
+                              const SizedBox(width: 6),
+                              Expanded(child: Text('@${widget.project.author.login}', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
                               if (widget.isMine) ...[

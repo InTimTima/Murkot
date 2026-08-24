@@ -59,6 +59,7 @@ class _MatchScreenState extends State<MatchScreen> {
     _loadFeed();
     if (!widget.settingsService.isGuest) {
       widget.matchService.refreshMatches();
+      widget.matchService.refreshLiked();
     }
   }
 
@@ -479,7 +480,7 @@ class _MatchesList extends StatelessWidget {
     if (service.isLoadingMatches && matches.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (matches.isEmpty) {
+    if (matches.isEmpty && service.likedMe.isEmpty && service.iLiked.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRetry,
         child: ListView(
@@ -498,50 +499,76 @@ class _MatchesList extends StatelessWidget {
       );
     }
 
+    Widget likedSection(String title, List<MatchCandidate> list) {
+      if (list.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+            child: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          ),
+          SizedBox(
+            height: 92,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (ctx, i) {
+                final u = list[i].user;
+                return GestureDetector(
+                  onTap: () => onOpenChat(list[i]),
+                  child: Column(
+                    children: [
+                      AvatarDisplay(name: u.login, avatarPath: u.avatarPath, avatarEmoji: u.avatarEmoji, radius: 28),
+                      const SizedBox(height: 4),
+                      SizedBox(width: 64, child: Text(u.login, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12))),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    }
+
     return RefreshIndicator(
-      onRefresh: onRetry,
-      child: ListView.separated(
+      onRefresh: () async {
+        await onRetry();
+        await service.refreshLiked();
+      },
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-        itemCount: matches.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final match = matches[index];
-          final user = match.user;
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+        children: [
+          likedSection(strings.isRu ? 'Тебя лайкнули' : 'Liked you', service.likedMe),
+          likedSection(strings.isRu ? 'Ты лайкнул' : 'You liked', service.iLiked),
+          if (matches.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+              child: Text(strings.matchMatchesTitle, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             ),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              leading: AvatarDisplay(
-                name: user.login,
-                avatarPath: user.avatarPath,
-                avatarEmoji: user.avatarEmoji,
-                radius: 24,
-              ),
-              title: Text(
-                user.login,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                [
-                  if (user.devStatus != DevStatus.none)
-                    availabilityLabel(strings, user.devStatus),
-                  if (user.skills.isNotEmpty)
-                    user.skills.take(3).join(' · '),
-                ].where((s) => s.isNotEmpty).join('\n'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: FilledButton.tonal(
-                onPressed: () => onOpenChat(match),
-                child: Text(strings.matchOpenChat),
-              ),
-            ),
-          );
-        },
+            for (var index = 0; index < matches.length; index++) ...[
+              Builder(builder: (context) {
+                final match = matches[index];
+                final user = match.user;
+                return Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    leading: AvatarDisplay(name: user.login, avatarPath: user.avatarPath, avatarEmoji: user.avatarEmoji, radius: 24),
+                    title: Text(user.login, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text([if (user.devStatus != DevStatus.none) availabilityLabel(strings, user.devStatus), if (user.skills.isNotEmpty) user.skills.take(3).join(' · ')].where((s) => s.isNotEmpty).join('\n'), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: FilledButton.tonal(onPressed: () => onOpenChat(match), child: Text(strings.matchOpenChat)),
+                  ),
+                );
+              }),
+              if (index != matches.length - 1) const SizedBox(height: 8),
+            ],
+          ],
+        ],
       ),
     );
   }
