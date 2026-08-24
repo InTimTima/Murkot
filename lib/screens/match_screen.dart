@@ -727,13 +727,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Stack(
-              alignment: Alignment.center,
-              children: [
-                CitrusSlice(size: 72, opacity: 0.55),
-                StretchCatSilhouette(width: 96, opacity: 0.35),
-              ],
-            ),
+            const StretchCatSilhouette(width: 160, opacity: 0.32),
             const SizedBox(height: 16),
             Text(
               text,

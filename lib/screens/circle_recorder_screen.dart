@@ -38,6 +38,9 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
   bool _recording = false;
   DateTime? _started;
   Timer? _ticker;
+  double _zoom = 1.0;
+  double _maxZoom = 4.0;
+  double _baseZoom = 1.0;
 
   @override
   void initState() {
@@ -66,6 +69,16 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
         await controller.dispose();
         return;
       }
+      try {
+        _maxZoom = await controller.getMaxZoomLevel();
+        _zoom = await controller.getMinZoomLevel();
+      } catch (_) {
+        _maxZoom = 4.0;
+      }
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
       setState(() => _camera = controller);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -84,6 +97,22 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
       context,
       CircleRecording(bytes: bytes, name: file.name),
     );
+  }
+
+  Future<void> _cancelRecord() async {
+    final camera = _camera;
+    _ticker?.cancel();
+    if (_recording && camera != null) {
+      try {
+        await camera.stopVideoRecording();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    if (Navigator.canPop(context)) Navigator.pop(context);
+  }
+
+  Future<void> _sendRecord() async {
+    await _toggleRecord();
   }
 
   Future<void> _toggleRecord() async {
@@ -157,12 +186,24 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
                 aspectRatio: 1,
                 child: ClipOval(
                   child: camera != null && camera.value.isInitialized
-                      ? FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: camera.value.previewSize?.height ?? 320,
-                            height: camera.value.previewSize?.width ?? 320,
-                            child: CameraPreview(camera),
+                      ? GestureDetector(
+                          onScaleStart: (_) => _baseZoom = _zoom,
+                          onScaleUpdate: (details) async {
+                            if (_camera == null) return;
+                            final v = (_baseZoom * details.scale)
+                                .clamp(1.0, _maxZoom);
+                            try {
+                              await _camera!.setZoomLevel(v);
+                              if (mounted) setState(() => _zoom = v);
+                            } catch (_) {}
+                          },
+                          child: FittedBox(
+                            fit: BoxFit.cover,
+                            child: SizedBox(
+                              width: camera.value.previewSize?.height ?? 320,
+                              height: camera.value.previewSize?.width ?? 320,
+                              child: CameraPreview(camera),
+                            ),
                           ),
                         )
                       : ColoredBox(
@@ -186,24 +227,41 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
           ),
           if (_recording)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                '${strings.recording} ${_elapsed()}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Column(
+                children: [
+                  Text(
+                    '${strings.recording} ${_elapsed()} / 1:00',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Щипок — зум  ${_zoom.toStringAsFixed(1)}x',
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                TextButton(
-                  onPressed: _fallbackPick,
-                  child: Text(strings.circleUseSystemCamera),
-                ),
+                if (_recording)
+                  IconButton(
+                    onPressed: _cancelRecord,
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    tooltip: 'Отмена',
+                  )
+                else
+                  TextButton(
+                    onPressed: _fallbackPick,
+                    child: Text(strings.circleUseSystemCamera,
+                        style: const TextStyle(color: Colors.white70)),
+                  ),
                 GestureDetector(
                   onTap: _toggleRecord,
                   child: Container(
@@ -221,7 +279,18 @@ class _CircleRecorderScreenState extends State<CircleRecorderScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 72),
+                if (_recording)
+                  IconButton(
+                    onPressed: _sendRecord,
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white24,
+                      shape: const CircleBorder(),
+                    ),
+                    tooltip: 'Отправить',
+                  )
+                else
+                  const SizedBox(width: 48),
               ],
             ),
           ),

@@ -1952,6 +1952,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       },
       onUploadOwn: () => _addDraft(MessageType.gif),
+      chatService: widget.chatService,
     );
   }
 

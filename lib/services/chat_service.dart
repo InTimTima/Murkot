@@ -14,6 +14,7 @@ import '../models/user.dart';
 import '../models/user_preview.dart';
 import '../utils/helpers.dart';
 import 'blacklist_service.dart';
+import 'gif_service.dart';
 import 'media_service.dart';
 
 /// Owns conversation list, message cache, realtime and outbox for the signed-in
@@ -1914,6 +1915,23 @@ class ChatService extends ChangeNotifier {
       if (profile.login.toLowerCase() == key) return profile.emoji;
     }
     return null;
+  }
+
+  /// GIFs sent by current user across all conversations (for "My GIFs" tab).
+  List<GifHit> collectOwnGifHits() {
+    final seen = <String>{};
+    final hits = <GifHit>[];
+    for (final list in _messages.values) {
+      for (final m in list) {
+        if (m.type != MessageType.gif) continue;
+        if (m.senderId != _userLogin) continue;
+        final media = MediaPayload.tryParse(m.content);
+        if (media == null || media.url.isEmpty) continue;
+        if (!seen.add(media.url)) continue;
+        hits.add(GifHit(previewUrl: media.url, url: media.url, name: media.name));
+      }
+    }
+    return hits.reversed.take(40).toList();
   }
 
   Timer? _reloadDebounce;

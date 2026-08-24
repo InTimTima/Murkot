@@ -162,7 +162,10 @@ class _MurkotRootHome extends StatelessWidget {
             });
           }
           final user = authService.currentUser!;
-          if (needsOnboarding(user, prefs)) {
+          // Temporarily hidden — onboarding stays in project but not shown.
+          // Re-enable by removing this guard.
+          const kDisableOnboarding = true;
+          if (!kDisableOnboarding && needsOnboarding(user, prefs)) {
             hideMurkotHtmlBoot();
             return OnboardingScreen(
               authService: authService,

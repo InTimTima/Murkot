@@ -209,6 +209,41 @@ class AdminService extends ChangeNotifier {
       if (_error != null && _error!.contains('admin_list_users')) {
         _error = null;
       }
+      // Hydrate avatar_url if RPC version on DB is old (features_v23) and returns null
+      if (_users.any((u) => u.avatarUrl == null)) {
+        try {
+          final ids = _users.map((u) => u.id).toList();
+          final profiles = await _client
+              .from('profiles')
+              .select('id, avatar_url')
+              .inFilter('id', ids);
+          final map = {
+            for (final p in (profiles as List))
+              (p as Map)['id'] as String: (p['avatar_url'] as String?)
+          };
+          _users = [
+            for (final u in _users)
+              map[u.id] != null && u.avatarUrl == null
+                  ? AdminUserRow(
+                      id: u.id,
+                      login: u.login,
+                      avatarEmoji: u.avatarEmoji,
+                      avatarUrl: map[u.id],
+                      city: u.city,
+                      createdAt: u.createdAt,
+                      lastSeenAt: u.lastSeenAt,
+                      isDisabled: u.isDisabled,
+                      isOnline: u.isOnline,
+                      listingsActive: u.listingsActive,
+                      listingsTotal: u.listingsTotal,
+                      isAdmin: u.isAdmin,
+                    )
+                  : u
+          ];
+        } catch (e) {
+          debugPrint('avatar hydrate failed: $e');
+        }
+      }
     } catch (e) {
       debugPrint('admin_list_users failed: $e');
       _error = e.toString();

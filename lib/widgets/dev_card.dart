@@ -87,10 +87,18 @@ class DevCardView extends StatelessWidget {
     final theme = Theme.of(context);
     if (_isEmpty) {
       if (!showPlaceholderWhenEmpty) return const SizedBox.shrink();
-      return Text(
-        strings.devCardSubtitle,
-        style: theme.textTheme.bodyMedium
-            ?.copyWith(color: theme.colorScheme.outline),
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.dividerColor),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          strings.isRu ? 'Тут пока ничего нет — заполни карточку в профиле.' : 'Nothing here yet — complete your card in Profile.',
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
+          textAlign: TextAlign.center,
+        ),
       );
     }
 
@@ -98,7 +106,7 @@ class DevCardView extends StatelessWidget {
     final portfolio = user.portfolioUrl?.trim() ?? '';
     final city = user.city?.trim() ?? '';
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (user.devStatus != DevStatus.none)
@@ -168,50 +176,31 @@ class DevCardView extends StatelessWidget {
         ],
       ],
     );
+
+    // Wrap with noticeable border like status/birthday containers
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3), width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      ),
+      child: content,
+    );
   }
 }
 
 /// Frequently used stacks offered as quick-add suggestions.
 const kSkillSuggestions = [
-  'Flutter',
-  'Dart',
-  'Python',
-  'JavaScript',
-  'TypeScript',
-  'React',
-  'Next.js',
-  'Vue',
-  'Svelte',
-  'Node.js',
-  'Go',
-  'Rust',
-  'Java',
-  'Kotlin',
-  'Swift',
-  'C#',
-  'C++',
-  'PHP',
-  'Ruby',
-  'SQL',
-  'PostgreSQL',
-  'Redis',
-  'Supabase',
-  'Firebase',
-  'DevOps',
-  'Docker',
-  'Kubernetes',
-  'AWS',
-  'QA',
-  'UI/UX',
-  'Figma',
-  'ML',
-  'PyTorch',
-  'Android',
-  'iOS',
-  'Unity',
-  'Unreal',
-  'Product',
-  'Growth',
+  'Flutter', 'Dart', 'Python', 'JavaScript', 'TypeScript', 'React', 'Next.js', 'Vue', 'Svelte', 'Node.js',
+  'Go', 'Rust', 'Java', 'Kotlin', 'Swift', 'C#', 'C++', 'PHP', 'Ruby', 'SQL',
+  'PostgreSQL', 'Redis', 'Supabase', 'Firebase', 'DevOps', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure',
+  'QA', 'UI/UX', 'Figma', 'ML', 'PyTorch', 'TensorFlow', 'NumPy', 'Pandas', 'Android', 'iOS',
+  'Unity', 'Unreal', 'Product', 'Growth', 'Elixir', 'Haskell', 'Scala', 'Perl', 'Lua', 'Shell', 'Bash',
+  'GraphQL', 'gRPC', 'WebSocket', 'WebRTC', 'Django', 'Flask', 'FastAPI', 'Spring', '.NET', 'React Native',
+  'Expo', 'Tauri', 'Electron', 'NestJS', 'Nuxt', 'Clojure', 'Erlang', 'Solidity', 'Blockchain', 'AR/VR',
+  'Data Science', 'Big Data', 'Kafka', 'RabbitMQ', 'Nginx', 'Terraform', 'Ansible', 'CI/CD', 'Git', 'Web3',
 ];
 
 /// Opens the developer card editor; returns true if the card was saved.
