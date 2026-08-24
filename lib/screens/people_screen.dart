@@ -13,6 +13,7 @@ import '../services/settings_service.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'chat_screen.dart';
 import 'public_profile_screen.dart';
@@ -200,6 +201,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
   }
 
   Future<void> _message(User user) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     try {
       final conversation = await widget.chatService.openDirectChat(

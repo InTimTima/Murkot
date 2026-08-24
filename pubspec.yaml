@@ -22,6 +22,9 @@ dependencies:
   video_player: ^2.13.0
   google_fonts: ^8.2.1
   flutter_svg: ^2.3.0
+  http: ^1.2.2
+  camera: ^0.11.1
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

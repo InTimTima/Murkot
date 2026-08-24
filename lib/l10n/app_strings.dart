@@ -32,6 +32,75 @@ class AppStrings {
       isRu ? 'Уже есть аккаунт? Войти' : 'Already have an account? Sign in';
   String get authNeedAccount =>
       isRu ? 'Нет аккаунта? Создать' : 'No account? Create one';
+  String get guestEnter => isRu ? 'Войти как гость' : 'Continue as guest';
+  String get guestHint => isRu
+      ? 'Доска и люди — без регистрации. Чтобы писать, нужен аккаунт.'
+      : 'Browse the board without an account. Messaging needs a signup.';
+  String get guestGateTitle =>
+      isRu ? 'Сначала зарегистрируйся' : 'Create an account first';
+  String get guestGateBody => isRu
+      ? 'Гость может смотреть объявления и людей. Чтобы написать, откликнуться или открыть мессенджер — нужен аккаунт.'
+      : 'Guests can browse listings and people. Messaging, replies and messenger need an account.';
+  String get guestRegister => isRu ? 'Зарегистрироваться' : 'Sign up';
+  String get guestKeepBrowsing =>
+      isRu ? 'Продолжить смотреть' : 'Keep browsing';
+  String get guestMessengerLocked =>
+      isRu ? 'Мессенджер для своих' : 'Messenger is for members';
+  String get guestMessengerBody => isRu
+      ? 'Как гость ты видишь доску. Чтобы писать людям — зарегистрируйся. Это быстро, без лишней анкеты.'
+      : 'As a guest you can browse the board. Sign up to message people.';
+  String get guestProfileCta => isRu ? 'Регистрация' : 'Sign up';
+  String get profileNudgeTitle => isRu
+      ? 'Карточка, которую захотят открыть'
+      : 'A card people will actually open';
+  String get profileNudgeBody => isRu
+      ? 'Чем полнее профиль — статус, навыки, город, ссылки — тем охотнее откликаются и зовут в проекты.'
+      : 'A fuller profile — status, skills, city, links — gets more replies and project invites.';
+  String get profileNudgeDismiss => isRu ? 'Понятно' : 'Got it';
+  String get cropAvatarTitle => isRu ? 'Кадрирование' : 'Crop photo';
+  String get cropAvatarHint =>
+      isRu ? 'Двигай и щипай фото, затем сохрани.' : 'Pan and pinch, then save.';
+  String get emojiPickerTitle => isRu ? 'Эмодзи' : 'Emoji';
+  String get stickerPickerTitle => isRu ? 'Стикеры Murkot' : 'Murkot stickers';
+  String get gifPickerTitle => isRu ? 'Гифки' : 'GIFs';
+  String get gifPickerHint => isRu
+      ? 'Поиск в открытой базе Tenor. Можно загрузить свою.'
+      : 'Search Tenor’s public library, or upload your own.';
+  String get gifSearchHint => isRu ? 'Например: cat, ship' : 'Try: cat, ship';
+  String get gifUploadOwn => isRu ? 'Своя гифка' : 'Upload your GIF';
+  String get gifLoadFailed =>
+      isRu ? 'Tenor сейчас не отвечает' : 'Tenor is unavailable';
+  String get circleRecordTitle => isRu ? 'Кружок' : 'Circle';
+  String get circleCameraFallback => isRu
+      ? 'Камера в приложении не открылась. Можно снять кружок системной камерой.'
+      : 'In-app camera failed. You can still record with the system camera.';
+  String get circleUseSystemCamera =>
+      isRu ? 'Системная камера' : 'System camera';
+  String recordingCircle(String login) =>
+      isRu ? '$login записывает кружок' : '$login is recording a circle';
+  String recordingVoice(String login) =>
+      isRu ? '$login записывает голосовое' : '$login is recording a voice note';
+  String get recordingCircleSelf =>
+      isRu ? 'записывает кружок' : 'recording a circle';
+  String get recordingVoiceSelf =>
+      isRu ? 'записывает голосовое' : 'recording a voice note';
+  String get skillShuffle =>
+      isRu ? 'Обновить навыки' : 'Shuffle skills';
+  String get mediaLinks => isRu ? 'Ссылки' : 'Links';
+  String get mediaLinksEmpty =>
+      isRu ? 'Ссылок в переписке пока нет' : 'No links in this chat yet';
+  String get plusAttach => isRu ? 'Файл или медиа' : 'File or media';
+  String get composerStickers => isRu ? 'Стикеры' : 'Stickers';
+  String get composerGifs => isRu ? 'GIF' : 'GIF';
+  String get composerEmoji => isRu ? 'Эмодзи' : 'Emoji';
+  String get attachPanelExpress =>
+      isRu ? 'Настроение' : 'Express';
+  String get attachPanelExpressHint => isRu
+      ? 'Эмодзи, стикеры и гифки — здесь. Файлы и кружки — в плюсе слева.'
+      : 'Emoji, stickers and GIFs live here. Files and circles are in the plus on the left.';
+  String get notificationsAndroidHint => isRu
+      ? 'На Android пуши из сайта работают в Chrome, если разрешить уведомления. В APK пока баннер внутри приложения: системные пуши требуют Firebase.'
+      : 'On Android, site pushes work in Chrome after you allow notifications. The APK currently shows in-app banners; OS pushes need Firebase.';
   String get loginRequired => isRu ? 'Введите логин' : 'Enter login';
   String get emailRequired =>
       isRu ? 'Введите корректную почту' : 'Enter a valid email';
@@ -209,12 +278,16 @@ class AppStrings {
       isRu ? 'Ищу людей в проект' : 'Looking for teammates';
   String get devStatusOpenToOffers =>
       isRu ? 'Открыт к предложениям' : 'Open to offers';
+  String get devStatusDoNotDisturb =>
+      isRu ? 'Не беспокоить' : 'Do not disturb';
   String get availabilityLookingForTeam =>
       isRu ? 'доступен для команды' : 'available for a team';
   String get availabilityLookingForMembers =>
       isRu ? 'собирает команду' : 'building a team';
   String get availabilityOpenToOffers =>
       isRu ? 'открыт к предложениям' : 'open to offers';
+  String get availabilityDoNotDisturb =>
+      isRu ? 'не беспокоить' : 'do not disturb';
   String get sessionBootTitle =>
       isRu ? 'Загружаем Murkot…' : 'Loading Murkot…';
   String get sessionBootSubtitle => isRu

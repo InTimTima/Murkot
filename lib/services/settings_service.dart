@@ -34,6 +34,8 @@ class SettingsService extends ChangeNotifier {
     _floatingTooltips = _prefs.getBool(_floatingTooltipsKey) ?? true;
     _authSpotlight = _prefs.getBool(_authSpotlightKey) ?? true;
     _smoothTheme = _prefs.getBool(_smoothThemeKey) ?? true;
+    _guest = _prefs.getBool(_guestKey) ?? false;
+    _profileNudgeDismissed = _prefs.getBool(_profileNudgeKey) ?? false;
     _loadPersonalization();
   }
 
@@ -45,6 +47,8 @@ class SettingsService extends ChangeNotifier {
   static const _authSpotlightKey = 'settings_auth_spotlight';
   static const _smoothThemeKey = 'settings_smooth_theme';
   static const _personalizationKey = 'settings_personalization';
+  static const _guestKey = 'settings_guest_mode';
+  static const _profileNudgeKey = 'settings_profile_nudge_dismissed';
 
   final SharedPreferences _prefs;
 
@@ -55,6 +59,8 @@ class SettingsService extends ChangeNotifier {
   late bool _floatingTooltips;
   late bool _authSpotlight;
   late bool _smoothTheme;
+  late bool _guest;
+  late bool _profileNudgeDismissed;
   Map<String, String> _personalization = {};
 
   ThemeMode get themeMode => _themeMode;
@@ -64,6 +70,8 @@ class SettingsService extends ChangeNotifier {
   bool get floatingTooltips => _floatingTooltips;
   bool get authSpotlight => _authSpotlight;
   bool get smoothTheme => _smoothTheme;
+  bool get isGuest => _guest;
+  bool get profileNudgeDismissed => _profileNudgeDismissed;
   Map<String, String> get personalization => Map.unmodifiable(_personalization);
 
   Locale get locale =>
@@ -142,6 +150,18 @@ class SettingsService extends ChangeNotifier {
   Future<void> setSmoothTheme(bool enabled) async {
     _smoothTheme = enabled;
     await _prefs.setBool(_smoothThemeKey, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setGuest(bool enabled) async {
+    _guest = enabled;
+    await _prefs.setBool(_guestKey, enabled);
+    notifyListeners();
+  }
+
+  Future<void> dismissProfileNudge() async {
+    _profileNudgeDismissed = true;
+    await _prefs.setBool(_profileNudgeKey, true);
     notifyListeners();
   }
 

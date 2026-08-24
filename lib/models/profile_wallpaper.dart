@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../widgets/murkot_decor.dart';
+import '../widgets/wallpaper_fx.dart';
+
+export '../widgets/wallpaper_fx.dart' show WallpaperFx;
 
 class ProfileWallpaper {
   const ProfileWallpaper({
@@ -9,6 +12,7 @@ class ProfileWallpaper {
     required this.name,
     required this.gradient,
     this.ornamentAsset,
+    this.fx = WallpaperFx.none,
   });
 
   final String id;
@@ -17,6 +21,7 @@ class ProfileWallpaper {
 
   /// Optional brand ornament SVG (7–9) drawn over the gradient.
   final String? ornamentAsset;
+  final WallpaperFx fx;
 
   static const presets = [
     ProfileWallpaper(
@@ -120,6 +125,57 @@ class ProfileWallpaper {
         colors: [Color(0xFFFFF6E8), Color(0xFFFCBF34), Color(0xFFE07010)],
       ),
       ornamentAsset: MurkotAssets.citrus,
+      fx: WallpaperFx.sparks,
+    ),
+    ProfileWallpaper(
+      id: 'sea',
+      name: 'Море',
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF7EC8E3), Color(0xFF1B6B8A), Color(0xFF0C3A4D)],
+      ),
+      fx: WallpaperFx.waves,
+    ),
+    ProfileWallpaper(
+      id: 'breeze',
+      name: 'Ветер',
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFE8F4FF), Color(0xFF9EC5E8), Color(0xFF5A8FBF)],
+      ),
+      fx: WallpaperFx.wind,
+    ),
+    ProfileWallpaper(
+      id: 'aurora',
+      name: 'Сияние',
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF14182B), Color(0xFF1F3D4D), Color(0xFF0E1A22)],
+      ),
+      fx: WallpaperFx.aurora,
+    ),
+    ProfileWallpaper(
+      id: 'ember',
+      name: 'Угли',
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFB347), Color(0xFFE07010), Color(0xFF5A1A08)],
+      ),
+      fx: WallpaperFx.sparks,
+    ),
+    ProfileWallpaper(
+      id: 'dusk',
+      name: 'Дымка',
+      gradient: LinearGradient(
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+        colors: [Color(0xFFFFD6C0), Color(0xFFC989A8), Color(0xFF4A3A5A)],
+      ),
+      fx: WallpaperFx.mist,
     ),
   ];
 
@@ -156,6 +212,7 @@ class ProfileWallpaperSurface extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(gradient: wallpaper.gradient),
           ),
+          WallpaperFxLayer(fx: wallpaper.fx),
           if (wallpaper.ornamentAsset != null)
             Positioned(
               right: -ornamentSize * 0.15,

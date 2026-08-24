@@ -14,6 +14,7 @@ import '../utils/profile_deep_link.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'chat_screen.dart';
@@ -88,6 +89,9 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Future<void> _message() async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final user = _user;
     if (user == null || _openingChat) return;
     setState(() => _openingChat = true);

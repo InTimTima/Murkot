@@ -7,6 +7,7 @@ import '../services/chat_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/avatar_display.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/murkot_decor.dart';
 import 'chat_screen.dart';
 
@@ -64,6 +65,9 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   }
 
   Future<void> _openOrJoin(PublicConversationPreview preview) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     final wasMember = preview.isMember;
     setState(() => _joining.add(preview.id));

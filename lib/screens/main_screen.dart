@@ -32,6 +32,7 @@ import '../widgets/unlumen/murkot_fx.dart';
 import 'about_murkot_screen.dart';
 import 'board_screen.dart';
 import 'chat_screen.dart';
+import 'guest_locked_screen.dart';
 import 'messages_hub_screen.dart';
 import 'profile_screen.dart';
 import 'public_profile_screen.dart';
@@ -42,11 +43,13 @@ class MainScreen extends StatefulWidget {
     required this.authService,
     required this.settingsService,
     required this.prefs,
+    this.isGuest = false,
   });
 
   final AuthService authService;
   final SettingsService settingsService;
   final SharedPreferences prefs;
+  final bool isGuest;
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -129,7 +132,52 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  static const _guestUserId = '00000000-0000-0000-0000-000000000000';
+
+  Future<void> _initGuestServices() async {
+    _disposeSessionServices();
+    const guestId = _guestUserId;
+    const guestLogin = 'guest';
+    final blacklistService =
+        BlacklistService(userId: guestId, userLogin: guestLogin);
+    final presenceService = PresenceService(
+      userId: guestId,
+      userLogin: guestLogin,
+    );
+    final chatService = ChatService(
+      userId: guestId,
+      userLogin: guestLogin,
+      prefs: widget.prefs,
+      blacklistService: blacklistService,
+    );
+    if (!mounted) {
+      chatService.dispose();
+      return;
+    }
+    setState(() {
+      _chatService = chatService;
+      _listingsService = ListingsService(userId: guestId);
+      _projectsService = ProjectsService(userId: guestId);
+      _matchService = MatchService();
+      _peopleService = PeopleService();
+      _blacklistService = blacklistService;
+      _presenceService = presenceService;
+      _loadError = null;
+      _loadingData = false;
+      _showBoot = false;
+      _bootFailed = false;
+    });
+    hideMurkotHtmlBoot();
+    unawaited(_listingsService!.refresh());
+    unawaited(_projectsService!.refresh());
+    unawaited(_peopleService!.refresh());
+  }
+
   Future<void> _initServices() async {
+    if (widget.isGuest) {
+      await _initGuestServices();
+      return;
+    }
     final user = widget.authService.currentUser;
     if (user == null) return;
 
@@ -428,10 +476,10 @@ class _MainScreenState extends State<MainScreen> {
     final currentUser = widget.authService.currentUser;
     // During a forced re-login the auth screen replaces this widget on the
     // next frame; render a placeholder instead of crashing on null.
-    if (currentUser == null) {
+    if (currentUser == null && !widget.isGuest) {
       return const Scaffold(body: MurkotBootScreen());
     }
-    final login = currentUser.login;
+    final login = currentUser?.login ?? 'guest';
     final chatService = _chatService;
     final listingsService = _listingsService;
     final projectsService = _projectsService;
@@ -457,7 +505,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    final user = currentUser;
     final theme = Theme.of(context);
 
     final shell = Scaffold(
@@ -541,21 +588,33 @@ class _MainScreenState extends State<MainScreen> {
                       )
                     : const SizedBox.shrink(),
                 _builtTabs.contains(MainTabs.chats)
-                    ? MessagesHubScreen(
-                        chatService: chatService,
-                        blacklistService: blacklistService,
-                        presenceService: presenceService,
-                        currentUserLogin: login,
-                        settingsService: widget.settingsService,
-                        initialFilter: messengerFilter.value,
-                      )
+                    ? (widget.isGuest
+                        ? GuestLockedScreen(
+                            settingsService: widget.settingsService,
+                            title: strings.guestMessengerLocked,
+                            body: strings.guestMessengerBody,
+                          )
+                        : MessagesHubScreen(
+                            chatService: chatService,
+                            blacklistService: blacklistService,
+                            presenceService: presenceService,
+                            currentUserLogin: login,
+                            settingsService: widget.settingsService,
+                            initialFilter: messengerFilter.value,
+                          ))
                     : const SizedBox.shrink(),
                 _builtTabs.contains(MainTabs.profile)
-                    ? ProfileScreen(
-                        authService: widget.authService,
-                        settingsService: widget.settingsService,
-                        blacklistService: blacklistService,
-                      )
+                    ? (widget.isGuest
+                        ? GuestLockedScreen(
+                            settingsService: widget.settingsService,
+                            title: strings.guestRegister,
+                            body: strings.guestGateBody,
+                          )
+                        : ProfileScreen(
+                            authService: widget.authService,
+                            settingsService: widget.settingsService,
+                            blacklistService: blacklistService,
+                          ))
                     : const SizedBox.shrink(),
               ],
             ),
@@ -569,10 +628,16 @@ class _MainScreenState extends State<MainScreen> {
               onTap: _selectTab,
               boardLabel: strings.listingsTab,
               chatsLabel: strings.messagesTab,
-              profileLabel: strings.profile,
-              profileLogin: user.login,
-              profileAvatarPath: user.avatarPath,
-              profileAvatarEmoji: user.avatarEmoji,
+              profileLabel: widget.isGuest
+                  ? strings.guestProfileCta
+                  : strings.profile,
+              profileLogin: widget.isGuest
+                  ? strings.guestRegister
+                  : currentUser!.login,
+              profileAvatarPath:
+                  widget.isGuest ? null : currentUser!.avatarPath,
+              profileAvatarEmoji:
+                  widget.isGuest ? '👋' : currentUser!.avatarEmoji,
               settingsService: widget.settingsService,
             ),
     );

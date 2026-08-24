@@ -48,7 +48,9 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Нужен доступ к камере для смены аватара</string>
+	<string>Нужен доступ к камере для аватара и кружков</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Нужен доступ к микрофону для голосовых и кружков</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Нужен доступ к галерее для смены аватара</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

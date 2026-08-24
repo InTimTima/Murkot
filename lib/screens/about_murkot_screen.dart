@@ -14,6 +14,7 @@ class AboutMurkotScreen extends StatelessWidget {
   final SettingsService? settingsService;
 
   static const _nikitaSite = 'https://nikita-dodiev.vercel.app/en';
+  static const _timaSite = 'https://tima-red.vercel.app/';
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +110,7 @@ class AboutMurkotScreen extends StatelessWidget {
                   name: 'Tima',
                   role: strings.aboutCreator2Role,
                   photoAsset: 'assets/about/tima.png',
-                  onNameTap: () => _showSoon(context, strings.aboutTimaSoon),
+                  onNameTap: () => _openUrl(_timaSite),
                 ),
               ];
               if (sideBySide) {

@@ -16,6 +16,8 @@ String devStatusLabel(AppStrings strings, DevStatus status) {
       return strings.devStatusLookingForMembers;
     case DevStatus.openToOffers:
       return strings.devStatusOpenToOffers;
+    case DevStatus.doNotDisturb:
+      return strings.devStatusDoNotDisturb;
   }
 }
 
@@ -42,6 +44,8 @@ Color devStatusColor(DevStatus status, ColorScheme scheme) {
       return Colors.blue.shade600;
     case DevStatus.openToOffers:
       return Colors.orange.shade700;
+    case DevStatus.doNotDisturb:
+      return Colors.red.shade400;
   }
 }
 
@@ -175,21 +179,39 @@ const kSkillSuggestions = [
   'JavaScript',
   'TypeScript',
   'React',
+  'Next.js',
+  'Vue',
+  'Svelte',
   'Node.js',
   'Go',
+  'Rust',
   'Java',
   'Kotlin',
   'Swift',
   'C#',
   'C++',
   'PHP',
+  'Ruby',
   'SQL',
+  'PostgreSQL',
+  'Redis',
+  'Supabase',
+  'Firebase',
   'DevOps',
+  'Docker',
+  'Kubernetes',
+  'AWS',
   'QA',
   'UI/UX',
+  'Figma',
   'ML',
+  'PyTorch',
   'Android',
   'iOS',
+  'Unity',
+  'Unreal',
+  'Product',
+  'Growth',
 ];
 
 /// Opens the developer card editor; returns true if the card was saved.
@@ -218,6 +240,7 @@ class _DevCardEditSheetState extends State<_DevCardEditSheet> {
   late DevStatus _devStatus;
   late List<String> _skills;
   ExperienceLevel? _level;
+  int _skillPage = 0;
   late final TextEditingController _skillController;
   late final TextEditingController _githubController;
   late final TextEditingController _portfolioController;
@@ -282,10 +305,15 @@ class _DevCardEditSheetState extends State<_DevCardEditSheet> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final theme = Theme.of(context);
-    final suggestions = kSkillSuggestions
+    final unused = kSkillSuggestions
         .where((s) =>
             !_skills.any((added) => added.toLowerCase() == s.toLowerCase()))
         .toList();
+    const pageSize = 12;
+    final pages = unused.isEmpty ? 1 : ((unused.length + pageSize - 1) ~/ pageSize);
+    final page = _skillPage % pages;
+    final suggestions =
+        unused.skip(page * pageSize).take(pageSize).toList();
 
     return SafeArea(
       child: Padding(
@@ -377,13 +405,28 @@ class _DevCardEditSheetState extends State<_DevCardEditSheet> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: _addSkill,
               ),
-              if (suggestions.isNotEmpty) ...[
+              if (unused.isNotEmpty) ...[
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      strings.skillAddHint,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _skillPage++),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: Text(strings.skillShuffle),
+                    ),
+                  ],
+                ),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final suggestion in suggestions.take(12))
+                    for (final suggestion in suggestions)
                       ActionChip(
                         label: Text(suggestion),
                         visualDensity: VisualDensity.compact,

@@ -130,7 +130,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: Icon(Icons.notifications_outlined,
                       color: theme.colorScheme.primary),
                   title: Text(strings.notificationsMessages),
-                  subtitle: Text(strings.notificationsHint),
+                  subtitle: Text(
+                    '${strings.notificationsHint}\n${strings.notificationsAndroidHint}',
+                  ),
                   trailing: MurkotSwitch(
                     value: widget.settingsService.notificationsEnabled,
                     onChanged: (v) async {

@@ -30,7 +30,8 @@ class _DevStatusBadgeState extends State<DevStatusBadge>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
-    if (widget.status != DevStatus.none) {
+    if (widget.status != DevStatus.none &&
+        widget.status != DevStatus.doNotDisturb) {
       _pulse.repeat(reverse: true);
     }
   }
@@ -38,7 +39,8 @@ class _DevStatusBadgeState extends State<DevStatusBadge>
   @override
   void didUpdateWidget(covariant DevStatusBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.status == DevStatus.none) {
+    if (widget.status == DevStatus.none ||
+        widget.status == DevStatus.doNotDisturb) {
       _pulse.stop();
       _pulse.value = 0;
     } else if (!_pulse.isAnimating) {
@@ -127,5 +129,7 @@ String availabilityLabel(AppStrings strings, DevStatus status) {
       return strings.availabilityLookingForMembers;
     case DevStatus.openToOffers:
       return strings.availabilityOpenToOffers;
+    case DevStatus.doNotDisturb:
+      return strings.availabilityDoNotDisturb;
   }
 }

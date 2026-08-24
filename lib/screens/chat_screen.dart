@@ -20,13 +20,16 @@ import '../services/settings_service.dart';
 import '../utils/helpers.dart';
 import '../utils/main_tab_bus.dart';
 import '../services/voice_recorder.dart';
+import '../data/sticker_packs.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/circle_video_player.dart';
+import '../widgets/composer_pickers.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/voice_message_player.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'about_murkot_screen.dart';
+import 'circle_recorder_screen.dart';
 import 'forward_message_sheet.dart';
 import 'media_viewer_screen.dart';
 import 'stranger_profile_screen.dart';
@@ -224,6 +227,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final othersTyping = _conversation.typingUsers
         .where((login) => login != widget.currentUserLogin)
         .toList();
+    final activity = widget.chatService.peerActivity(_conversation.id);
+    final actor = widget.chatService.peerActivityLogin(_conversation.id);
+    if (activity == 'circle' && actor != null) {
+      return strings.recordingCircle(actor);
+    }
+    if (activity == 'voice' && actor != null) {
+      return strings.recordingVoice(actor);
+    }
     if (othersTyping.isNotEmpty) {
       if (_conversation.type == ConversationType.group) {
         return strings.typingUsers(othersTyping.join(', '));
@@ -573,6 +584,9 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       return;
     }
+    unawaited(
+      widget.chatService.setComposerActivity(_conversation.id, 'voice'),
+    );
     setState(() {
       _recordingVoice = true;
       _voiceStartedAt = DateTime.now();
@@ -588,6 +602,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _voiceTick?.cancel();
     _voiceTick = null;
     setState(() => _recordingVoice = false);
+    unawaited(widget.chatService.setComposerActivity(_conversation.id, null));
     if (!send) {
       await cancelVoiceRecording();
       _voiceStartedAt = null;
@@ -626,7 +641,30 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendCircleVideo() async {
-    await _sendMedia(MessageType.video, asCircle: true);
+    if (!widget.chatService.canSendMessages(_conversation)) return;
+    unawaited(
+      widget.chatService.setComposerActivity(_conversation.id, 'circle'),
+    );
+    try {
+      final recorded = await recordCircleVideo(context);
+      if (recorded == null) return;
+      await widget.chatService.sendMediaBytes(
+        conversationId: _conversation.id,
+        type: MessageType.video,
+        bytes: recorded.bytes,
+        fileName: recorded.name,
+        contentType: 'video/mp4',
+        isCircle: true,
+      );
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.strings.mediaUploadFailed}: $e')),
+      );
+    } finally {
+      unawaited(widget.chatService.setComposerActivity(_conversation.id, null));
+    }
   }
 
   Future<_PickedMedia?> _pickMedia(
@@ -1537,8 +1575,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         focusNode: _messageFocusNode,
                         onChanged: _onTextChanged,
                         onSend: _sendText,
-                        // Desktop: attachments live in the right-side panel.
-                        onAttach: isWide ? null : _showAttachMenu,
+                        onAttach: _showAttachMenu,
+                        onEmoji: _openEmojiPicker,
+                        onStickers: _openStickerPicker,
+                        onGifs: _openGifPicker,
                         onVoiceStart: _startVoiceNote,
                         hintText: _drafts.isNotEmpty
                             ? strings.captionHint
@@ -1764,58 +1804,39 @@ class _ChatScreenState extends State<ChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            strings.attachmentsPanel,
+            strings.attachPanelExpress,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            strings.attachPanelExpressHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
             ),
           ),
           const SizedBox(height: 12),
           Expanded(
             child: GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: 1,
               mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.7,
+              childAspectRatio: 2.6,
               children: [
                 _SidePanelTile(
-                  icon: Icons.image,
-                  label: strings.image,
-                  onTap: () => _addDraft(MessageType.image),
+                  icon: Icons.emoji_emotions_outlined,
+                  label: strings.composerEmoji,
+                  onTap: _openEmojiPicker,
                 ),
                 _SidePanelTile(
-                  icon: Icons.videocam,
-                  label: strings.video,
-                  onTap: () => _addDraft(MessageType.video),
+                  icon: Icons.auto_awesome,
+                  label: strings.composerStickers,
+                  onTap: _openStickerPicker,
                 ),
                 _SidePanelTile(
-                  icon: Icons.motion_photos_on_outlined,
-                  label: strings.circleVideo,
-                  onTap: _sendCircleVideo,
-                ),
-                _SidePanelTile(
-                  icon: Icons.music_note,
-                  label: strings.music,
-                  onTap: () => _addDraft(MessageType.music),
-                ),
-                _SidePanelTile(
-                  icon: Icons.gif_box,
-                  label: strings.gif,
-                  onTap: () => _addDraft(MessageType.gif),
-                ),
-                _SidePanelTile(
-                  icon: Icons.attach_file,
-                  label: strings.file,
-                  onTap: () => _addDraft(MessageType.file),
-                ),
-                _SidePanelTile(
-                  icon: Icons.emoji_emotions,
-                  label: strings.sticker,
-                  onTap: () => _addDraft(MessageType.sticker),
-                ),
-                _SidePanelTile(
-                  icon: Icons.mic,
-                  label: strings.voice,
-                  onTap: _startVoiceNote,
+                  icon: Icons.gif_box_outlined,
+                  label: strings.composerGifs,
+                  onTap: _openGifPicker,
                 ),
               ],
             ),
@@ -1838,6 +1859,69 @@ class _ChatScreenState extends State<ChatScreen> {
     return '$m:$s';
   }
 
+  Future<void> _openEmojiPicker() async {
+    await showEmojiPicker(
+      context,
+      onPick: (emoji) {
+        final text = _messageController.text;
+        final selection = _messageController.selection;
+        final start = selection.isValid ? selection.start : text.length;
+        final end = selection.isValid ? selection.end : text.length;
+        final next = text.replaceRange(start, end, emoji);
+        _messageController.value = TextEditingValue(
+          text: next,
+          selection: TextSelection.collapsed(offset: start + emoji.length),
+        );
+        _onTextChanged(next);
+      },
+    );
+  }
+
+  Future<void> _openStickerPicker() async {
+    await showStickerPicker(
+      context,
+      onPick: (sticker) => _sendSticker(sticker),
+    );
+  }
+
+  Future<void> _sendSticker(StickerItem sticker) async {
+    if (!widget.chatService.canSendMessages(_conversation)) return;
+    try {
+      await widget.chatService.sendMessage(
+        conversationId: _conversation.id,
+        type: MessageType.sticker,
+        content: sticker.glyph,
+      );
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _openGifPicker() async {
+    await showGifPicker(
+      context,
+      onPick: (gif) async {
+        if (!widget.chatService.canSendMessages(_conversation)) return;
+        try {
+          await widget.chatService.sendMessage(
+            conversationId: _conversation.id,
+            type: MessageType.gif,
+            content: MediaPayload(url: gif.url, name: gif.name).encode(),
+          );
+          _scrollToBottom();
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$e')),
+          );
+        }
+      },
+      onUploadOwn: () => _addDraft(MessageType.gif),
+    );
+  }
+
   Future<void> _showAttachMenu() async {
     final strings = context.strings;
     final type = await showModalBottomSheet<Object>(
@@ -1846,17 +1930,15 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
-            _AttachTile(icon: Icons.mic, label: strings.voice, type: MessageType.voice),
+            _AttachTile(icon: Icons.image, label: strings.image, type: MessageType.image),
+            _AttachTile(icon: Icons.videocam, label: strings.video, type: MessageType.video),
             _AttachActionTile(
               icon: Icons.motion_photos_on_outlined,
               label: strings.circleVideo,
               onTap: () => Navigator.pop(context, 'circle'),
             ),
-            _AttachTile(icon: Icons.videocam, label: strings.video, type: MessageType.video),
-            _AttachTile(icon: Icons.image, label: strings.image, type: MessageType.image),
+            _AttachTile(icon: Icons.mic, label: strings.voice, type: MessageType.voice),
             _AttachTile(icon: Icons.music_note, label: strings.music, type: MessageType.music),
-            _AttachTile(icon: Icons.emoji_emotions, label: strings.sticker, type: MessageType.sticker),
-            _AttachTile(icon: Icons.gif_box, label: strings.gif, type: MessageType.gif),
             _AttachTile(icon: Icons.attach_file, label: strings.file, type: MessageType.file),
           ],
         ),
@@ -1896,11 +1978,11 @@ class _DesktopChatLayout extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(flex: 1, child: navRail ?? const SizedBox.shrink()),
+        Expanded(flex: 9, child: navRail ?? const SizedBox.shrink()),
         Container(width: 1, color: dividerColor),
-        Expanded(flex: 2, child: child),
+        Expanded(flex: 24, child: child),
         Container(width: 1, color: dividerColor),
-        Expanded(flex: 1, child: sidePanel ?? const SizedBox.shrink()),
+        Expanded(flex: 9, child: sidePanel ?? const SizedBox.shrink()),
       ],
     );
   }
@@ -2649,6 +2731,11 @@ class _MessageBubble extends StatelessWidget {
                                   ],
                                 ),
                               )
+                            else if (message.type == MessageType.sticker)
+                              Text(
+                                message.content,
+                                style: const TextStyle(fontSize: 56),
+                              )
                             else
                               Text(
                                 message.type == MessageType.text
@@ -2813,6 +2900,9 @@ class _MessageInputBar extends StatelessWidget {
     required this.onSend,
     required this.onVoiceStart,
     this.onAttach,
+    this.onEmoji,
+    this.onStickers,
+    this.onGifs,
     this.hintText,
     this.forceSendButton = false,
   });
@@ -2822,6 +2912,9 @@ class _MessageInputBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSend;
   final VoidCallback? onAttach;
+  final VoidCallback? onEmoji;
+  final VoidCallback? onStickers;
+  final VoidCallback? onGifs;
   final VoidCallback onVoiceStart;
   final String? hintText;
 
@@ -2844,9 +2937,21 @@ class _MessageInputBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (onAttach != null)
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: onAttach,
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4, bottom: 2),
+                      child: Material(
+                        color: Theme.of(context).colorScheme.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onAttach,
+                          child: const SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Icon(Icons.add, color: Colors.white, size: 22),
+                          ),
+                        ),
+                      ),
                     ),
                   Expanded(
                     child: Focus(
@@ -2881,6 +2986,24 @@ class _MessageInputBar extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (onEmoji != null)
+                    IconButton(
+                      tooltip: context.strings.composerEmoji,
+                      icon: const Icon(Icons.emoji_emotions_outlined),
+                      onPressed: onEmoji,
+                    ),
+                  if (onStickers != null)
+                    IconButton(
+                      tooltip: context.strings.composerStickers,
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      onPressed: onStickers,
+                    ),
+                  if (onGifs != null)
+                    IconButton(
+                      tooltip: context.strings.composerGifs,
+                      icon: const Icon(Icons.gif_box_outlined),
+                      onPressed: onGifs,
+                    ),
                   const SizedBox(width: 4),
                   if (hasText)
                     IconButton(

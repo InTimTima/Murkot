@@ -19,6 +19,7 @@ import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'chat_screen.dart';
@@ -80,6 +81,9 @@ class _MatchScreenState extends State<MatchScreen> {
     MatchCandidate candidate, {
     bool alreadyConfirmed = false,
   }) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     final opener = strings.matchChatOpener(
       peerLogin: candidate.user.login,
@@ -189,6 +193,9 @@ class _MatchScreenState extends State<MatchScreen> {
   }
 
   Future<void> _swipe(bool liked) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     final candidate = _visibleCandidate;
     if (candidate == null) return;

@@ -15,6 +15,7 @@ import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
 import 'chat_screen.dart';
@@ -214,6 +215,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Future<void> _contactAuthor(Project project) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     final preview = strings.projectContactPrefill(project.name);
     final confirmed = await showAirdropContactSheet(
@@ -272,6 +276,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Future<void> _create() async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final saved = await showProjectEditorSheet(
       context: context,
       projectsService: widget.projectsService,

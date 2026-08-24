@@ -248,6 +248,24 @@ class _AuthScreenState extends State<AuthScreen> {
                                             : strings.noAccount,
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
+                                    OutlinedButton(
+                                      onPressed: _isLoading
+                                          ? null
+                                          : () => widget.settingsService
+                                              .setGuest(true),
+                                      child: Text(strings.guestEnter),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      strings.guestHint,
+                                      textAlign: TextAlign.center,
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),

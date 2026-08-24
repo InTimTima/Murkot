@@ -53,6 +53,7 @@ class ChatService extends ChangeNotifier {
   final Map<String, Set<String>> _readByMe = {};
   final Set<String> _readByOthers = {};
   final Map<String, List<String>> _typingUsers = {};
+  final Map<String, Map<String, String>> _composerActivity = {};
   final Map<String, _ProfileRef> _profilesById = {};
   final Set<String> _messagesInitialized = {};
   final Map<String, bool> _hasMoreMessages = {};
@@ -211,13 +212,28 @@ class ChatService extends ChangeNotifier {
   }
 
   Future<void> setTyping(String conversationId, bool isTyping) async {
+    await setComposerActivity(
+      conversationId,
+      isTyping ? 'typing' : null,
+    );
+  }
+
+  /// [activity] is `typing`, `voice`, `circle`, or null to clear.
+  Future<void> setComposerActivity(String conversationId, String? activity) async {
     final typing = List<String>.from(_typingUsers[conversationId] ?? []);
-    if (isTyping) {
-      if (!typing.contains(_userLogin)) typing.add(_userLogin);
-    } else {
+    final map = Map<String, String>.from(_composerActivity[conversationId] ?? {});
+    if (activity == null || activity.isEmpty) {
       typing.remove(_userLogin);
+      map.remove(_userLogin);
+    } else {
+      if (activity == 'typing' && !typing.contains(_userLogin)) {
+        typing.add(_userLogin);
+      }
+      if (activity != 'typing') typing.remove(_userLogin);
+      map[_userLogin] = activity;
     }
     _typingUsers[conversationId] = typing;
+    _composerActivity[conversationId] = map;
     _applyTypingToConversation(conversationId);
     notifyListeners();
 
@@ -226,9 +242,28 @@ class ChatService extends ChangeNotifier {
       payload: {
         'conversation_id': conversationId,
         'login': _userLogin,
-        'is_typing': isTyping,
+        'is_typing': activity == 'typing',
+        'activity': activity,
       },
     );
+  }
+
+  String? peerActivity(String conversationId) {
+    final map = _composerActivity[conversationId];
+    if (map == null) return null;
+    for (final entry in map.entries) {
+      if (entry.key != _userLogin) return entry.value;
+    }
+    return null;
+  }
+
+  String? peerActivityLogin(String conversationId) {
+    final map = _composerActivity[conversationId];
+    if (map == null) return null;
+    for (final entry in map.entries) {
+      if (entry.key != _userLogin) return entry.key;
+    }
+    return null;
   }
 
   Future<List<UserPreview>> searchUsers(String query) async {
@@ -1679,15 +1714,28 @@ class ChatService extends ChangeNotifier {
           final convId = data['conversation_id'] as String?;
           final login = data['login'] as String?;
           final isTyping = data['is_typing'] as bool? ?? false;
+          final activity = data['activity'] as String?;
           if (convId == null || login == null || login == _userLogin) return;
 
           final typing = List<String>.from(_typingUsers[convId] ?? []);
-          if (isTyping) {
-            if (!typing.contains(login)) typing.add(login);
-          } else {
+          final map = Map<String, String>.from(_composerActivity[convId] ?? {});
+          if (activity == null || activity.isEmpty) {
             typing.remove(login);
+            map.remove(login);
+          } else {
+            map[login] = activity;
+            if (activity == 'typing') {
+              if (!typing.contains(login)) typing.add(login);
+            } else {
+              typing.remove(login);
+            }
+          }
+          if (activity == null && isTyping) {
+            if (!typing.contains(login)) typing.add(login);
+            map[login] = 'typing';
           }
           _typingUsers[convId] = typing;
+          _composerActivity[convId] = map;
           _applyTypingToConversation(convId);
           notifyListeners();
         },

@@ -3,7 +3,8 @@ enum DevStatus {
   none('none'),
   lookingForTeam('looking_for_team'),
   lookingForMembers('looking_for_members'),
-  openToOffers('open_to_offers');
+  openToOffers('open_to_offers'),
+  doNotDisturb('do_not_disturb');
 
   const DevStatus(this.dbValue);
 

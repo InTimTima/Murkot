@@ -148,12 +148,19 @@ class _MurkotRootHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: authService,
+      listenable: Listenable.merge([authService, settingsService]),
       builder: (context, _) {
         if (!authService.isReady) {
           return const Scaffold(body: MurkotBootScreen());
         }
         if (authService.isAuthenticated) {
+          if (settingsService.isGuest) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (settingsService.isGuest) {
+                settingsService.setGuest(false);
+              }
+            });
+          }
           final user = authService.currentUser!;
           if (needsOnboarding(user, prefs)) {
             hideMurkotHtmlBoot();
@@ -170,6 +177,14 @@ class _MurkotRootHome extends StatelessWidget {
           );
         }
         hideMurkotHtmlBoot();
+        if (settingsService.isGuest) {
+          return MainScreen(
+            authService: authService,
+            settingsService: settingsService,
+            prefs: prefs,
+            isGuest: true,
+          );
+        }
         if (authService.needsEmailVerification) {
           return EmailVerificationScreen(authService: authService);
         }

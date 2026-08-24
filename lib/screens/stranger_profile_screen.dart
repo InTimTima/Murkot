@@ -8,6 +8,7 @@ import '../models/conversation.dart';
 import '../models/media_payload.dart';
 import '../models/message.dart';
 import '../models/system_payload.dart';
+import '../models/profile_wallpaper.dart';
 import '../models/user.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
@@ -53,7 +54,7 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
   void initState() {
     super.initState();
     _conversation = widget.conversation;
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     if (_conversation.type == ConversationType.direct) {
       _loadPeerProfile();
     }
@@ -494,7 +495,6 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
           ),
           body: LayoutBuilder(
             builder: (context, constraints) {
-              final isDesktop = constraints.maxWidth >= 720;
               final header = _buildProfileHeader(context, theme, strings);
               final media = _buildMediaSection(strings);
               final actions = _ProfileActionsSheet(
@@ -566,38 +566,19 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
                 ],
               );
 
-              if (isDesktop) {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+              return Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-                              child: header,
-                            ),
-                          ),
-                          VerticalDivider(
-                            width: 1,
-                            color: theme.dividerColor.withValues(alpha: 0.4),
-                          ),
-                          Expanded(child: media),
+                          header,
+                          const SizedBox(height: 8),
+                          SizedBox(height: 480, child: media),
                         ],
                       ),
                     ),
-                    actions,
-                  ],
-                );
-              }
-
-              return Column(
-                children: [
-                  const SizedBox(height: 20),
-                  header,
-                  const SizedBox(height: 12),
-                  Expanded(child: media),
+                  ),
                   actions,
                 ],
               );
@@ -614,27 +595,69 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     AppStrings strings,
   ) {
     final isDesktop = MediaQuery.sizeOf(context).width >= 720;
-    final radius = isDesktop
-        ? (MediaQuery.sizeOf(context).width * 0.25) / 2
-        : 48.0;
+    final radius = isDesktop ? 72.0 : 48.0;
+    final avatarSize = radius * 2;
+    final wallpaper = ProfileWallpaper.byId(
+      _peerProfile?.profileWallpaperId ?? 'blue',
+    );
+    final custom = _peerProfile?.customWallpaperPath;
+    final wallpaperHeight = avatarSize * 0.75 + 48;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          onTap: _conversation.avatarPath == null
-              ? null
-              : () => MediaViewerScreen.open(
-                    context,
-                    urls: [_conversation.avatarPath!],
-                    title: _conversation.name,
+        SizedBox(
+          height: wallpaperHeight + avatarSize * 0.25,
+          width: double.infinity,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: wallpaperHeight,
+                child: custom != null && custom.isNotEmpty
+                    ? Image.network(custom, fit: BoxFit.cover)
+                    : ProfileWallpaperSurface(
+                        wallpaper: wallpaper,
+                        ornamentSize: 180,
+                        ornamentOpacity: 0.28,
+                      ),
+              ),
+              Positioned(
+                top: wallpaperHeight - avatarSize * 0.75,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _conversation.avatarPath == null
+                        ? null
+                        : () => MediaViewerScreen.open(
+                              context,
+                              urls: [_conversation.avatarPath!],
+                              title: _conversation.name,
+                            ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 4,
+                        ),
+                      ),
+                      child: AvatarDisplay(
+                        name: _conversation.name,
+                        avatarPath: _conversation.avatarPath,
+                        avatarEmoji: conversationAvatarEmoji(_conversation),
+                        radius: radius,
+                        fontSize: isDesktop ? radius * 0.55 : 32,
+                      ),
+                    ),
                   ),
-          child: AvatarDisplay(
-            name: _conversation.name,
-            avatarPath: _conversation.avatarPath,
-            avatarEmoji: conversationAvatarEmoji(_conversation),
-            radius: radius,
-            fontSize: isDesktop ? radius * 0.55 : 32,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -750,6 +773,21 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
     );
   }
 
+  List<Uri> _linksInChat() {
+    final seen = <String>{};
+    final urls = <Uri>[];
+    final re = RegExp(r'https?://[^\s<>\]]+');
+    for (final message
+        in widget.chatService.getMessages(_conversation.id)) {
+      for (final match in re.allMatches(message.content)) {
+        final raw = match.group(0)!.replaceAll(RegExp(r'[.,);]+$'), '');
+        final uri = Uri.tryParse(raw);
+        if (uri != null && seen.add(uri.toString())) urls.add(uri);
+      }
+    }
+    return urls;
+  }
+
   Widget _buildMediaSection(AppStrings strings) {
     return Column(
       children: [
@@ -762,6 +800,7 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
             Tab(text: strings.voices),
             Tab(text: strings.files),
             Tab(text: strings.music),
+            Tab(text: strings.mediaLinks),
           ],
         ),
         Expanded(
@@ -787,6 +826,10 @@ class _StrangerProfileScreenState extends State<StrangerProfileScreen>
               _MediaGrid(
                 messages: widget.chatService
                     .getMediaMessages(_conversation.id, MessageType.music),
+              ),
+              _LinksList(
+                urls: _linksInChat(),
+                emptyLabel: strings.mediaLinksEmpty,
               ),
             ],
           ),
@@ -1030,6 +1073,38 @@ class _MediaGrid extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _LinksList extends StatelessWidget {
+  const _LinksList({required this.urls, required this.emptyLabel});
+
+  final List<Uri> urls;
+  final String emptyLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.isEmpty) {
+      return Center(child: Text(emptyLabel));
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: urls.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final uri = urls[index];
+        return ListTile(
+          leading: const Icon(Icons.link),
+          title: Text(uri.host, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            uri.toString(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+        );
+      },
     );
   }
 }

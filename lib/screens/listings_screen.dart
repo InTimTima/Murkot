@@ -15,6 +15,7 @@ import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
+import '../widgets/guest_gate.dart';
 import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
 import '../widgets/report_sheet.dart';
@@ -231,6 +232,9 @@ class _ListingsScreenState extends State<ListingsScreen> {
   }
 
   Future<void> _respond(Listing listing) async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final strings = context.strings;
     final existing = widget.listingsService.myResponseFor(listing.id);
     if (existing != null) {
@@ -445,6 +449,9 @@ class _ListingsScreenState extends State<ListingsScreen> {
   }
 
   Future<void> _create() async {
+    if (!await ensureRegistered(context, settings: widget.settingsService)) {
+      return;
+    }
     final result = await showListingEditorSheet(
       context: context,
       listingsService: widget.listingsService,

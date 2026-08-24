@@ -17,6 +17,7 @@ import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
+import '../widgets/image_crop_dialog.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'admin_panel_screen.dart';
 import 'settings_screen.dart';
@@ -172,14 +173,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickAndSaveAvatar(ImageSource source) async {
     final file = await _picker.pickImage(
       source: source,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 85,
+      imageQuality: 92,
     );
     if (file == null || !mounted) return;
 
+    final raw = await file.readAsBytes();
+    if (!mounted) return;
+    final bytes = await showImageCropDialog(context, bytes: raw);
+    if (bytes == null || !mounted) return;
+
     setState(() => _isUpdatingAvatar = true);
-    final bytes = await file.readAsBytes();
     final error = await widget.authService.updateAvatarBytes(bytes);
     if (!mounted) return;
     setState(() => _isUpdatingAvatar = false);
@@ -410,7 +413,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final cardWidth = screenWidth * 0.48;
 
     return ListenableBuilder(
-      listenable: widget.authService,
+      listenable: Listenable.merge([
+        widget.authService,
+        widget.settingsService,
+      ]),
       builder: (context, _) {
         final current = widget.authService.currentUser!;
         final wallpaper = ProfileWallpaper.byId(current.profileWallpaperId);
@@ -515,6 +521,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   onTap: _isUpdatingAvatar ? null : _showAvatarOptions,
                                   onLoginTap: _changeLogin,
                                 ),
+                                if (!widget.settingsService.profileNudgeDismissed &&
+                                    _profileFillScore(current) < 5) ...[
+                                  const SizedBox(height: 20),
+                                  _ProfileNudge(
+                                    onDismiss: widget.settingsService
+                                        .dismissProfileNudge,
+                                  ),
+                                ],
                                 const SizedBox(height: 24),
                                 _ProfileField(
                                   icon: Icons.edit_outlined,
@@ -655,6 +669,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+int _profileFillScore(User user) {
+  var score = 0;
+  final status = user.status.trim();
+  if (status.isNotEmpty &&
+      status != 'В сети' &&
+      status.toLowerCase() != 'online') {
+    score++;
+  }
+  if (user.avatarPath != null && user.avatarPath!.isNotEmpty) score++;
+  if (user.devStatus != DevStatus.none) score++;
+  if (user.skills.length >= 2) score++;
+  if ((user.city ?? '').trim().isNotEmpty) score++;
+  if (user.experienceLevel != null) score++;
+  if ((user.githubUrl ?? '').trim().isNotEmpty ||
+      (user.portfolioUrl ?? '').trim().isNotEmpty) {
+    score++;
+  }
+  return score;
+}
+
+class _ProfileNudge extends StatelessWidget {
+  const _ProfileNudge({required this.onDismiss});
+
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.auto_awesome, color: theme.colorScheme.primary, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  strings.profileNudgeTitle,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(strings.profileNudgeBody, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: strings.profileNudgeDismiss,
+            onPressed: onDismiss,
+            icon: const Icon(Icons.close, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 enum _AvatarAction { gallery, camera, emoji, remove }
 
 /// Emoji available as profile avatars.
@@ -691,6 +775,8 @@ class _AvatarSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final radius =
+        (MediaQuery.sizeOf(context).width * 0.36).clamp(110.0, 156.0);
 
     return Column(
       children: [
@@ -706,14 +792,14 @@ class _AvatarSection extends StatelessWidget {
                   avatarPath: avatarPath,
                   avatarEmoji: avatarEmoji,
                   name: login,
-                  radius: 52,
+                  radius: radius,
                 ),
               ),
             ),
             if (isLoading)
               Container(
-                width: 104,
-                height: 104,
+                width: radius * 2,
+                height: radius * 2,
                 decoration: const BoxDecoration(
                   color: Colors.black45,
                   shape: BoxShape.circle,
