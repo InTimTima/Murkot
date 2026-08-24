@@ -109,6 +109,7 @@ class ListingResponse {
     this.note = '',
     this.responderLogin,
     this.responderEmoji,
+    this.responderAvatarUrl,
   });
 
   final String id;
@@ -120,6 +121,7 @@ class ListingResponse {
   final DateTime createdAt;
   final String? responderLogin;
   final String? responderEmoji;
+  final String? responderAvatarUrl;
 
   factory ListingResponse.fromRow(Map<String, dynamic> row) {
     final responder = row['responder'];
@@ -138,6 +140,9 @@ class ListingResponse {
           : null,
       responderEmoji: responder is Map
           ? responder['avatar_emoji'] as String?
+          : null,
+      responderAvatarUrl: responder is Map
+          ? responder['avatar_url'] as String?
           : null,
     );
   }

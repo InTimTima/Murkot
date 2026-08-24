@@ -307,7 +307,7 @@ class ListingsService extends ChangeNotifier {
           .from('listing_responses')
           .select(
             'id, listing_id, responder_id, status, conversation_id, note, created_at, '
-            'responder:profiles!listing_responses_responder_id_fkey(login, avatar_emoji)',
+            'responder:profiles!listing_responses_responder_id_fkey(login, avatar_emoji, avatar_url)',
           )
           .inFilter('listing_id', myListingIds)
           .order('created_at', ascending: false);

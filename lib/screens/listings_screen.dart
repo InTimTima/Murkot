@@ -357,11 +357,23 @@ class _ListingsScreenState extends State<ListingsScreen> {
                           itemBuilder: (context, index) {
                             final r = responses[index];
                             return ListTile(
-                              leading: Text(
-                                r.responderEmoji ?? '👤',
-                                style: const TextStyle(fontSize: 22),
+                              leading: GestureDetector(
+                                onTap: r.responderLogin == null ? null : () {
+                                  // Quick profile preview
+                                  final login = r.responderLogin!;
+                                  showDialog<void>(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Text('@$login'))));
+                                },
+                                child: AvatarDisplay(
+                                  name: r.responderLogin ?? '?',
+                                  avatarPath: r.responderAvatarUrl,
+                                  avatarEmoji: r.responderEmoji,
+                                  radius: 20,
+                                ),
                               ),
-                              title: Text(r.responderLogin ?? '?'),
+                              title: GestureDetector(
+                                onTap: r.responderLogin == null ? null : () {},
+                                child: Text(r.responderLogin ?? '?', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              ),
                               subtitle: Text(_responseStatusLabel(strings, r.status)),
                               trailing: r.status == ListingResponseStatus.inChat ||
                                       r.status == ListingResponseStatus.pending
