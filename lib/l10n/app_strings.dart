@@ -316,7 +316,7 @@ class AppStrings {
   String get onboardingSkipTitle =>
       isRu ? 'Выйти без карточки?' : 'Leave without a card?';
   String get onboardingSkipMessage => isRu
-      ? 'Матч и поиск команды работают плохо без цели и стека. Можно заполнить позже в профиле.'
+      ? 'Мэтч и поиск команды работают плохо без цели и стека. Можно заполнить позже в профиле.'
       : 'Match and team search work poorly without a goal and stack. You can fill this in later in Profile.';
   String get onboardingSkipConfirm =>
       isRu ? 'Всё равно выйти' : 'Leave anyway';
@@ -324,14 +324,14 @@ class AppStrings {
       ? 'Соберём вашу карточку'
       : 'Let’s build your card';
   String get onboardingWelcomeSub => isRu
-      ? 'Пять коротких шагов — и вас смогут найти на доске и в матче.'
+      ? 'Пять коротких шагов — и вас смогут найти на доске и в мэтче.'
       : 'Five short steps — then people can find you on the board and in Match.';
   String get onboardingStepGoal => isRu ? 'Цель' : 'Goal';
   String get onboardingStepGoalTitle => isRu
       ? 'Что вы ищете сейчас?'
       : 'What are you looking for?';
   String get onboardingStepGoalSub => isRu
-      ? 'Это главный сигнал для матча и объявлений.'
+      ? 'Это главный сигнал для мэтча и объявлений.'
       : 'This is the main signal for Match and listings.';
   String get onboardingStepSkills => isRu ? 'Стек' : 'Stack';
   String get onboardingStepSkillsTitle => isRu
@@ -387,7 +387,7 @@ class AppStrings {
       isRu ? 'Открыть объявления' : 'Open listings';
   String get cmdOpenProjects =>
       isRu ? 'Открыть проекты' : 'Open projects';
-  String get cmdOpenMatch => isRu ? 'Открыть матч' : 'Open Match';
+  String get cmdOpenMatch => isRu ? 'Открыть мэтч' : 'Open Match';
   String get cmdOpenCommunities =>
       isRu ? 'Открыть сообщества' : 'Open communities';
   String get cmdOpenBoardSub =>
@@ -422,7 +422,7 @@ class AppStrings {
       ? 'Сначала заполните карточку'
       : 'Complete your card first';
   String get matchNeedCardBody => isRu
-      ? 'Укажите цель и хотя бы 2 навыка в профиле — тогда матч станет осмысленным.'
+      ? 'Укажите цель и хотя бы 2 навыка в профиле — тогда мэтч станет осмысленным.'
       : 'Set a goal and at least 2 skills in Profile — then Match makes sense.';
   String get matchNeedCardAction =>
       isRu ? 'Открыть профиль' : 'Open profile';
@@ -532,14 +532,14 @@ class AppStrings {
   String get boardWelcomeCtaRespond =>
       isRu ? 'Откликнуться на объявление' : 'Respond to a listing';
   String get boardWelcomeCtaMatch =>
-      isRu ? 'Открыть матч' : 'Open Match';
+      isRu ? 'Открыть мэтч' : 'Open Match';
   String get boardWelcomeCtaPost =>
       isRu ? 'Разместить своё' : 'Post your listing';
   String get syncDevStatusTitle => isRu
       ? 'Обновить статус в профиле?'
       : 'Update your profile status?';
   String syncDevStatusMessage(String statusLabel) => isRu
-      ? 'Поставить в карточке разработчика: «$statusLabel» — так вас легче найдут в матчинге.'
+      ? 'Поставить в карточке разработчика: «$statusLabel» — так вас легче найдут в мэтчинге.'
       : 'Set your developer card to "$statusLabel" so matching can find you more easily.';
   String get syncDevStatusConfirm =>
       isRu ? 'Обновить статус' : 'Update status';
@@ -625,7 +625,7 @@ class AppStrings {
   String get projectLoadFailed => isRu
       ? 'Не удалось загрузить проекты'
       : 'Could not load projects';
-  String get boardMatchTab => isRu ? 'Матч' : 'Match';
+  String get boardMatchTab => isRu ? 'Мэтч' : 'Match';
   String get boardCommunitiesTab => isRu ? 'Сообщества' : 'Communities';
   String get boardPeopleTab => isRu ? 'Люди' : 'People';
   String get peopleSearchHint => isRu
@@ -669,10 +669,10 @@ class AppStrings {
   String get communityCategoryGeneral =>
       isRu ? 'Общее' : 'General';
   String get matchFeedTitle => isRu ? 'Поиск команды' : 'Find a team';
-  String get matchMatchesTitle => isRu ? 'Мои матчи' : 'My matches';
+  String get matchMatchesTitle => isRu ? 'Мои мэтчи' : 'My matches';
   String get matchLike => isRu ? 'Интересно' : 'Interested';
   String get matchPass => isRu ? 'Пропустить' : 'Pass';
-  String get matchItsAMatch => isRu ? 'Это матч!' : "It's a match!";
+  String get matchItsAMatch => isRu ? 'Это мэтч!' : "It's a match!";
   String get matchItsAMatchBody => isRu
       ? 'Вы оба заинтересованы. Откройте чат и познакомьтесь.'
       : 'You both are interested. Open a chat and say hi.';
@@ -694,7 +694,7 @@ class AppStrings {
                 ? ' Видел(а) твой стек: ${peerSkills.join(', ')}.'
                 : ' Noticed your stack: ${peerSkills.join(', ')}.'));
     return isRu
-        ? 'Привет, @$peerLogin! Мы сматчились.$skillBit Давай познакомимся.'
+        ? 'Привет, @$peerLogin! Мы смэтчились.$skillBit Давай познакомимся.'
         : 'Hey @$peerLogin! We matched.$skillBit Nice to meet you.';
   }
 
@@ -709,12 +709,12 @@ class AppStrings {
   String get matchEmptyFeedProfile =>
       isRu ? 'Открыть профиль' : 'Open profile';
   String get matchEmptyMatches => isRu
-      ? 'Пока нет взаимных матчей.\nЛайкайте тех, с кем хотите работать.'
+      ? 'Пока нет взаимных мэтчей.\nЛайкайте тех, с кем хотите работать.'
       : 'No mutual matches yet.\nLike people you want to work with.';
   String get matchEmptyMatchesAction =>
-      isRu ? 'К ленте матча' : 'Back to feed';
+      isRu ? 'К ленте мэтча' : 'Back to feed';
   String get matchLoadFailed => isRu
-      ? 'Не удалось загрузить ленту матчинга'
+      ? 'Не удалось загрузить ленту мэтчинга'
       : 'Could not load the match feed';
   String get matchSwipeFailed => isRu
       ? 'Не удалось сохранить выбор'
@@ -816,7 +816,7 @@ class AppStrings {
   String get loadOlderMessages =>
       isRu ? 'Загрузить раньше' : 'Load earlier';
   String get enableNotificationsHint => isRu
-      ? 'Разрешите уведомления в браузере, чтобы не пропускать сообщения и матчи'
+      ? 'Разрешите уведомления в браузере, чтобы не пропускать сообщения и мэтчи'
       : 'Allow browser notifications to catch messages and matches';
   String get enableNotificationsAction =>
       isRu ? 'Включить' : 'Enable';
@@ -1019,7 +1019,7 @@ class AppStrings {
       ? 'Murkot — это не «ещё один чат» и не доска объявлений, которая '
           'умирает после отклика. Мы собирали место, где можно найти '
           'команду, пет-проект или людей в стартап — и сразу перейти в '
-          'разговор. На Доске висят объявления, проекты, матч и люди. '
+          'разговор. На Доске висят объявления, проекты, мэтч и люди. '
           'Увидел своё — открыл чат. Без «напишите мне в Telegram», '
           'без десяти вкладок и без ощущения, что ты на hh.ru в 2014.'
       : 'Murkot is not just another chat, and not a job board that dies '
@@ -1032,7 +1032,7 @@ class AppStrings {
       ? 'Мессенджер здесь настоящий: лички, группы, каналы, голосовые, '
           'кружки, файлы, закреплённые сообщения. В профиле — карточка '
           'разработчика: стек, уровень, город, куда смотришь. Это сигнал '
-          'для матча и объявлений, а не декоративная строчка «open to work». '
+          'для мэтча и объявлений, а не декоративная строчка «open to work». '
           'Под капотом — Flutter и Supabase: аккаунты, realtime, вложения, '
           'кто сейчас в сети. Никита держит эту кухню. Тима собирает то, '
           'что ты видишь и нажимаешь.'
@@ -1072,7 +1072,7 @@ class AppStrings {
   String get aboutBody4 => isRu
       ? 'Если ты уже внутри — пользуйся Доской как доской, чатами как '
           'чатами. Можно просто болтать. Можно повесить объявление и ждать '
-          'отклик. Можно свайпнуть матч и написать первым. Мы сами так и '
+          'отклик. Можно свайпнуть мэтч и написать первым. Мы сами так и '
           'пользуемся, пока дописываем хвосты.'
       : 'If you are already in — use the Board as a board and chats as '
           'chats. You can just talk. You can post a listing and wait. You '

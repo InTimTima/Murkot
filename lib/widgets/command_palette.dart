@@ -150,7 +150,7 @@ class _CommandPaletteDialogState extends State<CommandPaletteDialog> {
           label: strings.cmdOpenMatch,
           subtitle: strings.cmdOpenBoardSub,
           icon: Icons.favorite_outline,
-          keywords: const ['match', 'матч', 'swipe'],
+          keywords: const ['match', 'мэтч', 'swipe'],
           run: (ctx) async {
             Navigator.pop(ctx);
             mainTabIndex.value = MainTabs.board;
