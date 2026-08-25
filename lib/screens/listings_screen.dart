@@ -370,7 +370,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                               ),
                               title: GestureDetector(
                                 onTap: r.responderLogin == null ? null : () => openUserProfile(context, login: r.responderLogin!, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
-                                child: Text(r.responderLogin ?? '?', style: const TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
+                                child: Text(r.responderLogin ?? '?', style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
                               ),
                               subtitle: Text(_responseStatusLabel(strings, r.status)),
                               trailing: r.status == ListingResponseStatus.inChat ||
@@ -936,7 +936,6 @@ class _ListingCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
                       ),
                       Text(
                         [
