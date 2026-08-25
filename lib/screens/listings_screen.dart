@@ -13,6 +13,7 @@ import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
 import '../widgets/airdrop_contact_sheet.dart';
 import '../widgets/avatar_display.dart';
+import '../widgets/clickable_user.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/guest_gate.dart';
@@ -21,6 +22,7 @@ import '../widgets/murkot_decor.dart';
 import '../widgets/report_sheet.dart';
 import '../services/analytics_service.dart';
 import 'chat_screen.dart';
+import 'public_profile_screen.dart';
 
 class ListingsScreen extends StatefulWidget {
   const ListingsScreen({
@@ -358,11 +360,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                             final r = responses[index];
                             return ListTile(
                               leading: GestureDetector(
-                                onTap: r.responderLogin == null ? null : () {
-                                  // Quick profile preview
-                                  final login = r.responderLogin!;
-                                  showDialog<void>(context: context, builder: (_) => Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Text('@$login'))));
-                                },
+                                onTap: r.responderLogin == null ? null : () => openUserProfile(context, login: r.responderLogin!, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
                                 child: AvatarDisplay(
                                   name: r.responderLogin ?? '?',
                                   avatarPath: r.responderAvatarUrl,
@@ -371,8 +369,8 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                 ),
                               ),
                               title: GestureDetector(
-                                onTap: r.responderLogin == null ? null : () {},
-                                child: Text(r.responderLogin ?? '?', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                onTap: r.responderLogin == null ? null : () => openUserProfile(context, login: r.responderLogin!, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
+                                child: Text(r.responderLogin ?? '?', style: const TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
                               ),
                               subtitle: Text(_responseStatusLabel(strings, r.status)),
                               trailing: r.status == ListingResponseStatus.inChat ||
@@ -599,6 +597,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                     onDelete: () => _delete(listing),
                                     onHide: () => _hide(listing),
                                     onReport: () => _report(listing),
+                                    onAuthorTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
                                   );
                                 },
                               ),
@@ -883,6 +882,7 @@ class _ListingCard extends StatelessWidget {
     required this.onHide,
     required this.onReport,
     this.onOpenResponses,
+    this.onAuthorTap,
   });
 
   final Listing listing;
@@ -895,6 +895,7 @@ class _ListingCard extends StatelessWidget {
   final VoidCallback onHide;
   final VoidCallback onReport;
   final VoidCallback? onOpenResponses;
+  final VoidCallback? onAuthorTap;
 
   @override
   Widget build(BuildContext context) {
@@ -913,23 +914,7 @@ class _ListingCard extends StatelessWidget {
             Row(
               children: [
                 GestureDetector(
-                  onTap: listing.author.avatarUrl == null
-                      ? null
-                      : () {
-                          final url = listing.author.avatarUrl!;
-                          if (url.startsWith('http')) {
-                            // Show full avatar — profile navigation is via action buttons.
-                            showDialog<void>(
-                              context: context,
-                              builder: (_) => Dialog(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Image.network(url, fit: BoxFit.contain),
-                                ),
-                              ),
-                            );
-                          }
-                        },
+                  onTap: onAuthorTap,
                   child: AvatarDisplay(
                     name: listing.author.login,
                     avatarPath: listing.author.avatarUrl,
@@ -942,12 +927,16 @@ class _ListingCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        listing.author.login,
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      GestureDetector(
+                        onTap: onAuthorTap,
+                        child: Text(
+                          listing.author.login,
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       ),
                       Text(
                         [
