@@ -12,6 +12,7 @@ import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
 import '../widgets/airdrop_contact_sheet.dart';
+import '../services/billing_service.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/clickable_user.dart';
 import '../widgets/confirm_dialogs.dart';
@@ -1015,6 +1016,15 @@ class _ListingCard extends StatelessWidget {
                 label: Text(strings.listingResponsesCount(incomingCount)),
                 onPressed: onOpenResponses,
               ),
+            ],
+            if (isMine) ...[
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                ActionChip(avatar: const Icon(Icons.rocket_launch, size: 14), label: const Text('Топ 50₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostTop); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Буст Топ — заглушка ЮKassa'))); }),
+                ActionChip(avatar: const Icon(Icons.push_pin, size: 14), label: const Text('Закреп 150₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostPin24); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Закреп 24ч — заглушка'))); }),
+                ActionChip(avatar: const Icon(Icons.color_lens_outlined, size: 14), label: const Text('Цвет 99₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostHighlight); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Выделение — заглушка'))); }),
+                ActionChip(avatar: const Icon(Icons.notifications_active_outlined, size: 14), label: const Text('Пуш 999₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostPush); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Пуш — заглушка'))); }),
+              ]),
             ],
             const SizedBox(height: 12),
             Wrap(

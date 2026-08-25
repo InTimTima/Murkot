@@ -13,6 +13,7 @@ import '../services/settings_service.dart';
 import '../utils/admin.dart';
 import '../utils/helpers.dart';
 import '../utils/profile_deep_link.dart';
+import '../services/billing_service.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
@@ -277,6 +278,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       if (error != null) _showMessage(error);
     }
+  }
+
+  final _billing = BillingService();
+
+  Future<void> _buyPlus() async {
+    final ok = await _billing.purchase(MurkotProduct.plusMonthly);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Murkot Plus активирован!' : 'Оплата зааглушена (stub)')) );
+    setState(() {});
+  }
+
+  Future<void> _buyHr() async {
+    final ok = await _billing.purchase(MurkotProduct.hrOffice);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Кабинет HR активирован!' : 'Оплата зааглушена')));
+    setState(() {});
   }
 
   Future<void> _editDevCard() async {
@@ -614,6 +631,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Card(
+                                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Row(children: [Icon(Icons.auto_awesome, color: theme.colorScheme.primary), const SizedBox(width: 8), Text('Murkot Plus — 399 ₽/мес', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))]),
+                                      const SizedBox(height: 8),
+                                      Text('• Гиф/видео аватар • Рамки, блеск, цитрус • Цвет ника • 5 бустов/сутки • До 15 объявлений • Кто смотрел профиль', style: theme.textTheme.bodySmall),
+                                      const SizedBox(height: 10),
+                                      FilledButton.icon(onPressed: _billing.isPlus ? null : _buyPlus, icon: Icon(_billing.isPlus ? Icons.check : Icons.star), label: Text(_billing.isPlus ? 'Активно до ${_billing.plusUntil?.day}.${_billing.plusUntil?.month}' : 'Купить Plus')),
+                                    ]),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Row(children: [Icon(Icons.business_center, color: theme.colorScheme.primary), const SizedBox(width: 8), Text('Кабинет HR — 24 999 ₽/мес', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))]),
+                                      const SizedBox(height: 6),
+                                      Text('Безлимит поиск, бренд-профиль, Smart-подбор ИИ, рассылка до 20 кандитатов', style: theme.textTheme.bodySmall),
+                                      const SizedBox(height: 10),
+                                      OutlinedButton.icon(onPressed: _buyHr, icon: const Icon(Icons.workspace_premium_outlined, size: 18), label: Text('Подключить HR')),
+                                    ]),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
