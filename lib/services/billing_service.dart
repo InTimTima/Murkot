@@ -12,16 +12,21 @@ enum MurkotProduct {
 class BillingService extends ChangeNotifier {
   bool isPlus = false;
   DateTime? plusUntil;
+  bool hasHrOffice = false;
   int boostsTopLeft = 0;
 
   // Stub: integrate YooKassa SDK / backend verify
   Future<bool> purchase(MurkotProduct product) async {
     debugPrint('billing purchase $product — stub, integrate YooKassa');
-    // TODO: call backend /create-payment -> open YooKassa checkout -> verify webhook -> grant entitlements
     await Future<void>.delayed(const Duration(milliseconds: 800));
     if (product == MurkotProduct.plusMonthly) {
       isPlus = true;
       plusUntil = DateTime.now().add(const Duration(days: 30));
+      notifyListeners();
+      return true;
+    }
+    if (product == MurkotProduct.hrOffice) {
+      hasHrOffice = true;
       notifyListeners();
       return true;
     }

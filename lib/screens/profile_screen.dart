@@ -15,6 +15,7 @@ import '../utils/helpers.dart';
 import '../utils/profile_deep_link.dart';
 import '../services/billing_service.dart';
 import '../widgets/avatar_display.dart';
+import 'hr_office_screen.dart';
 import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
@@ -656,7 +657,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       const SizedBox(height: 6),
                                       Text('Безлимит поиск, бренд-профиль, Smart-подбор ИИ, рассылка до 20 кандитатов', style: theme.textTheme.bodySmall),
                                       const SizedBox(height: 10),
-                                      OutlinedButton.icon(onPressed: _buyHr, icon: const Icon(Icons.workspace_premium_outlined, size: 18), label: Text('Подключить HR')),
+                                      OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => HrOfficeScreen(billingService: _billing))), icon: const Icon(Icons.workspace_premium_outlined, size: 18), label: Text('Открыть кабинет')),
                                     ]),
                                   ),
                                 ),
