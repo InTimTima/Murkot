@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/listing.dart';
@@ -535,6 +537,71 @@ class _ListingsScreenState extends State<ListingsScreen> {
     );
   }
 
+  void _showListingDetail(Listing listing) {
+    final strings = context.strings;
+    final theme = Theme.of(context);
+    final isMine = widget.listingsService.isMine(listing);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.96,
+        minChildSize: 0.4,
+        builder: (context, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Row(children: [
+              GestureDetector(
+                onTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
+                child: AvatarDisplay(name: listing.author.login, avatarPath: listing.author.avatarUrl, avatarEmoji: listing.author.avatarEmoji, radius: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                GestureDetector(onTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService), child: Text(listing.author.login, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary))),
+                Text('${listing.author.city ?? ''} · ${_relativeTime(strings, listing.createdAt)}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+              ])),
+            ]),
+            const SizedBox(height: 16),
+            Text(listing.title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            _LinkifiedText(text: listing.description),
+            const SizedBox(height: 12),
+            if (listing.skills.isNotEmpty) Wrap(spacing: 6, runSpacing: 6, children: [for (final s in listing.skills) Chip(label: Text(s))]),
+            const SizedBox(height: 12),
+            Wrap(spacing: 6, children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: listingTypeColor(listing.type).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: listingTypeColor(listing.type).withValues(alpha: 0.5))), child: Text(listingTypeLabel(strings, listing.type), style: theme.textTheme.bodySmall?.copyWith(color: listingTypeColor(listing.type), fontWeight: FontWeight.w600))),
+              if (listing.compensation != null) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: theme.dividerColor)), child: Text(compensationLabel(strings, listing.compensation!), style: theme.textTheme.bodySmall)),
+            ]),
+            const SizedBox(height: 16),
+            if (isMine) ...[
+              Text(strings.isRu ? 'Бусты (только для вас)' : 'Boosts', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                ActionChip(avatar: const Icon(Icons.rocket_launch, size: 14), label: const Text('Топ 50₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostTop); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Топ — заглушка ЮKassa'))); }),
+                ActionChip(avatar: const Icon(Icons.push_pin, size: 14), label: const Text('Закреп 150₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostPin24); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Закреп — заглушка'))); }),
+                ActionChip(avatar: const Icon(Icons.color_lens, size: 14), label: const Text('Цвет 99₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostHighlight); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Цвет — заглушка'))); }),
+                ActionChip(avatar: const Icon(Icons.notifications_active, size: 14), label: const Text('Пуш 999₽'), onPressed: () async { await BillingService().purchase(MurkotProduct.boostPush); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Пуш — заглушка'))); }),
+              ]),
+              const SizedBox(height: 16),
+            ],
+            if (isMine)
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(onPressed: () { Navigator.pop(ctx); _edit(listing); }, icon: const Icon(Icons.edit, size: 16), label: Text(strings.listingEditAction))),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton.icon(onPressed: () { Navigator.pop(ctx); _delete(listing); }, icon: Icon(Icons.delete, size: 16, color: theme.colorScheme.error), label: Text(strings.deleteAction, style: TextStyle(color: theme.colorScheme.error)))),
+              ])
+            else
+              FilledButton.icon(onPressed: () { Navigator.pop(ctx); _respond(listing); }, icon: const Icon(Icons.chat_bubble_outline, size: 18), label: Text(strings.listingRespond), style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 48))),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -599,6 +666,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
                                     onHide: () => _hide(listing),
                                     onReport: () => _report(listing),
                                     onAuthorTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
+                                    onTap: () => _showListingDetail(listing),
                                   );
                                 },
                               ),
@@ -884,6 +952,7 @@ class _ListingCard extends StatelessWidget {
     required this.onReport,
     this.onOpenResponses,
     this.onAuthorTap,
+    this.onTap,
   });
 
   final Listing listing;
@@ -897,6 +966,7 @@ class _ListingCard extends StatelessWidget {
   final VoidCallback onReport;
   final VoidCallback? onOpenResponses;
   final VoidCallback? onAuthorTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -904,40 +974,43 @@ class _ListingCard extends StatelessWidget {
     final theme = Theme.of(context);
     final typeColor = listingTypeColor(listing.type);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: onAuthorTap,
-                  child: AvatarDisplay(
-                    name: listing.author.login,
-                    avatarPath: listing.author.avatarUrl,
-                    avatarEmoji: listing.author.avatarEmoji,
-                    radius: 18,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: onAuthorTap,
+                    child: AvatarDisplay(
+                      name: listing.author.login,
+                      avatarPath: listing.author.avatarUrl,
+                      avatarEmoji: listing.author.avatarEmoji,
+                      radius: 18,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: onAuthorTap,
-                        child: Text(
-                          listing.author.login,
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: onAuthorTap,
+                          child: Text(
+                            listing.author.login,
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
                       Text(
                         [
                           if (listing.author.city != null &&
@@ -1143,7 +1216,29 @@ class _ListingCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
+  }
+}
+
+class _LinkifiedText extends StatelessWidget {
+  const _LinkifiedText({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final regex = RegExp(r'(https?://[^\s]+)');
+    final spans = <TextSpan>[];
+    int last = 0;
+    for (final m in regex.allMatches(text)) {
+      if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start), style: theme.textTheme.bodyMedium));
+      final url = m.group(0)!;
+      spans.add(TextSpan(text: url, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary, decoration: TextDecoration.underline), recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)));
+      last = m.end;
+    }
+    if (last < text.length) spans.add(TextSpan(text: text.substring(last), style: theme.textTheme.bodyMedium));
+    if (spans.isEmpty) return Text(text, style: theme.textTheme.bodyMedium);
+    return RichText(text: TextSpan(children: spans));
   }
 }
 
