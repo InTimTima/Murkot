@@ -25,33 +25,39 @@ class AvatarDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final path = avatarPath;
-    final isNetwork = path != null &&
-        (path.startsWith('http://') || path.startsWith('https://'));
+    final isNetwork = path != null && (path.startsWith('http://') || path.startsWith('https://'));
     final hasFile = localPathExists(path);
+    final size = radius * 2;
 
-    ImageProvider? image;
-    if (isNetwork) {
-      image = NetworkImage(path);
+    Widget? imageWidget;
+    if (isNetwork && path != null) {
+      imageWidget = Image.network(path, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => const SizedBox.shrink());
     } else if (hasFile && path != null) {
-      image = FileImage(File(path));
+      imageWidget = Image.file(File(path), width: size, height: size, fit: BoxFit.cover);
     }
 
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: theme.colorScheme.primaryContainer,
-      backgroundImage: image,
-      child: image == null
-          ? Text(
+    if (imageWidget != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: ClipOval(child: Container(color: theme.colorScheme.primaryContainer, child: imageWidget)),
+      );
+    }
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipOval(
+        child: Container(
+          color: theme.colorScheme.primaryContainer,
+          child: Center(
+            child: Text(
               avatarEmoji ?? (name.isNotEmpty ? name[0].toUpperCase() : '?'),
-              style: TextStyle(
-                fontSize: fontSize ?? radius * 0.85,
-                fontWeight: FontWeight.bold,
-                color: avatarEmoji != null
-                    ? null
-                    : theme.colorScheme.onPrimaryContainer,
-              ),
-            )
-          : null,
+              style: TextStyle(fontSize: fontSize ?? radius * 0.85, fontWeight: FontWeight.bold, color: avatarEmoji != null ? null : theme.colorScheme.onPrimaryContainer),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
