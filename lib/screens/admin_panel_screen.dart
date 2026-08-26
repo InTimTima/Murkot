@@ -615,6 +615,56 @@ class _FeedbackSectionState extends State<_FeedbackSection> {
     });
   }
 
+  void _openLetter(FeedbackLetter l) {
+    final theme = Theme.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHighest]),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                AvatarDisplay(name: l.authorLogin, avatarPath: l.avatarUrl, avatarEmoji: l.avatarEmoji, radius: 22),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.authorLogin, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(l.createdAt.toLocal().toString().split('.').first, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
+                ])),
+                IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => Navigator.pop(ctx)),
+              ]),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
+                child: Text(l.text, style: theme.textTheme.bodyMedium),
+              ),
+              if (l.photoUrl != null) ...[
+                const SizedBox(height: 12),
+                ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(l.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
+              ],
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(onPressed: () async { await Supabase.instance.client.from('feedback_letters').delete().eq('id', l.id); if (context.mounted) { Navigator.pop(ctx); _load(); } }, icon: Icon(Icons.delete_outline, size: 16, color: theme.colorScheme.error), label: Text('Удалить', style: TextStyle(color: theme.colorScheme.error)))),
+                const SizedBox(width: 8),
+                Expanded(child: FilledButton.icon(onPressed: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ответ — напиши в ЛС автору'))); }, icon: const Icon(Icons.reply, size: 16), label: const Text('Ответить'))),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -637,21 +687,18 @@ class _FeedbackSectionState extends State<_FeedbackSection> {
               Padding(padding: const EdgeInsets.all(16), child: Text(strings.isRu ? 'Пока нет писем' : 'No letters yet', style: TextStyle(color: theme.colorScheme.outline)))
             else
               for (final l in _letters)
-                ListTile(
-                  leading: GestureDetector(
-                    onTap: l.avatarUrl == null ? null : () => MediaViewerScreen.open(context, urls: [l.avatarUrl!]),
-                    child: AvatarDisplay(name: l.authorLogin, avatarPath: l.avatarUrl, avatarEmoji: l.avatarEmoji, radius: 18),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    leading: AvatarDisplay(name: l.authorLogin, avatarPath: l.avatarUrl, avatarEmoji: l.avatarEmoji, radius: 18),
+                    title: Text(l.authorLogin, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(l.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      if (l.photoUrl != null) Padding(padding: const EdgeInsets.only(top: 6), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(l.photoUrl!, height: 80, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()))),
+                    ]),
+                    isThreeLine: true,
+                    onTap: () => _openLetter(l),
                   ),
-                  title: GestureDetector(
-                    onTap: () {},
-                    child: Text(l.authorLogin, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  ),
-                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(l.text, maxLines: 4, overflow: TextOverflow.ellipsis),
-                    if (l.photoUrl != null) Padding(padding: const EdgeInsets.only(top: 6), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(l.photoUrl!, height: 120, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()))),
-                    Text(l.createdAt.toLocal().toString().split('.').first, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline, fontSize: 11)),
-                  ]),
-                  isThreeLine: true,
                 ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
