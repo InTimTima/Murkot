@@ -6,6 +6,8 @@ import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
 import '../services/admin_service.dart';
 import '../services/moderation_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../services/feedback_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart';
