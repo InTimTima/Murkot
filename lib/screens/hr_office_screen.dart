@@ -19,16 +19,48 @@ class HrOfficeScreen extends StatefulWidget {
 class _HrOfficeScreenState extends State<HrOfficeScreen> {
   final _queryCtrl = TextEditingController();
   final _vacancyCtrl = TextEditingController();
-  String _lang = '';
+  String _skill = '';
   String _grade = '';
   String _city = '';
+  String _status = '';
   List<String> _aiResult = [];
+  List<String> _searchResult = [];
   bool _hasAccess = false;
 
   @override
   void initState() {
     super.initState();
     _hasAccess = widget.billingService?.hasHrOffice ?? false;
+    _queryCtrl.addListener(_runSearch);
+  }
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    _vacancyCtrl.dispose();
+    super.dispose();
+  }
+
+  void _runSearch() {
+    final ps = widget.peopleService;
+    if (ps == null) return;
+    final q = _queryCtrl.text.toLowerCase().trim();
+    final skill = _skill.toLowerCase();
+    final city = _city.toLowerCase();
+    final grade = _grade.toLowerCase();
+    final status = _status.toLowerCase();
+    final filtered = ps.people.where((p) {
+      if (skill.isNotEmpty && !p.skills.any((s) => s.toLowerCase() == skill || s.toLowerCase().contains(skill))) return false;
+      if (city.isNotEmpty && (p.city ?? '').toLowerCase() != city) return false;
+      if (grade.isNotEmpty && (p.experienceLevel?.name ?? '').toLowerCase() != grade) return false;
+      if (status.isNotEmpty && p.devStatus.name.toLowerCase() != status) return false;
+      if (q.isNotEmpty) {
+        final hay = '${p.login} ${p.status} ${p.city ?? ''} ${p.skills.join(' ')}'.toLowerCase();
+        if (!hay.contains(q)) return false;
+      }
+      return true;
+    }).take(30).map((p) => p.login).toList();
+    setState(() => _searchResult = filtered);
   }
 
   void _runAi() {
@@ -38,9 +70,26 @@ class _HrOfficeScreenState extends State<HrOfficeScreen> {
       return;
     }
     final text = _vacancyCtrl.text.toLowerCase();
+    // Extract all known skills mentioned in vacancy text
+    final allSkills = ps.people.expand((p) => p.skills).map((s) => s.toLowerCase()).toSet();
+    final mentioned = allSkills.where((s) => text.contains(s)).toList();
     final hits = ps.people.where((p) {
-      if (text.contains('flutter') && !p.skills.any((s) => s.toLowerCase().contains('flutter'))) return false;
-      if (text.contains('python') && !p.skills.any((s) => s.toLowerCase().contains('python'))) return false;
+      if (mentioned.isNotEmpty) {
+        // At least one mentioned skill must match
+        if (!p.skills.any((s) => mentioned.contains(s.toLowerCase()))) return false;
+      } else if (text.isNotEmpty) {
+        // Fallback: try to match any word from vacancy that equals a skill
+        final words = text.split(RegExp(r'[,\s]+'));
+        if (!p.skills.any((s) => words.contains(s.toLowerCase()))) {
+          // If no skill word matches, do loose contains check
+          if (!words.any((w) => p.skills.any((s) => s.toLowerCase().contains(w) || w.contains(s.toLowerCase())))) {
+            return false;
+          }
+        }
+      }
+      // Also respect selected filters if set
+      if (_skill.isNotEmpty && !p.skills.any((s) => s.toLowerCase().contains(_skill.toLowerCase()))) return false;
+      if (_city.isNotEmpty && (p.city ?? '').toLowerCase() != _city.toLowerCase()) return false;
       return true;
     }).take(20).map((p) => p.login).toList();
     setState(() => _aiResult = hits);
@@ -83,10 +132,24 @@ class _HrOfficeScreenState extends State<HrOfficeScreen> {
                 const SizedBox(height: 8),
                 TextField(controller: _queryCtrl, decoration: InputDecoration(hintText: strings.peopleSearchHint, prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
                 const SizedBox(height: 8),
-                Wrap(spacing: 8, children: [
-                  DropdownButton<String>(value: _lang.isEmpty ? null : _lang, hint: const Text('Язык'), items: const [DropdownMenuItem(value: 'Flutter', child: Text('Flutter')), DropdownMenuItem(value: 'Python', child: Text('Python'))], onChanged: (v) => setState(() => _lang = v ?? '')),
-                  DropdownButton<String>(value: _grade.isEmpty ? null : _grade, hint: const Text('Грейд'), items: const [DropdownMenuItem(value: 'junior', child: Text('Junior')), DropdownMenuItem(value: 'middle', child: Text('Middle')), DropdownMenuItem(value: 'senior', child: Text('Senior'))], onChanged: (v) => setState(() => _grade = v ?? '')),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  DropdownButton<String>(value: _skill.isEmpty ? null : _skill, hint: const Text('Язык/скилл'), items: [
+                    const DropdownMenuItem(value: '', child: Text('Любой навык')),
+                    for (final s in (widget.peopleService?.availableSkills ?? ['Flutter','Dart','Python','Go','Rust','React','Vue','Node.js','Kotlin','Swift','Java','SQL','Postgres','Docker','K8s','AWS','ML'])) DropdownMenuItem(value: s, child: Text(s)),
+                  ], onChanged: (v) { setState(() => _skill = v ?? ''); _runSearch(); }),
+                  DropdownButton<String>(value: _grade.isEmpty ? null : _grade, hint: const Text('Грейд'), items: const [DropdownMenuItem(value: '', child: Text('Любой')), DropdownMenuItem(value: 'junior', child: Text('Junior')), DropdownMenuItem(value: 'middle', child: Text('Middle')), DropdownMenuItem(value: 'senior', child: Text('Senior')), DropdownMenuItem(value: 'lead', child: Text('Lead'))], onChanged: (v) { setState(() => _grade = v ?? ''); _runSearch(); }),
+                  DropdownButton<String>(value: _city.isEmpty ? null : _city, hint: const Text('Город'), items: [
+                    const DropdownMenuItem(value: '', child: Text('Любой город')),
+                    for (final c in (widget.peopleService?.availableCities ?? ['Москва','СПб','Казань','Алматы','Remote'])) DropdownMenuItem(value: c, child: Text(c)),
+                  ], onChanged: (v) { setState(() => _city = v ?? ''); _runSearch(); }),
+                  DropdownButton<String>(value: _status.isEmpty ? null : _status, hint: const Text('Статус'), items: const [DropdownMenuItem(value: '', child: Text('Любой')), DropdownMenuItem(value: 'looking_for_team', child: Text('Ищу команду')), DropdownMenuItem(value: 'looking_for_members', child: Text('Ищу людей')), DropdownMenuItem(value: 'open_to_offers', child: Text('Open to offers')), DropdownMenuItem(value: 'do_not_disturb', child: Text('Не беспокоить'))], onChanged: (v) { setState(() => _status = v ?? ''); _runSearch(); }),
                 ]),
+                if (_searchResult.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Найдено: ${_searchResult.length}', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 6),
+                  Wrap(spacing: 6, children: [for (final l in _searchResult.take(20)) Chip(label: Text(l))]),
+                ],
               ]),
             ),
           ),
