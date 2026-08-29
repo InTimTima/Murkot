@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_strings.dart';
 import '../models/listing.dart';
 import '../models/message.dart';
+import '../models/plus_cosmetics.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/blacklist_service.dart';
@@ -15,6 +16,7 @@ import '../services/settings_service.dart';
 import '../utils/board_tab_bus.dart';
 import '../widgets/airdrop_contact_sheet.dart';
 import '../services/billing_service.dart';
+import '../services/plus_analytics_service.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/payment_sheet.dart';
 import '../widgets/clickable_user.dart';
@@ -23,6 +25,7 @@ import '../widgets/dev_card.dart';
 import '../widgets/guest_gate.dart';
 import '../widgets/murkot_action_pills.dart';
 import '../widgets/murkot_decor.dart';
+import '../widgets/murkot_toast.dart';
 import '../widgets/report_sheet.dart';
 import '../services/analytics_service.dart';
 import 'chat_screen.dart';
@@ -469,6 +472,7 @@ class _ListingsScreenState extends State<ListingsScreen> {
     final result = await showListingEditorSheet(
       context: context,
       listingsService: widget.listingsService,
+      maxActive: (widget.authService.currentUser?.isPlus ?? false) ? 15 : 3,
     );
     if (result == null || !mounted) return;
     final strings = context.strings;
@@ -558,11 +562,28 @@ class _ListingsScreenState extends State<ListingsScreen> {
             Row(children: [
               GestureDetector(
                 onTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
-                child: AvatarDisplay(name: listing.author.login, avatarPath: listing.author.avatarUrl, avatarEmoji: listing.author.avatarEmoji, radius: 22),
+                child: AvatarDisplay(
+                  name: listing.author.login,
+                  avatarPath: listing.author.avatarUrl,
+                  avatarEmoji: listing.author.avatarEmoji,
+                  radius: 22,
+                  frame: listing.author.avatarFrame,
+                  showPlusBadge: listing.author.isPlus,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                GestureDetector(onTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService), child: Text(listing.author.login, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary))),
+                GestureDetector(
+                  onTap: () => openUserProfile(context, login: listing.author.login, chatService: widget.chatService, blacklistService: widget.blacklistService, presenceService: widget.presenceService, currentUserLogin: widget.currentUserLogin, settingsService: widget.settingsService),
+                  child: Text(
+                    listing.author.login,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: nickColorFromId(listing.author.nickColorId) ??
+                          theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
                 Text('${listing.author.city ?? ''} · ${_relativeTime(strings, listing.createdAt)}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
               ])),
             ]),
@@ -584,23 +605,50 @@ class _ListingsScreenState extends State<ListingsScreen> {
               Wrap(spacing: 6, runSpacing: 6, children: [
                 ActionChip(
                   avatar: const Icon(Icons.rocket_launch, size: 14),
+                  label: Text(strings.isRu ? 'Топ (бесплатно)' : 'Top (free)'),
+                  onPressed: () async {
+                    final ok = await PlusAnalyticsService()
+                        .consumeFreeTopBoost(listing.id);
+                    if (!context.mounted) return;
+                    if (ok) {
+                      MurkotToast.show(
+                        context,
+                        strings.isRu
+                            ? 'Объявление поднято в топ'
+                            : 'Listing boosted to top',
+                      );
+                      await widget.listingsService.refresh();
+                    } else {
+                      await showPaymentSheet(
+                        context,
+                        product: MurkotProduct.boostTop,
+                      );
+                    }
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.rocket_launch, size: 14),
                   label: const Text('Топ 50₽'),
-                  onPressed: () => showPaymentSheet(context, product: MurkotProduct.boostTop),
+                  onPressed: () =>
+                      showPaymentSheet(context, product: MurkotProduct.boostTop),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.push_pin, size: 14),
                   label: const Text('Закреп 150₽'),
-                  onPressed: () => showPaymentSheet(context, product: MurkotProduct.boostPin24),
+                  onPressed: () => showPaymentSheet(
+                      context, product: MurkotProduct.boostPin24),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.color_lens, size: 14),
                   label: const Text('Цвет 99₽'),
-                  onPressed: () => showPaymentSheet(context, product: MurkotProduct.boostHighlight),
+                  onPressed: () => showPaymentSheet(
+                      context, product: MurkotProduct.boostHighlight),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.notifications_active, size: 14),
                   label: const Text('Пуш 999₽'),
-                  onPressed: () => showPaymentSheet(context, product: MurkotProduct.boostPush),
+                  onPressed: () => showPaymentSheet(
+                      context, product: MurkotProduct.boostPush),
                 ),
               ]),
               const SizedBox(height: 16),
@@ -1011,6 +1059,8 @@ class _ListingCard extends StatelessWidget {
                       avatarPath: listing.author.avatarUrl,
                       avatarEmoji: listing.author.avatarEmoji,
                       radius: 18,
+                      frame: listing.author.avatarFrame,
+                      showPlusBadge: listing.author.isPlus,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1022,8 +1072,11 @@ class _ListingCard extends StatelessWidget {
                           onTap: onAuthorTap,
                           child: Text(
                             listing.author.login,
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: nickColorFromId(listing.author.nickColorId) ??
+                                  theme.colorScheme.primary,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1267,6 +1320,7 @@ Future<ListingSheetResult?> showListingEditorSheet({
   required BuildContext context,
   required ListingsService listingsService,
   Listing? existing,
+  int maxActive = 3,
 }) {
   return showModalBottomSheet<ListingSheetResult>(
     context: context,
@@ -1275,6 +1329,7 @@ Future<ListingSheetResult?> showListingEditorSheet({
     builder: (context) => _ListingEditorSheet(
       listingsService: listingsService,
       existing: existing,
+      maxActive: maxActive,
     ),
   );
 }
@@ -1283,10 +1338,12 @@ class _ListingEditorSheet extends StatefulWidget {
   const _ListingEditorSheet({
     required this.listingsService,
     this.existing,
+    this.maxActive = 3,
   });
 
   final ListingsService listingsService;
   final Listing? existing;
+  final int maxActive;
 
   @override
   State<_ListingEditorSheet> createState() => _ListingEditorSheetState();
@@ -1355,6 +1412,7 @@ class _ListingEditorSheetState extends State<_ListingEditorSheet> {
             description: _descriptionController.text.trim(),
             skills: _skills,
             compensation: _compensation,
+            maxActive: widget.maxActive,
           )
         : await widget.listingsService.updateListing(
             id: existing.id,

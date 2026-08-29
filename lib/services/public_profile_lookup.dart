@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_preview.dart';
 
 const _previewColumns =
-    'id, login, status, avatar_emoji, avatar_url, is_bot, city';
+    'id, login, status, avatar_emoji, avatar_url, is_bot, city, avatar_frame, nick_color, is_plus';
 
 /// Loads public cards for listing/project authors when the nested
 /// `author:profiles` embed is empty (guest / anon RLS).

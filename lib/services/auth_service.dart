@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
+import '../models/plus_cosmetics.dart';
 import '../models/user.dart';
 import '../utils/board_tab_bus.dart';
 import '../utils/helpers.dart';
@@ -135,7 +136,8 @@ class AuthService extends ChangeNotifier {
         .select(
           'id, login, status, avatar_url, avatar_emoji, profile_wallpaper_id, '
           'custom_wallpaper_url, birthday, created_at, updated_at, last_seen_at, '
-          'is_bot, dev_status, skills, experience_level, github_url, portfolio_url, city',
+          'is_bot, dev_status, skills, experience_level, github_url, portfolio_url, city, '
+          'avatar_frame, nick_color, is_plus, plus_until',
         )
         .eq('id', userId)
         .maybeSingle();
@@ -586,6 +588,59 @@ class AuthService extends ChangeNotifier {
       debugPrint('updateAvatarEmoji failed: $e');
       return 'Не удалось сохранить аватар';
     }
+  }
+
+  Future<String?> updateAvatarFrame(AvatarFrameId frame) async {
+    final user = _currentUser;
+    if (user == null) return 'Пользователь не авторизован';
+    if (!user.isPlus && frame != AvatarFrameId.none) {
+      return 'Нужна подписка Murkot Plus';
+    }
+    try {
+      await _patchProfile({'avatar_frame': frame.dbValue});
+      _currentUser = user.copyWith(avatarFrame: frame);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('updateAvatarFrame failed: $e');
+      return 'Не удалось сохранить рамку';
+    }
+  }
+
+  Future<String?> updateNickColor(String? colorId) async {
+    final user = _currentUser;
+    if (user == null) return 'Пользователь не авторизован';
+    if (!user.isPlus && colorId != null) {
+      return 'Нужна подписка Murkot Plus';
+    }
+    try {
+      await _patchProfile({'nick_color': colorId});
+      _currentUser = colorId == null
+          ? user.copyWith(clearNickColor: true)
+          : user.copyWith(nickColorId: colorId);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('updateNickColor failed: $e');
+      return 'Не удалось сохранить цвет ника';
+    }
+  }
+
+  Future<void> refreshPlusFromServer() async {
+    final user = _currentUser;
+    if (user == null) return;
+    final row = await _fetchOwnProfileRow(user.id);
+    if (row == null) return;
+    final parsed = User.fromProfileRow(row);
+    _currentUser = user.copyWith(
+      isPlus: parsed.isPlus,
+      plusUntil: parsed.plusUntil,
+      avatarFrame: parsed.avatarFrame,
+      nickColorId: parsed.nickColorId,
+      clearPlusUntil: parsed.plusUntil == null,
+      clearNickColor: parsed.nickColorId == null,
+    );
+    notifyListeners();
   }
 
   Future<String?> updateCustomWallpaperBytes(Uint8List bytes) async {

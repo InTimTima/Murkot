@@ -14,7 +14,7 @@ class ProjectsService extends ChangeNotifier {
   final _client = Supabase.instance.client;
 
   static const _authorSelect =
-      '*, author:profiles!projects_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city)';
+      '*, author:profiles!projects_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city, avatar_frame, nick_color, is_plus)';
 
   List<Project> _projects = const [];
   bool _loading = false;

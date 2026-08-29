@@ -1,3 +1,5 @@
+import 'plus_cosmetics.dart';
+
 class UserPreview {
   const UserPreview({
     required this.id,
@@ -7,6 +9,9 @@ class UserPreview {
     this.avatarUrl,
     this.isBot = false,
     this.city,
+    this.avatarFrame = AvatarFrameId.none,
+    this.nickColorId,
+    this.isPlus = false,
   });
 
   final String id;
@@ -16,6 +21,9 @@ class UserPreview {
   final String? avatarUrl;
   final bool isBot;
   final String? city;
+  final AvatarFrameId avatarFrame;
+  final String? nickColorId;
+  final bool isPlus;
 
   factory UserPreview.fromRow(Map<String, dynamic> row) {
     final cityRaw = row['city'] as String?;
@@ -28,6 +36,9 @@ class UserPreview {
       avatarUrl: row['avatar_url'] as String?,
       isBot: row['is_bot'] as bool? ?? false,
       city: (city == null || city.isEmpty) ? null : city,
+      avatarFrame: AvatarFrameId.fromDb(row['avatar_frame'] as String?),
+      nickColorId: row['nick_color'] as String?,
+      isPlus: row['is_plus'] as bool? ?? false,
     );
   }
 }

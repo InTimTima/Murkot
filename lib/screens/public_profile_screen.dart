@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
+import '../models/plus_cosmetics.dart';
 import '../models/user.dart';
 import '../models/user_preview.dart';
 import '../services/blacklist_service.dart';
 import '../services/chat_service.dart';
+import '../services/plus_analytics_service.dart';
 import '../services/presence_service.dart';
 import '../services/settings_service.dart';
 import '../utils/main_tab_bus.dart';
@@ -77,6 +81,9 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
       _notFound = profile == null;
       _loading = false;
     });
+    if (profile != null && !_isSelf) {
+      unawaited(PlusAnalyticsService().recordView(widget.login));
+    }
   }
 
   Future<void> _copyLink() async {
@@ -103,7 +110,13 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           status: user.status,
           avatarEmoji: user.avatarEmoji,
           avatarUrl: user.avatarPath,
+          avatarFrame: user.avatarFrame,
+          nickColorId: user.nickColorId,
+          isPlus: user.isPlus,
         ),
+      );
+      unawaited(
+        PlusAnalyticsService().recordContactSave(user.login, source: 'chat'),
       );
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -187,6 +200,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           avatarPath: user.avatarPath,
                           avatarEmoji: user.avatarEmoji,
                           radius: 48,
+                          frame: user.avatarFrame,
+                          showPlusBadge: user.isPlus,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -195,6 +210,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         textAlign: TextAlign.center,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: nickColorFromId(user.nickColorId),
                         ),
                       ),
                       if (user.devStatus != DevStatus.none) ...[

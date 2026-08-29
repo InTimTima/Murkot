@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../models/plus_cosmetics.dart';
 import '../models/user.dart';
 import '../models/user_preview.dart';
 import '../services/blacklist_service.dart';
@@ -475,6 +476,8 @@ class _PersonCard extends StatelessWidget {
                     avatarPath: user.avatarPath,
                     avatarEmoji: user.avatarEmoji,
                     radius: 24,
+                    frame: user.avatarFrame,
+                    showPlusBadge: user.isPlus,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -485,6 +488,7 @@ class _PersonCard extends StatelessWidget {
                           user.login,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
+                            color: nickColorFromId(user.nickColorId),
                           ),
                         ),
                         if (city != null && city.isNotEmpty)

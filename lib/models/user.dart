@@ -1,3 +1,5 @@
+import 'plus_cosmetics.dart';
+
 /// Job-search status of a developer on the platform.
 enum DevStatus {
   none('none'),
@@ -52,6 +54,10 @@ class User {
     this.githubUrl,
     this.portfolioUrl,
     this.city,
+    this.avatarFrame = AvatarFrameId.none,
+    this.nickColorId,
+    this.isPlus = false,
+    this.plusUntil,
   });
 
   final String id;
@@ -69,6 +75,10 @@ class User {
   final String? githubUrl;
   final String? portfolioUrl;
   final String? city;
+  final AvatarFrameId avatarFrame;
+  final String? nickColorId;
+  final bool isPlus;
+  final DateTime? plusUntil;
 
   User copyWith({
     String? id,
@@ -86,10 +96,16 @@ class User {
     String? githubUrl,
     String? portfolioUrl,
     String? city,
+    AvatarFrameId? avatarFrame,
+    String? nickColorId,
+    bool? isPlus,
+    DateTime? plusUntil,
     bool clearAvatar = false,
     bool clearCustomWallpaper = false,
     bool clearBirthday = false,
     bool clearExperienceLevel = false,
+    bool clearNickColor = false,
+    bool clearPlusUntil = false,
   }) {
     return User(
       id: id ?? this.id,
@@ -111,6 +127,10 @@ class User {
       githubUrl: githubUrl ?? this.githubUrl,
       portfolioUrl: portfolioUrl ?? this.portfolioUrl,
       city: city ?? this.city,
+      avatarFrame: avatarFrame ?? this.avatarFrame,
+      nickColorId: clearNickColor ? null : (nickColorId ?? this.nickColorId),
+      isPlus: isPlus ?? this.isPlus,
+      plusUntil: clearPlusUntil ? null : (plusUntil ?? this.plusUntil),
     );
   }
 
@@ -130,6 +150,10 @@ class User {
         'githubUrl': githubUrl,
         'portfolioUrl': portfolioUrl,
         'city': city,
+        'avatarFrame': avatarFrame.dbValue,
+        'nickColorId': nickColorId,
+        'isPlus': isPlus,
+        'plusUntil': plusUntil?.toIso8601String(),
       };
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -151,6 +175,12 @@ class User {
       githubUrl: json['githubUrl'] as String?,
       portfolioUrl: json['portfolioUrl'] as String?,
       city: json['city'] as String?,
+      avatarFrame: AvatarFrameId.fromDb(json['avatarFrame'] as String?),
+      nickColorId: json['nickColorId'] as String?,
+      isPlus: json['isPlus'] as bool? ?? false,
+      plusUntil: json['plusUntil'] != null
+          ? DateTime.tryParse(json['plusUntil'] as String)
+          : null,
     );
   }
 
@@ -177,6 +207,12 @@ class User {
       githubUrl: row['github_url'] as String?,
       portfolioUrl: row['portfolio_url'] as String?,
       city: row['city'] as String?,
+      avatarFrame: AvatarFrameId.fromDb(row['avatar_frame'] as String?),
+      nickColorId: row['nick_color'] as String?,
+      isPlus: row['is_plus'] as bool? ?? false,
+      plusUntil: row['plus_until'] != null
+          ? DateTime.tryParse(row['plus_until'] as String)
+          : null,
     );
   }
 
@@ -194,6 +230,8 @@ class User {
         'github_url': _blankToNull(githubUrl),
         'portfolio_url': _blankToNull(portfolioUrl),
         'city': _blankToNull(city),
+        'avatar_frame': avatarFrame.dbValue,
+        'nick_color': nickColorId,
       };
 
   static List<String> _parseSkills(dynamic raw) {

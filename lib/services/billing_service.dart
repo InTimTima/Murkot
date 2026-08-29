@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum MurkotProduct {
   plusMonthly,
@@ -53,9 +54,9 @@ const kMurkotCatalog = <MurkotProductInfo>[
     isSubscription: true,
     icon: Icons.auto_awesome,
     descriptionRu:
-        'Гиф/видео-аватар, рамки и эффекты, цвет ника, 5 бесплатных подъёмов в топ в сутки, до 15 активных объявлений, кто смотрел профиль и сохранял контакты.',
+        'Гиф-аватар, рамки и эффекты, цвет ника, 5 бесплатных подъёмов в топ в сутки, до 15 активных объявлений, кто смотрел профиль и сохранял контакты.',
     descriptionEn:
-        'GIF/video avatar, frames & FX, nick color, 5 free top boosts/day, up to 15 listings, profile viewers & contact saves.',
+        'GIF avatar, frames & FX, nick color, 5 free top boosts/day, up to 15 listings, profile viewers & contact saves.',
   ),
   MurkotProductInfo(
     product: MurkotProduct.boostTop,
@@ -117,18 +118,42 @@ MurkotProductInfo productInfo(MurkotProduct product) =>
     kMurkotCatalog.firstWhere((p) => p.product == product);
 
 class BillingService extends ChangeNotifier {
+  BillingService();
+
+  final _client = Supabase.instance.client;
+
   bool isPlus = false;
   DateTime? plusUntil;
   bool hasHrOffice = false;
-  int boostsTopLeft = 0;
 
-  /// Stub until YooKassa backend verify is wired.
+  void syncFromProfile({required bool plus, DateTime? until, bool hr = false}) {
+    final active = plus && (until == null || until.isAfter(DateTime.now()));
+    if (isPlus == active && plusUntil == until && hasHrOffice == hr) return;
+    isPlus = active;
+    plusUntil = until;
+    hasHrOffice = hr;
+    notifyListeners();
+  }
+
+  /// Stub until YooKassa backend verify is wired. Persists Plus to profile.
   Future<bool> purchase(MurkotProduct product) async {
     debugPrint('billing purchase $product — stub YooKassa');
     await Future<void>.delayed(const Duration(milliseconds: 900));
     if (product == MurkotProduct.plusMonthly) {
+      final until = DateTime.now().add(const Duration(days: 30));
+      try {
+        final uid = _client.auth.currentUser?.id;
+        if (uid != null) {
+          await _client.from('profiles').update({
+            'is_plus': true,
+            'plus_until': until.toUtc().toIso8601String(),
+          }).eq('id', uid);
+        }
+      } catch (e) {
+        debugPrint('persist plus failed: $e');
+      }
       isPlus = true;
-      plusUntil = DateTime.now().add(const Duration(days: 30));
+      plusUntil = until;
       notifyListeners();
       return true;
     }
@@ -148,7 +173,9 @@ class BillingService extends ChangeNotifier {
   bool get canUseFrame => isPlus;
   bool get canUseNickColor => isPlus;
   List<String> get availableFrames =>
-      isPlus ? const ['stars', 'sparkle', 'wave', 'dots', 'citrus', 'drops'] : const [];
+      isPlus
+          ? const ['stars', 'sparkle', 'wave', 'dots', 'citrus', 'drops']
+          : const [];
 }
 
 class HrOfficeService extends ChangeNotifier {

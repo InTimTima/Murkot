@@ -16,7 +16,7 @@ class ListingsService extends ChangeNotifier {
 
   // Disambiguate after hidden_listings created a second listings↔profiles path.
   static const _authorSelect =
-      '*, author:profiles!listings_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city)';
+      '*, author:profiles!listings_author_id_fkey(id, login, status, avatar_emoji, avatar_url, is_bot, city, avatar_frame, nick_color, is_plus)';
 
   List<Listing> _listings = const [];
   final Set<String> _hiddenIds = {};
@@ -375,6 +375,10 @@ class ListingsService extends ChangeNotifier {
     }
   }
 
+  /// Active listings by the current user (for Plus limit checks).
+  int get myActiveCount =>
+      _listings.where((l) => l.authorId == _userId && l.isActive).length;
+
   /// Returns an error message, or null on success.
   Future<String?> createListing({
     required ListingType type,
@@ -382,7 +386,11 @@ class ListingsService extends ChangeNotifier {
     required String description,
     required List<String> skills,
     ListingCompensation? compensation,
+    int maxActive = 3,
   }) async {
+    if (myActiveCount >= maxActive) {
+      return 'Лимит активных объявлений: $maxActive. Оформите Murkot Plus (до 15) или снимите старые.';
+    }
     try {
       await _client.from('listings').insert({
         'author_id': _userId,

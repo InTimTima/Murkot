@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../config/brand_theme.dart';
 import '../models/conversation.dart';
+import '../models/plus_cosmetics.dart';
 import '../utils/helpers.dart';
 
 class AvatarDisplay extends StatelessWidget {
@@ -13,6 +16,8 @@ class AvatarDisplay extends StatelessWidget {
     required this.name,
     this.radius = 26,
     this.fontSize,
+    this.frame = AvatarFrameId.none,
+    this.showPlusBadge = false,
   });
 
   final String? avatarPath;
@@ -20,53 +25,347 @@ class AvatarDisplay extends StatelessWidget {
   final String name;
   final double radius;
   final double? fontSize;
+  final AvatarFrameId frame;
+  final bool showPlusBadge;
+
+  bool get _looksLikeGif {
+    final p = avatarPath?.toLowerCase() ?? '';
+    return p.contains('.gif') || p.contains('image/gif');
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final path = avatarPath;
-    final isNetwork = path != null && (path.startsWith('http://') || path.startsWith('https://'));
+    final isNetwork =
+        path != null && (path.startsWith('http://') || path.startsWith('https://'));
     final hasFile = localPathExists(path);
     final size = radius * 2;
+    final ringPad = frame == AvatarFrameId.none ? 0.0 : math.max(4.0, radius * 0.12);
+    final total = size + ringPad * 2;
 
     Widget? imageWidget;
-    if (isNetwork && path != null) {
-      imageWidget = Image.network(path, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => const SizedBox.shrink());
-    } else if (hasFile && path != null) {
-      imageWidget = Image.file(File(path), width: size, height: size, fit: BoxFit.cover);
-    }
-
-    if (imageWidget != null) {
-      return SizedBox(
+    if (isNetwork) {
+      imageWidget = Image.network(
+        path!,
         width: size,
         height: size,
-        child: ClipOval(child: Container(color: theme.colorScheme.primaryContainer, child: imageWidget)),
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        filterQuality: _looksLikeGif ? FilterQuality.low : FilterQuality.medium,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    } else if (hasFile && path != null) {
+      imageWidget = Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
       );
     }
 
+    final face = imageWidget != null
+        ? SizedBox(
+            width: size,
+            height: size,
+            child: ClipOval(
+              child: Container(
+                color: theme.colorScheme.primaryContainer,
+                child: imageWidget,
+              ),
+            ),
+          )
+        : SizedBox(
+            width: size,
+            height: size,
+            child: ClipOval(
+              child: Container(
+                color: theme.colorScheme.primaryContainer,
+                child: Center(
+                  child: Text(
+                    avatarEmoji ??
+                        (name.isNotEmpty ? name[0].toUpperCase() : '?'),
+                    style: TextStyle(
+                      fontSize: fontSize ?? radius * 0.85,
+                      fontWeight: FontWeight.bold,
+                      color: avatarEmoji != null
+                          ? null
+                          : theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+    Widget body = face;
+    if (frame != AvatarFrameId.none) {
+      body = SizedBox(
+        width: total,
+        height: total,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _AvatarFrameRing(frame: frame, size: total),
+            face,
+          ],
+        ),
+      );
+    }
+
+    if (!showPlusBadge) return body;
+
     return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: Container(
-          color: theme.colorScheme.primaryContainer,
-          child: Center(
-            child: Text(
-              avatarEmoji ?? (name.isNotEmpty ? name[0].toUpperCase() : '?'),
-              style: TextStyle(fontSize: fontSize ?? radius * 0.85, fontWeight: FontWeight.bold, color: avatarEmoji != null ? null : theme.colorScheme.onPrimaryContainer),
+      width: total,
+      height: total,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          body,
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: MurkotColors.orange,
+                shape: BoxShape.circle,
+                border: Border.all(color: theme.colorScheme.surface, width: 2),
+              ),
+              child: const Icon(Icons.star, size: 10, color: Colors.white),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _AvatarFrameRing extends StatefulWidget {
+  const _AvatarFrameRing({required this.frame, required this.size});
+
+  final AvatarFrameId frame;
+  final double size;
+
+  @override
+  State<_AvatarFrameRing> createState() => _AvatarFrameRingState();
+}
+
+class _AvatarFrameRingState extends State<_AvatarFrameRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        return CustomPaint(
+          size: Size.square(widget.size),
+          painter: _FramePainter(
+            frame: widget.frame,
+            t: _ctrl.value,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FramePainter extends CustomPainter {
+  _FramePainter({required this.frame, required this.t});
+
+  final AvatarFrameId frame;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 2;
+
+    switch (frame) {
+      case AvatarFrameId.none:
+        return;
+      case AvatarFrameId.stars:
+        _paintStars(canvas, c, r);
+      case AvatarFrameId.sparkle:
+        _paintSparkle(canvas, c, r);
+      case AvatarFrameId.wave:
+        _paintWave(canvas, c, r);
+      case AvatarFrameId.dots:
+        _paintDots(canvas, c, r);
+      case AvatarFrameId.citrus:
+        _paintCitrus(canvas, c, r);
+      case AvatarFrameId.drops:
+        _paintDrops(canvas, c, r);
+    }
+  }
+
+  void _paintStars(Canvas canvas, Offset c, double r) {
+    final paint = Paint()..color = MurkotColors.yellow;
+    for (var i = 0; i < 8; i++) {
+      final a = t * math.pi * 2 + i * (math.pi * 2 / 8);
+      final p = Offset(c.dx + math.cos(a) * r, c.dy + math.sin(a) * r);
+      _star(canvas, p, 3.2 + (i.isEven ? 1.2 : 0), paint);
+    }
+    canvas.drawCircle(
+      c,
+      r - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..color = MurkotColors.orange.withValues(alpha: 0.85),
+    );
+  }
+
+  void _paintSparkle(Canvas canvas, Offset c, double r) {
+    final shader = SweepGradient(
+      colors: [
+        MurkotColors.yellow,
+        MurkotColors.orange,
+        Colors.white,
+        MurkotColors.deepOrange,
+        MurkotColors.yellow,
+      ],
+      transform: GradientRotation(t * math.pi * 2),
+    ).createShader(Rect.fromCircle(center: c, radius: r));
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..shader = shader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.4,
+    );
+  }
+
+  void _paintWave(Canvas canvas, Offset c, double r) {
+    final path = Path();
+    const waves = 18;
+    for (var i = 0; i <= waves; i++) {
+      final a = i / waves * math.pi * 2;
+      final wobble = math.sin(a * 4 + t * math.pi * 2) * 2.4;
+      final p = Offset(
+        c.dx + math.cos(a) * (r + wobble),
+        c.dy + math.sin(a) * (r + wobble),
+      );
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    path.close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6
+        ..color = const Color(0xFF3B82F6),
+    );
+  }
+
+  void _paintDots(Canvas canvas, Offset c, double r) {
+    final paint = Paint()..color = MurkotColors.deepOrange;
+    for (var i = 0; i < 20; i++) {
+      final a = i / 20 * math.pi * 2 + t * math.pi * 2 * 0.15;
+      final p = Offset(c.dx + math.cos(a) * r, c.dy + math.sin(a) * r);
+      canvas.drawCircle(p, i.isEven ? 2.4 : 1.6, paint);
+    }
+  }
+
+  void _paintCitrus(Canvas canvas, Offset c, double r) {
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.2
+        ..shader = SweepGradient(
+          colors: const [
+            MurkotColors.yellow,
+            MurkotColors.orange,
+            MurkotColors.deepOrange,
+            MurkotColors.yellow,
+          ],
+          transform: GradientRotation(t * math.pi * 2),
+        ).createShader(Rect.fromCircle(center: c, radius: r)),
+    );
+    final leaf = Paint()..color = MurkotColors.leaf;
+    for (var i = 0; i < 3; i++) {
+      final a = t * math.pi * 2 + i * (math.pi * 2 / 3);
+      final p = Offset(c.dx + math.cos(a) * r, c.dy + math.sin(a) * r);
+      canvas.drawOval(
+        Rect.fromCenter(center: p, width: 7, height: 4),
+        leaf,
+      );
+    }
+  }
+
+  void _paintDrops(Canvas canvas, Offset c, double r) {
+    canvas.drawCircle(
+      c,
+      r - 0.5,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.7),
+    );
+    final paint = Paint()..color = const Color(0xFF0EA5E9);
+    for (var i = 0; i < 10; i++) {
+      final a = t * math.pi * 2 + i * (math.pi * 2 / 10);
+      final p = Offset(c.dx + math.cos(a) * r, c.dy + math.sin(a) * r);
+      final path = Path()
+        ..moveTo(p.dx, p.dy - 4)
+        ..quadraticBezierTo(p.dx + 3, p.dy, p.dx, p.dy + 4)
+        ..quadraticBezierTo(p.dx - 3, p.dy, p.dx, p.dy - 4);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  void _star(Canvas canvas, Offset c, double s, Paint paint) {
+    final path = Path();
+    for (var i = 0; i < 5; i++) {
+      final a = -math.pi / 2 + i * (math.pi * 2 / 5);
+      final outer = Offset(c.dx + math.cos(a) * s, c.dy + math.sin(a) * s);
+      final ia = a + math.pi / 5;
+      final inner =
+          Offset(c.dx + math.cos(ia) * s * 0.4, c.dy + math.sin(ia) * s * 0.4);
+      if (i == 0) {
+        path.moveTo(outer.dx, outer.dy);
+      } else {
+        path.lineTo(outer.dx, outer.dy);
+      }
+      path.lineTo(inner.dx, inner.dy);
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FramePainter oldDelegate) =>
+      oldDelegate.t != t || oldDelegate.frame != frame;
 }
 
 String conversationAvatarEmoji(Conversation conversation) {
   return conversation.avatarEmoji ?? pickRandomEmoji(conversation.name.hashCode);
 }
 
-// Re-export for convenience
 String pickRandomEmoji([int? seed]) {
   const emojis = [
     '😀', '🦊', '🐱', '🐶', '🌟', '🎮', '🎨', '🔥',

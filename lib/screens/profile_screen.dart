@@ -14,6 +14,7 @@ import '../utils/admin.dart';
 import '../utils/helpers.dart';
 import '../utils/profile_deep_link.dart';
 import '../services/billing_service.dart';
+import '../models/plus_cosmetics.dart';
 import '../widgets/avatar_display.dart';
 import 'hr_office_screen.dart';
 import '../widgets/confirm_dialogs.dart';
@@ -22,6 +23,7 @@ import '../widgets/dev_status_badge.dart';
 import '../widgets/image_crop_dialog.dart';
 import '../widgets/murkot_toast.dart';
 import '../widgets/payment_sheet.dart';
+import '../widgets/plus_features_panel.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'admin_panel_screen.dart';
 import 'offer_screen.dart';
@@ -51,10 +53,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSavingStatus = false;
   bool _isUpdatingAvatar = false;
 
+  final _billing = BillingService();
+
   @override
   void initState() {
     super.initState();
     _statusController.text = widget.authService.currentUser?.status ?? '';
+    final u = widget.authService.currentUser;
+    if (u != null) {
+      _billing.syncFromProfile(plus: u.isPlus, until: u.plusUntil);
+    }
   }
 
   @override
@@ -72,6 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _showAvatarOptions() async {
     final strings = context.strings;
     final hasAvatar = widget.authService.currentUser?.avatarPath != null;
+    final isPlus =
+        widget.authService.currentUser?.isPlus == true || _billing.isPlus;
 
     final action = await showModalBottomSheet<_AvatarAction>(
       context: context,
@@ -85,6 +95,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(strings.gallery),
               onTap: () => Navigator.pop(context, _AvatarAction.gallery),
             ),
+            if (isPlus)
+              ListTile(
+                leading: const Icon(Icons.gif_box_outlined),
+                title: Text(strings.isRu ? 'Гиф-аватар (Plus)' : 'GIF avatar (Plus)'),
+                subtitle: Text(
+                  strings.isRu ? 'Загрузить анимированный GIF' : 'Upload animated GIF',
+                ),
+                onTap: () => Navigator.pop(context, _AvatarAction.gif),
+              ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
               title: Text(strings.camera),
@@ -113,6 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     switch (action) {
       case _AvatarAction.gallery:
         await _pickAndSaveAvatar(ImageSource.gallery);
+      case _AvatarAction.gif:
+        await _pickAndSaveGifAvatar();
       case _AvatarAction.camera:
         await _pickAndSaveAvatar(ImageSource.camera);
       case _AvatarAction.emoji:
@@ -120,6 +141,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case _AvatarAction.remove:
         await _removeAvatar();
     }
+  }
+
+  Future<void> _pickAndSaveGifAvatar() async {
+    if (!(widget.authService.currentUser?.isPlus == true || _billing.isPlus)) {
+      _showMessage(context.strings.isRu
+          ? 'Гиф-аватар доступен в Murkot Plus'
+          : 'GIF avatar needs Murkot Plus');
+      return;
+    }
+    final file = await _picker.pickImage(source: ImageSource.gallery);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    final name = file.name.toLowerCase();
+    final isGif = name.endsWith('.gif') ||
+        (bytes.length > 6 &&
+            bytes[0] == 0x47 &&
+            bytes[1] == 0x49 &&
+            bytes[2] == 0x46);
+    if (!isGif) {
+      _showMessage(context.strings.isRu
+          ? 'Выбери файл .gif'
+          : 'Please pick a .gif file');
+      return;
+    }
+    setState(() => _isUpdatingAvatar = true);
+    final error = await widget.authService.updateAvatarBytes(bytes);
+    if (!mounted) return;
+    setState(() => _isUpdatingAvatar = false);
+    _showMessage(error ??
+        (context.strings.isRu ? 'Гиф-аватар обновлён' : 'GIF avatar updated'));
   }
 
   Future<void> _pickEmojiAvatar() async {
@@ -282,18 +333,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  final _billing = BillingService();
-
-  Future<void> _buyPlus() async {
-    final ok = await showPaymentSheet(
-      context,
-      product: MurkotProduct.plusMonthly,
-      billing: _billing,
-    );
-    if (!mounted) return;
-    if (ok) setState(() {});
-  }
-
   Future<void> _buyHr() async {
     final ok = await showPaymentSheet(
       context,
@@ -444,6 +483,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]),
       builder: (context, _) {
         final current = widget.authService.currentUser!;
+        _billing.syncFromProfile(plus: current.isPlus, until: current.plusUntil);
         final wallpaper = ProfileWallpaper.byId(current.profileWallpaperId);
         final customPath = current.customWallpaperPath;
         final isNetworkWallpaper = customPath != null &&
@@ -540,6 +580,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   avatarPath: current.avatarPath,
                                   avatarEmoji: current.avatarEmoji,
                                   login: current.login,
+                                  nickColorId: current.nickColorId,
+                                  frame: current.avatarFrame,
+                                  showPlusBadge: current.isPlus || _billing.isPlus,
                                   devStatus: current.devStatus,
                                   isLoading: _isUpdatingAvatar,
                                   hint: strings.changeAvatarHint,
@@ -642,34 +685,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                Card(
-                                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Row(children: [Icon(Icons.auto_awesome, color: theme.colorScheme.primary), const SizedBox(width: 8), Text('Murkot Plus — 399 ₽/мес', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))]),
-                                      const SizedBox(height: 8),
-                                      Text('• Гиф/видео аватар • Рамки, блеск, цитрус • Цвет ника • 5 бустов/сутки • До 15 объявлений • Кто смотрел профиль', style: theme.textTheme.bodySmall),
-                                      const SizedBox(height: 10),
-                                      FilledButton.icon(
-                                        onPressed: _billing.isPlus ? null : _buyPlus,
-                                        icon: Icon(_billing.isPlus ? Icons.check : Icons.star),
-                                        label: Text(_billing.isPlus
-                                            ? 'Активно до ${_billing.plusUntil?.day}.${_billing.plusUntil?.month}'
-                                            : 'Купить Plus'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).push(
-                                          MaterialPageRoute<void>(
-                                            builder: (_) => const OfferScreen(),
-                                          ),
-                                        ),
-                                        child: Text(strings.isRu
-                                            ? 'Оферта и реквизиты'
-                                            : 'Offer & legal'),
-                                      ),
-                                    ]),
+                                PlusFeaturesPanel(
+                                  authService: widget.authService,
+                                  billing: _billing,
+                                  user: current,
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const OfferScreen(),
+                                    ),
                                   ),
+                                  child: Text(strings.isRu
+                                      ? 'Оферта и реквизиты'
+                                      : 'Offer & legal'),
                                 ),
                                 const SizedBox(height: 12),
                                 Card(
@@ -827,7 +857,7 @@ class _ProfileNudge extends StatelessWidget {
   }
 }
 
-enum _AvatarAction { gallery, camera, emoji, remove }
+enum _AvatarAction { gallery, camera, emoji, remove, gif }
 
 /// Emoji available as profile avatars.
 const _kAvatarEmojiChoices = [
@@ -844,6 +874,9 @@ class _AvatarSection extends StatelessWidget {
     required this.avatarPath,
     required this.avatarEmoji,
     required this.login,
+    required this.nickColorId,
+    required this.frame,
+    required this.showPlusBadge,
     required this.devStatus,
     required this.isLoading,
     required this.hint,
@@ -854,6 +887,9 @@ class _AvatarSection extends StatelessWidget {
   final String? avatarPath;
   final String? avatarEmoji;
   final String login;
+  final String? nickColorId;
+  final AvatarFrameId frame;
+  final bool showPlusBadge;
   final DevStatus devStatus;
   final bool isLoading;
   final String hint;
@@ -865,6 +901,7 @@ class _AvatarSection extends StatelessWidget {
     final theme = Theme.of(context);
     final radius =
         (MediaQuery.sizeOf(context).width * 0.36).clamp(110.0, 156.0);
+    final nickColor = nickColorFromId(nickColorId);
 
     return Column(
       children: [
@@ -881,6 +918,8 @@ class _AvatarSection extends StatelessWidget {
                   avatarEmoji: avatarEmoji,
                   name: login,
                   radius: radius,
+                  frame: frame,
+                  showPlusBadge: showPlusBadge,
                 ),
               ),
             ),
@@ -904,8 +943,13 @@ class _AvatarSection extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(login,
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                login,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: nickColor,
+                ),
+              ),
               const SizedBox(width: 4),
               Icon(Icons.edit, size: 16, color: Colors.grey.shade600),
             ],

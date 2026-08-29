@@ -121,7 +121,7 @@ class ChatService extends ChangeNotifier {
             'id, login, status, avatar_url, avatar_emoji, profile_wallpaper_id, '
             'custom_wallpaper_url, birthday, created_at, updated_at, '
             'dev_status, skills, experience_level, github_url, portfolio_url, '
-            'city, is_bot, last_seen_at',
+            'city, is_bot, last_seen_at, avatar_frame, nick_color, is_plus, plus_until',
           )
           .ilike('login', login)
           .maybeSingle();
