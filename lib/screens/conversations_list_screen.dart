@@ -273,14 +273,15 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
             Row(
               children: [
                 Expanded(
+                  flex: 3,
                   child: SectionSearchBar(
                     controller: _searchController,
                     hint: searchHintForSection(strings, _sectionIndex),
                     onChanged: _onQueryChanged,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Expanded(child: AdTicker()),
+                const SizedBox(width: 6),
+                const Flexible(flex: 2, child: AdTicker()),
               ],
             ),
             if (_searchingMessages) const LinearProgressIndicator(minHeight: 2),

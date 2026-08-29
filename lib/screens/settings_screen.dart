@@ -12,6 +12,7 @@ import '../widgets/confirm_dialogs.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'admin_panel_screen.dart';
 import 'moderation_screen.dart';
+import 'offer_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -161,6 +162,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                   ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _SectionTitle(title: strings.isRu ? 'Платежи' : 'Payments'),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.receipt_long_outlined,
+                      color: theme.colorScheme.primary),
+                  title: Text(strings.isRu ? 'Оферта и платежи' : 'Offer & payments'),
+                  subtitle: Text(
+                    strings.isRu
+                        ? 'Цены, доставка, реквизиты (ЮKassa)'
+                        : 'Prices, delivery, legal (YooKassa)',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const OfferScreen(),
+                      ),
+                    );
+                  },
                 ),
               ),
               if (_adminChecked &&

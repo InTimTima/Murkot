@@ -12,6 +12,7 @@ import '../services/feedback_service.dart';
 import '../utils/helpers.dart';
 import '../widgets/avatar_display.dart';
 import '../widgets/confirm_dialogs.dart';
+import '../widgets/murkot_toast.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'media_viewer_screen.dart';
 import 'moderation_screen.dart';
@@ -658,7 +659,7 @@ class _FeedbackSectionState extends State<_FeedbackSection> {
               Row(children: [
                 Expanded(child: OutlinedButton.icon(onPressed: () async { await Supabase.instance.client.from('feedback_letters').delete().eq('id', l.id); if (context.mounted) { Navigator.pop(ctx); _load(); } }, icon: Icon(Icons.delete_outline, size: 16, color: theme.colorScheme.error), label: Text('Удалить', style: TextStyle(color: theme.colorScheme.error)))),
                 const SizedBox(width: 8),
-                Expanded(child: FilledButton.icon(onPressed: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ответ — напиши в ЛС автору'))); }, icon: const Icon(Icons.reply, size: 16), label: const Text('Ответить'))),
+                Expanded(child: FilledButton.icon(onPressed: () { Navigator.pop(ctx); MurkotToast.show(context, 'Ответ — напиши в ЛС автору'); }, icon: const Icon(Icons.reply, size: 16), label: const Text('Ответить'))),
               ]),
             ],
           ),

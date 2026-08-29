@@ -20,8 +20,11 @@ import '../widgets/confirm_dialogs.dart';
 import '../widgets/dev_card.dart';
 import '../widgets/dev_status_badge.dart';
 import '../widgets/image_crop_dialog.dart';
+import '../widgets/murkot_toast.dart';
+import '../widgets/payment_sheet.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 import 'admin_panel_screen.dart';
+import 'offer_screen.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -63,9 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showMessage(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    MurkotToast.show(context, text);
   }
 
   Future<void> _showAvatarOptions() async {
@@ -284,17 +285,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _billing = BillingService();
 
   Future<void> _buyPlus() async {
-    final ok = await _billing.purchase(MurkotProduct.plusMonthly);
+    final ok = await showPaymentSheet(
+      context,
+      product: MurkotProduct.plusMonthly,
+      billing: _billing,
+    );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Murkot Plus активирован!' : 'Оплата зааглушена (stub)')) );
-    setState(() {});
+    if (ok) setState(() {});
   }
 
   Future<void> _buyHr() async {
-    final ok = await _billing.purchase(MurkotProduct.hrOffice);
+    final ok = await showPaymentSheet(
+      context,
+      product: MurkotProduct.hrOffice,
+      billing: _billing,
+    );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Кабинет HR активирован!' : 'Оплата зааглушена')));
-    setState(() {});
+    if (ok) setState(() {});
   }
 
   Future<void> _editDevCard() async {
@@ -644,7 +651,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       const SizedBox(height: 8),
                                       Text('• Гиф/видео аватар • Рамки, блеск, цитрус • Цвет ника • 5 бустов/сутки • До 15 объявлений • Кто смотрел профиль', style: theme.textTheme.bodySmall),
                                       const SizedBox(height: 10),
-                                      FilledButton.icon(onPressed: _billing.isPlus ? null : _buyPlus, icon: Icon(_billing.isPlus ? Icons.check : Icons.star), label: Text(_billing.isPlus ? 'Активно до ${_billing.plusUntil?.day}.${_billing.plusUntil?.month}' : 'Купить Plus')),
+                                      FilledButton.icon(
+                                        onPressed: _billing.isPlus ? null : _buyPlus,
+                                        icon: Icon(_billing.isPlus ? Icons.check : Icons.star),
+                                        label: Text(_billing.isPlus
+                                            ? 'Активно до ${_billing.plusUntil?.day}.${_billing.plusUntil?.month}'
+                                            : 'Купить Plus'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => const OfferScreen(),
+                                          ),
+                                        ),
+                                        child: Text(strings.isRu
+                                            ? 'Оферта и реквизиты'
+                                            : 'Offer & legal'),
+                                      ),
                                     ]),
                                   ),
                                 ),
@@ -655,9 +678,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                       Row(children: [Icon(Icons.business_center, color: theme.colorScheme.primary), const SizedBox(width: 8), Text('Кабинет HR — 24 999 ₽/мес', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))]),
                                       const SizedBox(height: 6),
-                                      Text('Безлимит поиск, бренд-профиль, Smart-подбор ИИ, рассылка до 20 кандитатов', style: theme.textTheme.bodySmall),
+                                      Text('Безлимит поиск, бренд-профиль, Smart-подбор ИИ, рассылка до 20 кандидатов', style: theme.textTheme.bodySmall),
                                       const SizedBox(height: 10),
-                                      OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => HrOfficeScreen(billingService: _billing))), icon: const Icon(Icons.workspace_premium_outlined, size: 18), label: Text('Открыть кабинет')),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          if (!_billing.hasHrOffice)
+                                            FilledButton.tonalIcon(
+                                              onPressed: _buyHr,
+                                              icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+                                              label: Text(strings.isRu ? 'Оплатить' : 'Pay'),
+                                            ),
+                                          OutlinedButton.icon(
+                                            onPressed: () => Navigator.of(context).push(
+                                              MaterialPageRoute<void>(
+                                                builder: (_) => HrOfficeScreen(billingService: _billing),
+                                              ),
+                                            ),
+                                            icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+                                            label: Text(strings.isRu ? 'Открыть кабинет' : 'Open office'),
+                                          ),
+                                        ],
+                                      ),
                                     ]),
                                   ),
                                 ),

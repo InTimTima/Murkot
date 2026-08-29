@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+
+import '../config/brand_theme.dart';
 import '../l10n/app_strings.dart';
+import '../services/billing_service.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 
+/// Public offer + payment disclosure for YooKassa moderation.
 class OfferScreen extends StatelessWidget {
   const OfferScreen({super.key});
 
@@ -9,21 +13,138 @@ class OfferScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isRu = context.strings.isRu;
+
     return Scaffold(
-      appBar: AppBar(leading: const MurkotBackButton(), title: Text(isRu ? 'Оферта и платежи' : 'Terms & Payments')),
+      appBar: AppBar(
+        leading: const MurkotBackButton(),
+        title: Text(isRu ? 'Оферта и платежи' : 'Terms & Payments'),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
         children: [
-          Text(isRu ? 'Платежи на сайте' : 'Payments', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            isRu ? 'Платежи на сайте' : 'Payments on the site',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isRu
+                ? 'Оплата цифровых услуг Murkot проходит через ЮKassa. Ниже — то, что нужно для приёма платежей: товары, доставка, оферта и реквизиты.'
+                : 'Murkot digital services are paid via YooKassa. Below: products, delivery, offer and contacts.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _Section(
+            title: isRu
+                ? 'Настоящие товары или услуги, цены, описания'
+                : 'Real products, prices, descriptions',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isRu
+                      ? 'На сайте размещены именно те услуги, за которые принимается оплата. Информация актуальная, цены фиксированные.'
+                      : 'The site lists the exact services you pay for, with fixed prices.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                for (final p in kMurkotCatalog) ...[
+                  _ProductRow(info: p, isRu: isRu),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+          ),
+          _Section(
+            title: isRu
+                ? 'Способы доставки / получения заказа'
+                : 'Delivery / order fulfillment',
+            child: Text(
+              isRu
+                  ? 'Услуги цифровые. После успешной оплаты доступ активируется мгновенно в аккаунте (подписка Plus / Кабинет HR / буст объявления). Подтверждение приходит на email аккаунта и отображается в профиле. Физическая доставка не требуется.'
+                  : 'Digital goods only. Access activates instantly after payment in your account. Confirmation goes to your account email. No physical shipping.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          _Section(
+            title: isRu
+                ? 'Пользовательское соглашение (публичная оферта)'
+                : 'User agreement (public offer)',
+            child: Text(
+              isRu
+                  ? '''1. Исполнитель: самозанятый «Иванов Иван Иванович» (заглушка), ИНН 123456789012 (заглушка), далее — Murkot.
+2. Заказчик — пользователь, прошедший регистрацию в сервисе Murkot.
+3. Предмет: предоставление доступа к цифровым услугам (подписки, бусты объявлений) согласно выбранному тарифу.
+4. Акцепт оферты — нажатие «Оплатить» и успешная оплата через ЮKassa.
+5. Срок оказания: доступ активируется сразу после подтверждения платежа.
+6. Возврат: в течение 7 календарных дней, если услуга не была оказана по вине исполнителя. Для подписок — пропорциональный возврат неиспользованного периода по обращению в поддержку.
+7. Запрещено: обход ограничений, спам, покупка бустов для запрещённого контента.
+8. Споры решаются путём переговоров, затем по месту регистрации исполнителя.
+
+Полный текст оферты уточняется перед продакшен-запуском платежей; сейчас указаны заглушки реквизитов.'''
+                  : '''1. Provider: self-employed placeholder “Ivanov I.I.”, INN placeholder.
+2. Customer: registered Murkot user.
+3. Subject: digital access (subscriptions, listing boosts).
+4. Acceptance: tapping Pay and completing YooKassa checkout.
+5. Delivery: instant after payment confirmation.
+6. Refunds: within 7 days if the service was not delivered.
+7. Prohibited: spam, abuse, boosting banned content.
+
+Legal placeholders will be replaced before production payments.''',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          _Section(
+            title: isRu ? 'Контакты и реквизиты' : 'Contacts & details',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ContactLine(
+                  icon: Icons.person_outline,
+                  text: isRu
+                      ? 'ФИО: Иванов Иван Иванович (заглушка)'
+                      : 'Full name: Ivanov Ivan Ivanovich (placeholder)',
+                ),
+                _ContactLine(
+                  icon: Icons.badge_outlined,
+                  text: isRu
+                      ? 'ИНН: 123456789012 (заглушка)'
+                      : 'INN: 123456789012 (placeholder)',
+                ),
+                _ContactLine(
+                  icon: Icons.email_outlined,
+                  text: 'Email: support@murkot.space (заглушка)',
+                ),
+                _ContactLine(
+                  icon: Icons.phone_outlined,
+                  text: isRu
+                      ? 'Телефон: +7 (999) 123-45-67 (заглушка)'
+                      : 'Phone: +7 (999) 123-45-67 (placeholder)',
+                ),
+                _ContactLine(
+                  icon: Icons.home_outlined,
+                  text: isRu
+                      ? 'Почтовый адрес: 000000, г. Москва, ул. Примерная, д. 1 (заглушка)'
+                      : 'Postal address: Moscow, Example st. 1 (placeholder)',
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(isRu ? 'Подходит, если вы работаете на своём сайте или через системы записи YClients и DIKIDI. Работаем через ЮKassa.' : 'Via YooKassa.'),
-          const SizedBox(height: 16),
-          _Section(title: isRu ? 'Настоящие товары или услуги, цены, описания' : 'Real goods, prices, descriptions', body: isRu ? 'На сайте размещены именно те товары/услуги, за которые принимается оплата: Murkot Plus 399 ₽/мес, бусты 50/150/99/999 ₽, Кабинет HR 24 999 ₽/мес. Цены фиксированные, описания актуальные. Если без фикс. цены — выставление счёта.' : 'All goods listed with fixed prices.'),
-          _Section(title: isRu ? 'Информацию о способах доставки или получения заказа' : 'Delivery', body: isRu ? 'Доставка — онлайн-доступ к подписке/бусту сразу после оплаты. Письмо на почту и в профиль. Срок активации — мгновенно.' : ' Instant online delivery.'),
-          _Section(title: isRu ? 'Пользовательское соглашение или оферту' : 'User agreement', body: isRu ? 'Нажимая Оплатить, вы соглашаетесь с офертой: исполнитель — Murkot, предоставляет доступ к цифровым услугам. Возврат в течение 7 дней если услуга не оказана. Публичная оферта размещена по этому адресу.' : 'By paying you accept the offer.'),
-          _Section(title: isRu ? 'Контакты и реквизиты' : 'Contacts', body: isRu ? 'Связь: support@murkot.space, +7 (999) 123-45-67, ИНН и ФИО самозанятого — Иванов И.И., ИНН 123456789012.' : 'support@murkot.space'),
-          const SizedBox(height: 16),
-          FilledButton.icon(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.check), label: Text(isRu ? 'Принимаю' : 'Accept')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              backgroundColor: MurkotColors.orange,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.check),
+            label: Text(isRu ? 'Принимаю' : 'Accept'),
+          ),
         ],
       ),
     );
@@ -31,18 +152,99 @@ class OfferScreen extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.body});
-  final String title; final String body;
+  const _Section({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        Text(body, style: theme.textTheme.bodySmall),
-      ])),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductRow extends StatelessWidget {
+  const _ProductRow({required this.info, required this.isRu});
+
+  final MurkotProductInfo info;
+  final bool isRu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(info.icon, size: 18, color: MurkotColors.orange),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${info.title(isRu)} — ${info.priceLabel(isRu)}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                info.description(isRu),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContactLine extends StatelessWidget {
+  const _ContactLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        ],
+      ),
     );
   }
 }

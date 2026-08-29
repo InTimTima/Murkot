@@ -219,6 +219,7 @@ class _BoardScreenState extends State<BoardScreen>
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: TabBar(
                       controller: _tabs,
                       isScrollable: true,
@@ -232,8 +233,8 @@ class _BoardScreenState extends State<BoardScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Expanded(child: AdTicker()),
+                  const SizedBox(width: 6),
+                  const Flexible(flex: 2, child: AdTicker()),
                 ],
               ),
             ],

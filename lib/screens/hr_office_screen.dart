@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_strings.dart';
 import '../services/billing_service.dart';
 import '../services/people_service.dart';
-import '../widgets/avatar_display.dart';
+import '../widgets/payment_sheet.dart';
 import '../widgets/unlumen/murkot_fx.dart';
 
 class HrOfficeScreen extends StatefulWidget {
@@ -112,7 +112,20 @@ class _HrOfficeScreenState extends State<HrOfficeScreen> {
               const SizedBox(height: 8),
               Text(strings.isRu ? 'Безлимит поиск, бренд-профиль, Smart-подбор ИИ, рассылка до 20 кандитатов' : 'Unlimited search, branded profile, AI matching, bulk DM', textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton.icon(onPressed: () async { await (widget.billingService ?? BillingService()).purchase(MurkotProduct.hrOffice); setState(() => _hasAccess = true); }, icon: const Icon(Icons.workspace_premium), label: Text(strings.isRu ? 'Подключить HR' : 'Unlock HR')),
+              FilledButton.icon(
+                onPressed: () async {
+                  final billing = widget.billingService ?? BillingService();
+                  final ok = await showPaymentSheet(
+                    context,
+                    product: MurkotProduct.hrOffice,
+                    billing: billing,
+                  );
+                  if (!mounted) return;
+                  if (ok) setState(() => _hasAccess = true);
+                },
+                icon: const Icon(Icons.workspace_premium),
+                label: Text(strings.isRu ? 'Подключить HR' : 'Unlock HR'),
+              ),
             ]),
           ),
         ),
